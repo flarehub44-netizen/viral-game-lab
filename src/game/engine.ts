@@ -44,6 +44,10 @@ interface Barrier {
   hue: number;
   passed: boolean;
   speed: number; // px/s (positive = moves up)
+  /** True for barriers with very tight gaps — render warning pulse */
+  dangerous: boolean;
+  /** Has the player's near-miss check already fired for this barrier? */
+  nearMissChecked: boolean;
 }
 
 type PowerKind = "shield" | "slowmo" | "magnet";
