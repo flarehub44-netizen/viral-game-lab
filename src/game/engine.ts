@@ -479,7 +479,7 @@ export class GameEngine {
       // When barrier fully scrolled past the band, mark passed and award
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
-        const aliveNow = this.balls.filter((b) => b.alive).length;
+        const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
           if (perfect) this.combo += 1;
