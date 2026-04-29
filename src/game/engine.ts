@@ -387,8 +387,8 @@ export class GameEngine {
       p.y -= pSpeed * dt;
     }
 
-    // Update balls
-    const aliveBefore = this.balls.filter((b) => b.alive).length;
+    // Update balls (array contains only alive balls — pruned each frame)
+    const aliveBefore = this.balls.length;
     for (const b of this.balls) {
       if (!b.alive) continue;
 
