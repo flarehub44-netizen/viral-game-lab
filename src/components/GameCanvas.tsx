@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { GameEngine, type PublicGameStats } from "@/game/engine";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, Menu } from "lucide-react";
 
 interface Props {
   onGameOver: (stats: PublicGameStats) => void;
@@ -9,28 +9,53 @@ interface Props {
 }
 
 const TUTORIAL_KEY = "ns_tutorial_seen";
+const BEST_KEY = "ns_best";
+const MENU_HOLD_MS = 600;
+
+const initialStats: PublicGameStats = {
+  score: 0,
+  multiplier: 1,
+  maxMultiplier: 1,
+  alive: 1,
+  state: "ready",
+  durationSeconds: 0,
+  combo: 0,
+  comboMultiplier: 1,
+  comboBar: 0,
+  countdown: null,
+};
+
+/** Pick a hue for the combo bar based on current multiplier tier. */
+function comboBarHue(mult: number): number {
+  if (mult >= 6) return 60; // white-yellow
+  if (mult >= 3) return 55; // yellow
+  if (mult >= 2) return 320; // magenta
+  if (mult >= 1.5) return 180; // cyan
+  return 200;
+}
 
 export const GameCanvas = ({ onGameOver, onExit }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const [stats, setStats] = useState<PublicGameStats>({
-    score: 0,
-    multiplier: 1,
-    maxMultiplier: 1,
-    alive: 1,
-    state: "ready",
-    durationSeconds: 0,
-    combo: 0,
-    comboMultiplier: 1,
-  });
+  const [stats, setStats] = useState<PublicGameStats>(initialStats);
   const [muted, setMutedState] = useState(isMuted());
+
+  // Tutorial: show every time best score is still low
   const [showTutorial, setShowTutorial] = useState(() => {
     try {
-      return localStorage.getItem(TUTORIAL_KEY) !== "1";
+      const seen = localStorage.getItem(TUTORIAL_KEY) === "1";
+      const best = Number(localStorage.getItem(BEST_KEY) || 0);
+      // Always show first time; show short version for low-skill returners
+      return !seen || best < 50;
     } catch {
       return true;
     }
   });
+
+  // Long-press menu state
+  const menuHoldRef = useRef<number | null>(null);
+  const menuStartRef = useRef<number>(0);
+  const [menuHoldProgress, setMenuHoldProgress] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -43,28 +68,33 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     const onResize = () => engine.handleResize();
     window.addEventListener("resize", onResize);
 
-    // Auto-start
+    // Auto-pause when tab/window loses focus
+    const onVisibility = () => {
+      if (document.hidden) engine.pause();
+    };
+    const onBlur = () => engine.pause();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", onBlur);
+
     unlockAudio();
     engine.start();
-    if (!showTutorial) {
-      // nothing else
-    } else {
-      // Hide tutorial after 4s
-      const t = setTimeout(() => {
+
+    // Hide tutorial overlay after 4s (or 2s for short version)
+    const t = setTimeout(
+      () => {
         setShowTutorial(false);
         try {
           localStorage.setItem(TUTORIAL_KEY, "1");
         } catch {}
-      }, 4000);
-      return () => {
-        clearTimeout(t);
-        window.removeEventListener("resize", onResize);
-        engine.stop();
-      };
-    }
+      },
+      4000,
+    );
 
     return () => {
+      clearTimeout(t);
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
       engine.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,8 +103,15 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
   const handleTap = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     unlockAudio();
-    engineRef.current?.tap();
-  }, []);
+    const eng = engineRef.current;
+    if (!eng) return;
+    // If paused, a tap resumes the game (don't also fire a split)
+    if (stats.state === "paused") {
+      eng.resume();
+      return;
+    }
+    eng.tap();
+  }, [stats.state]);
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,11 +120,36 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     setMutedState(next);
   };
 
-  const handleExit = (e: React.MouseEvent) => {
+  // Long-press menu button: hold 600ms to exit (prevents accidental thumb taps)
+  const startMenuHold = (e: React.PointerEvent) => {
     e.stopPropagation();
-    engineRef.current?.stop();
-    onExit();
+    e.preventDefault();
+    menuStartRef.current = performance.now();
+    setMenuHoldProgress(0);
+    const tick = () => {
+      const elapsed = performance.now() - menuStartRef.current;
+      const p = Math.min(1, elapsed / MENU_HOLD_MS);
+      setMenuHoldProgress(p);
+      if (p >= 1) {
+        cancelMenuHold();
+        engineRef.current?.stop();
+        onExit();
+        return;
+      }
+      menuHoldRef.current = requestAnimationFrame(tick);
+    };
+    menuHoldRef.current = requestAnimationFrame(tick);
   };
+  const cancelMenuHold = () => {
+    if (menuHoldRef.current != null) cancelAnimationFrame(menuHoldRef.current);
+    menuHoldRef.current = null;
+    setMenuHoldProgress(0);
+  };
+
+  const barHue = comboBarHue(stats.comboMultiplier);
+  const showComboBar = stats.comboBar > 0.02;
+  const isCountdown = stats.state === "countdown";
+  const isPaused = stats.state === "paused";
 
   return (
     <div
@@ -104,10 +166,21 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
       <div className="absolute top-0 left-0 right-0 p-4 flex items-start justify-between pointer-events-none">
         <div className="pointer-events-auto">
           <button
-            onClick={handleExit}
-            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md bg-card/60 backdrop-blur border border-border"
+            onPointerDown={startMenuHold}
+            onPointerUp={cancelMenuHold}
+            onPointerLeave={cancelMenuHold}
+            onPointerCancel={cancelMenuHold}
+            className="relative p-2 rounded-md bg-card/60 backdrop-blur border border-border text-muted-foreground hover:text-foreground overflow-hidden"
+            aria-label="Segure para voltar ao menu"
+            title="Segure para sair"
           >
-            ← Menu
+            <Menu size={16} />
+            {menuHoldProgress > 0 && (
+              <span
+                className="absolute inset-0 bg-destructive/40 origin-left"
+                style={{ transform: `scaleX(${menuHoldProgress})` }}
+              />
+            )}
           </button>
         </div>
         <div className="text-center">
@@ -115,12 +188,28 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
             {stats.score.toLocaleString()}
           </div>
           {stats.comboMultiplier > 1 ? (
-            <div className="mt-1 text-xs font-bold uppercase tracking-widest text-glow-magenta animate-pulse">
+            <div
+              className="mt-1 text-xs font-bold uppercase tracking-widest animate-pulse"
+              style={{ color: `hsl(${barHue}, 100%, 70%)` }}
+            >
               Combo ×{stats.comboMultiplier}
             </div>
           ) : (
             <div className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">
               Score
+            </div>
+          )}
+          {/* Combo bar */}
+          {showComboBar && (
+            <div className="mt-2 mx-auto w-32 h-1.5 rounded-full bg-card/40 border border-border overflow-hidden">
+              <div
+                className="h-full rounded-full transition-[width] duration-100"
+                style={{
+                  width: `${stats.comboBar * 100}%`,
+                  background: `linear-gradient(90deg, hsl(${barHue}, 100%, 60%), hsl(${barHue}, 100%, 80%))`,
+                  boxShadow: `0 0 8px hsl(${barHue}, 100%, 60%)`,
+                }}
+              />
             </div>
           )}
         </div>
@@ -143,13 +232,35 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         </div>
       </div>
 
-      {/* Tutorial overlay */}
-      {showTutorial && (
+      {/* Countdown overlay */}
+      {isCountdown && stats.countdown != null && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div
+            key={stats.countdown}
+            className="text-9xl font-black text-glow-cyan tabular-nums float-up"
+          >
+            {stats.countdown === 0 ? "GO!" : stats.countdown}
+          </div>
+        </div>
+      )}
+
+      {/* Pause overlay */}
+      {isPaused && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none">
+          <div className="text-5xl font-black text-glow-magenta">PAUSADO</div>
+          <div className="mt-3 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            Toque para continuar
+          </div>
+        </div>
+      )}
+
+      {/* Tutorial overlay (only during countdown / first seconds) */}
+      {showTutorial && !isPaused && (
+        <div className="absolute inset-x-0 bottom-24 flex items-center justify-center pointer-events-none">
           <div className="text-center px-6 py-4 rounded-2xl bg-background/40 backdrop-blur-sm border border-primary/30 float-up">
-            <div className="text-4xl mb-2 pulse-glow">👆</div>
-            <div className="text-lg font-bold text-glow-cyan">TOQUE PARA DIVIDIR</div>
-            <div className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+            <div className="text-3xl mb-2 pulse-glow">👆</div>
+            <div className="text-base font-bold text-glow-cyan">TOQUE PARA DIVIDIR</div>
+            <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
               Mais bolinhas = mais pontos
             </div>
           </div>

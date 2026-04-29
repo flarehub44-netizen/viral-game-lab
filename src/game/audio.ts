@@ -83,3 +83,12 @@ export const sfx = {
 export function unlockAudio() {
   ensureCtx();
 }
+
+/** Haptic feedback. Respects the mute toggle (one switch = full silent mode). */
+export function haptic(pattern: number | number[]) {
+  if (isMuted()) return;
+  if (typeof navigator === "undefined" || !navigator.vibrate) return;
+  try {
+    navigator.vibrate(pattern);
+  } catch {}
+}

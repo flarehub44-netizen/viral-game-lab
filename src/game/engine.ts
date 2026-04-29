@@ -1,4 +1,4 @@
-import { sfx } from "./audio";
+import { sfx, haptic } from "./audio";
 
 // ============================================================================
 // Neon Split — Game Engine
@@ -7,7 +7,7 @@ import { sfx } from "./audio";
 // pass through gaps in horizontal barriers that scroll up toward them.
 // ----------------------------------------------------------------------------
 
-export type GameState = "ready" | "playing" | "over";
+export type GameState = "ready" | "countdown" | "playing" | "paused" | "over";
 
 export interface PublicGameStats {
   score: number;
@@ -18,6 +18,10 @@ export interface PublicGameStats {
   durationSeconds: number;
   combo: number;
   comboMultiplier: number;
+  /** 0..1 — current combo bar fill (drains over time, refills on perfect pass) */
+  comboBar: number;
+  /** Countdown number to display (3,2,1) when state === "countdown", else null */
+  countdown: number | null;
 }
 
 interface Ball {
@@ -40,6 +44,10 @@ interface Barrier {
   hue: number;
   passed: boolean;
   speed: number; // px/s (positive = moves up)
+  /** True for barriers with very tight gaps — render warning pulse */
+  dangerous: boolean;
+  /** Has the player's near-miss check already fired for this barrier? */
+  nearMissChecked: boolean;
 }
 
 type PowerKind = "shield" | "slowmo" | "magnet";
@@ -114,10 +122,25 @@ export class GameEngine {
   // Combo system: consecutive perfect passes
   private combo = 0;
   private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
+  /** 0..1 combo bar — fills on perfect pass, drains over time */
+  private comboBar = 0;
+  private static readonly COMBO_DRAIN_PER_SEC = 0.33; // ~3s to drain from full
+
+  // Frame counter (stable trail throttling, not tied to timestep)
+  private frameCount = 0;
+
+  // Countdown before play
+  private countdownEndsAt = 0; // performance.now() ms
+  private static readonly COUNTDOWN_MS = 3000;
+
+  // Pause: time spent paused, used to keep startTs honest for elapsed
+  private pausedAt = 0;
 
   // Pre-rendered ball sprites (one per hue) — eliminates shadowBlur in hot loop
   private ballSprites = new Map<number, HTMLCanvasElement>();
   private static readonly SPRITE_R = 32; // sprite radius in px (drawn scaled)
+  /** Effective sprite resolution (scales with DPR for crispness on Retina) */
+  private spriteScale = 1;
 
   private cb: EngineCallbacks;
 
@@ -131,8 +154,13 @@ export class GameEngine {
 
   /** Pre-render glowing ball sprites to offscreen canvases (one per hue). */
   private buildSprites() {
-    const R = GameEngine.SPRITE_R;
+    // Render sprites at 2x on HiDPI displays so drawImage scaling stays crisp.
+    const scale = (window.devicePixelRatio || 1) >= 2 ? 2 : 1;
+    if (scale === this.spriteScale && this.ballSprites.size > 0) return;
+    this.spriteScale = scale;
+    const R = GameEngine.SPRITE_R * scale;
     const size = R * 2;
+    this.ballSprites.clear();
     for (const hue of HUES) {
       const off = document.createElement("canvas");
       off.width = size;
@@ -159,14 +187,41 @@ export class GameEngine {
   // ---------------- public API ----------------
   start() {
     this.reset();
-    this.state = "playing";
-    this.startTs = performance.now();
-    this.lastTs = this.startTs;
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
     this.powerupTimer = 4;
+    // Begin with a 3-2-1 countdown that freezes spawn/collisions/score time
+    this.state = "countdown";
+    const now = performance.now();
+    this.countdownEndsAt = now + GameEngine.COUNTDOWN_MS;
+    this.startTs = this.countdownEndsAt; // elapsed only counts after GO
+    this.lastTs = now;
     this.emitStats();
-    this.loop(this.lastTs);
+    this.loop(now);
+  }
+
+  /** Pause the game (no-op if not playing). Keeps RAF running for render. */
+  pause() {
+    if (this.state !== "playing") return;
+    this.state = "paused";
+    this.pausedAt = performance.now();
+    this.emitStats();
+  }
+
+  /** Resume from pause. Adjusts time-based timers so they don't fire instantly. */
+  resume() {
+    if (this.state !== "paused") return;
+    const now = performance.now();
+    const delta = now - this.pausedAt;
+    // Shift all absolute-time deadlines forward by the pause duration
+    this.slowMoUntil += delta;
+    this.magnetUntil += delta;
+    this.shakeUntil += delta;
+    this.flashUntil += delta;
+    this.graceUntil += delta;
+    this.lastTs = now;
+    this.state = "playing";
+    this.emitStats();
   }
 
   stop() {
@@ -182,6 +237,7 @@ export class GameEngine {
     if (alive.length === 0) return;
     if (alive.length >= 128) return; // safety cap (lower = stable on long runs)
     sfx.split();
+    haptic(8); // light tactile pulse to give the tap "weight"
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
     this.graceUntil = ts + 90;
@@ -220,6 +276,8 @@ export class GameEngine {
     // Set defaults that don't change every frame
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
+    // Rebuild sprites if DPR changed (e.g. window dragged between monitors)
+    this.buildSprites();
   }
 
   // ---------------- internal ----------------
@@ -239,7 +297,10 @@ export class GameEngine {
     this.shakeUntil = 0;
     this.flashUntil = 0;
     this.combo = 0;
+    this.comboBar = 0;
     this.graceUntil = 0;
+    this.frameCount = 0;
+    this.pausedAt = 0;
   }
 
   private spawnInitialBall() {
@@ -306,6 +367,10 @@ export class GameEngine {
       gaps.push({ start: c2 - w / 2, end: Math.min(1, c2 + w / 2) });
     }
     const hue = HUES[Math.floor(Math.random() * HUES.length)];
+    // Total gap width — shrinks with difficulty + multi-gap. Below threshold,
+    // we flag as "dangerous" so render layer pulses a warning color.
+    const totalGap = gaps.reduce((s, g) => s + (g.end - g.start), 0);
+    const dangerous = totalGap < 0.18 || (gapCount === 2 && diff > 0.45);
     this.barriers.push({
       y: this.height + 20,
       height,
@@ -313,6 +378,8 @@ export class GameEngine {
       hue,
       passed: false,
       speed,
+      dangerous,
+      nearMissChecked: false,
     });
   }
 
@@ -345,7 +412,33 @@ export class GameEngine {
   }
 
   private loop = (ts: number) => {
-    if (this.state !== "playing") return;
+    // Keep RAF alive in countdown/paused/playing — only stop on over/ready
+    if (this.state === "over" || this.state === "ready") return;
+    this.frameCount++;
+
+    if (this.state === "countdown") {
+      // Render-only: show overlay number, no game advance
+      this.lastTs = ts;
+      this.render(ts);
+      // Throttle stats so the React countdown number updates ~10Hz
+      this.maybeEmitStats();
+      if (ts >= this.countdownEndsAt) {
+        this.state = "playing";
+        this.startTs = ts;
+        this.emitStats();
+      }
+      this.rafId = requestAnimationFrame(this.loop);
+      return;
+    }
+
+    if (this.state === "paused") {
+      // Freeze: keep last frame on screen, don't advance time
+      this.lastTs = ts;
+      this.render(ts);
+      this.rafId = requestAnimationFrame(this.loop);
+      return;
+    }
+
     const rawDt = (ts - this.lastTs) / 1000;
     this.lastTs = ts;
     const slow = ts < this.slowMoUntil;
@@ -431,9 +524,9 @@ export class GameEngine {
         b.vx = -Math.abs(b.vx) * 0.6;
       }
 
-      // Update trail
-      // Lightweight trail (only every other frame, max 4 points)
-      if ((this.elapsedMs | 0) % 2 === 0) {
+      // Lightweight trail (every other frame, max 4 points). Frame counter is
+      // FPS-independent so trail spacing stays even on slow devices.
+      if (this.frameCount % 2 === 0) {
         b.trail.push({ x: b.x, y: b.y, a: 1 });
         if (b.trail.length > 4) b.trail.shift();
         for (const t of b.trail) t.a *= 0.78;
@@ -463,6 +556,7 @@ export class GameEngine {
             } else {
               b.alive = false;
               sfx.hit();
+              haptic(40); // strong tactile feedback on death
               this.spawnParticles(b.x, b.y, b.hue, 24);
               this.shakeUntil = ts + 240;
               this.shakeIntensity = 7;
@@ -471,6 +565,30 @@ export class GameEngine {
                 this.addFloatText(b.x, b.y - 20, "COMBO X", 0, 16);
               }
               this.combo = 0;
+              this.comboBar = 0;
+            }
+          } else if (!bar.nearMissChecked) {
+            // Near-miss: ball passed through gap but very close to an edge.
+            // Check distance from ball edge to nearest gap boundary in px.
+            const px = b.x;
+            let minEdgeDist = Infinity;
+            for (const g of bar.gaps) {
+              if (nx >= g.start && nx <= g.end) {
+                const left = g.start * this.width;
+                const right = g.end * this.width;
+                const d = Math.min(px - left, right - px);
+                if (d < minEdgeDist) minEdgeDist = d;
+              }
+            }
+            // Only count as near-miss if within 6px of the edge (very tight)
+            if (minEdgeDist >= 0 && minEdgeDist < 6) {
+              const cm = this.comboMultiplier();
+              const bonus = 5 * cm;
+              this.score += bonus;
+              this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
+              haptic(15);
+              this.flashUntil = Math.max(this.flashUntil, ts + 80);
+              bar.nearMissChecked = true; // one near-miss bonus per barrier
             }
           }
         }
@@ -482,7 +600,13 @@ export class GameEngine {
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
-          if (perfect) this.combo += 1;
+          if (perfect) {
+            this.combo += 1;
+            // Refill combo bar — fully on perfect, partial on plain pass
+            this.comboBar = Math.min(1, this.comboBar + 0.35);
+          } else {
+            this.comboBar = Math.min(1, this.comboBar + 0.12);
+          }
           const comboMult = this.comboMultiplier();
           // Quadratic-ish reward: more balls = exponentially more pts
           const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
@@ -507,6 +631,13 @@ export class GameEngine {
       }
     }
 
+    // Drain combo bar over time (~3s to empty from full)
+    this.comboBar = Math.max(0, this.comboBar - GameEngine.COMBO_DRAIN_PER_SEC * dt);
+    if (this.comboBar === 0 && this.combo > 0) {
+      // Bar fully empty → reset combo silently
+      this.combo = 0;
+    }
+
     // Collisions: ball vs powerup
     for (const p of this.powerups) {
       if (p.collected) continue;
@@ -517,6 +648,7 @@ export class GameEngine {
         if (dx * dx + dy * dy < (b.radius + 14) ** 2) {
           p.collected = true;
           sfx.powerup();
+          haptic(20);
           if (p.kind === "shield") {
             for (const bb of this.balls) if (bb.alive) bb.shielded = true;
           } else if (p.kind === "slowmo") {
@@ -579,6 +711,11 @@ export class GameEngine {
 
   private snapshot(): PublicGameStats {
     const alive = this.balls.length;
+    let countdown: number | null = null;
+    if (this.state === "countdown") {
+      const remaining = Math.max(0, this.countdownEndsAt - performance.now());
+      countdown = Math.ceil(remaining / 1000);
+    }
     return {
       score: this.score,
       multiplier: alive,
@@ -588,6 +725,8 @@ export class GameEngine {
       durationSeconds: Math.floor(this.elapsedMs / 1000),
       combo: this.combo,
       comboMultiplier: this.comboMultiplier(),
+      comboBar: this.comboBar,
+      countdown,
     };
   }
 
@@ -654,8 +793,9 @@ export class GameEngine {
     }
 
     // Barriers
+    const playerY = H * 0.4;
     for (const bar of this.barriers) {
-      this.drawBarrier(c, bar, W);
+      this.drawBarrier(c, bar, W, ts, playerY);
     }
 
     // Powerups
@@ -726,7 +866,13 @@ export class GameEngine {
     c.restore();
   }
 
-  private drawBarrier(c: CanvasRenderingContext2D, bar: Barrier, W: number) {
+  private drawBarrier(
+    c: CanvasRenderingContext2D,
+    bar: Barrier,
+    W: number,
+    ts: number,
+    playerY: number,
+  ) {
     const top = bar.y;
     let cursor = 0;
     const segments: [number, number][] = [];
@@ -737,12 +883,27 @@ export class GameEngine {
     }
     if (cursor < 1) segments.push([cursor, 1]);
 
+    // Warning pulse for dangerous barriers approaching the player band.
+    // Active in a window of ~120px before reaching the player line.
+    const distToPlayer = top - playerY;
+    const inWarnWindow = bar.dangerous && distToPlayer > 0 && distToPlayer < 140;
+    let hue = bar.hue;
+    let highlightHue = bar.hue;
+    if (inWarnWindow) {
+      // Pulse hue toward red and add a 1px halo above/below the bar
+      const pulse = 0.5 + 0.5 * Math.sin(ts / 60);
+      hue = 0; // red
+      highlightHue = 0;
+      c.fillStyle = `hsla(0, 100%, 60%, ${0.18 + pulse * 0.22})`;
+      c.fillRect(0, top - 6, W, bar.height + 12);
+    }
+
     // Solid color bar (no shadowBlur, no per-segment gradient — much faster)
-    c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
+    c.fillStyle = `hsl(${hue}, 100%, ${inWarnWindow ? 60 : 55}%)`;
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, bar.height);
     }
-    c.fillStyle = `hsla(${bar.hue}, 100%, 92%, 0.9)`;
+    c.fillStyle = `hsla(${highlightHue}, 100%, 92%, 0.9)`;
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, 1.5);
     }
