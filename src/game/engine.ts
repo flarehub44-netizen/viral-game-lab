@@ -99,6 +99,7 @@ export class GameEngine {
   private lastTs = 0;
   private startTs = 0;
   private elapsedMs = 0;
+  private lastEmitTs = 0; // throttle stats updates to React
 
   private spawnTimer = 0;
   private nextSpawnIn = 0;
@@ -114,13 +115,45 @@ export class GameEngine {
   private combo = 0;
   private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
 
+  // Pre-rendered ball sprites (one per hue) — eliminates shadowBlur in hot loop
+  private ballSprites = new Map<number, HTMLCanvasElement>();
+  private static readonly SPRITE_R = 32; // sprite radius in px (drawn scaled)
+
   private cb: EngineCallbacks;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
+    this.buildSprites();
     this.handleResize();
+  }
+
+  /** Pre-render glowing ball sprites to offscreen canvases (one per hue). */
+  private buildSprites() {
+    const R = GameEngine.SPRITE_R;
+    const size = R * 2;
+    for (const hue of HUES) {
+      const off = document.createElement("canvas");
+      off.width = size;
+      off.height = size;
+      const oc = off.getContext("2d")!;
+      // Outer soft glow
+      const glow = oc.createRadialGradient(R, R, 1, R, R, R);
+      glow.addColorStop(0, `hsla(${hue}, 100%, 75%, 1)`);
+      glow.addColorStop(0.35, `hsla(${hue}, 100%, 60%, 0.7)`);
+      glow.addColorStop(0.7, `hsla(${hue}, 100%, 50%, 0.18)`);
+      glow.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+      oc.fillStyle = glow;
+      oc.fillRect(0, 0, size, size);
+      // Bright core
+      const core = oc.createRadialGradient(R, R, 0, R, R, R * 0.5);
+      core.addColorStop(0, `hsl(${hue}, 100%, 95%)`);
+      core.addColorStop(1, `hsla(${hue}, 100%, 65%, 0)`);
+      oc.fillStyle = core;
+      oc.fillRect(0, 0, size, size);
+      this.ballSprites.set(hue, off);
+    }
   }
 
   // ---------------- public API ----------------
@@ -174,7 +207,8 @@ export class GameEngine {
   }
 
   handleResize() {
-    const dpr = window.devicePixelRatio || 1;
+    // Cap DPR at 2 — render @ 3x is wasted on high-end mobiles for our visuals
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = dpr;
     this.width = rect.width;
@@ -182,6 +216,9 @@ export class GameEngine {
     this.canvas.width = Math.floor(rect.width * dpr);
     this.canvas.height = Math.floor(rect.height * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Set defaults that don't change every frame
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
   }
 
   // ---------------- internal ----------------
@@ -394,9 +431,12 @@ export class GameEngine {
       }
 
       // Update trail
-      b.trail.push({ x: b.x, y: b.y, a: 1 });
-      if (b.trail.length > 8) b.trail.shift();
-      for (const t of b.trail) t.a *= 0.85;
+      // Lightweight trail (only every other frame, max 4 points)
+      if ((this.elapsedMs | 0) % 2 === 0) {
+        b.trail.push({ x: b.x, y: b.y, a: 1 });
+        if (b.trail.length > 4) b.trail.shift();
+        for (const t of b.trail) t.a *= 0.78;
+      }
     }
 
     // Collisions: ball vs barrier
@@ -523,7 +563,7 @@ export class GameEngine {
       return;
     }
 
-    this.emitStats();
+    this.maybeEmitStats();
   }
 
   private snapshot(): PublicGameStats {
@@ -540,7 +580,16 @@ export class GameEngine {
     };
   }
 
+  /** Throttled emit (~10 Hz) so React doesn't re-render every frame. */
+  private maybeEmitStats() {
+    const now = performance.now();
+    if (now - this.lastEmitTs < 100) return;
+    this.lastEmitTs = now;
+    this.cb.onStatsChange(this.snapshot());
+  }
+
   private emitStats() {
+    this.lastEmitTs = performance.now();
     this.cb.onStatsChange(this.snapshot());
   }
 
@@ -579,15 +628,13 @@ export class GameEngine {
       c.stroke();
     }
 
-    // Player band marker (subtle)
+    // Player band marker (subtle) — solid line is much cheaper than dashed
     const bandY = H * 0.4;
-    c.strokeStyle = "hsla(180, 100%, 60%, 0.08)";
-    c.setLineDash([6, 8]);
+    c.strokeStyle = "hsla(180, 100%, 60%, 0.06)";
     c.beginPath();
     c.moveTo(0, bandY);
     c.lineTo(W, bandY);
     c.stroke();
-    c.setLineDash([]);
 
     // Slowmo overlay tint
     if (ts < this.slowMoUntil) {
@@ -606,40 +653,33 @@ export class GameEngine {
       this.drawPowerup(c, p, ts);
     }
 
-    // Particles
+    // Particles + balls + floats use additive blending for cheap "glow"
+    c.globalCompositeOperation = "lighter";
+
+    // Particles (no shadowBlur — additive blend gives the glow look)
     for (const p of this.particles) {
       const a = 1 - p.life / p.maxLife;
-      c.fillStyle = `hsla(${p.hue}, 100%, 60%, ${a})`;
-      c.shadowBlur = 12;
-      c.shadowColor = `hsl(${p.hue}, 100%, 60%)`;
+      c.fillStyle = `hsla(${p.hue}, 100%, 65%, ${a * 0.9})`;
       c.beginPath();
       c.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
       c.fill();
     }
-    c.shadowBlur = 0;
 
-    // Balls
+    // Balls — drawImage from cached sprites (no per-frame gradient, no shadow)
     for (const b of this.balls) {
       if (!b.alive) continue;
-      // Trail
-      for (const t of b.trail) {
-        c.fillStyle = `hsla(${b.hue}, 100%, 65%, ${t.a * 0.3})`;
-        c.beginPath();
-        c.arc(t.x, t.y, b.radius * 0.7, 0, Math.PI * 2);
-        c.fill();
+      const sprite = this.ballSprites.get(b.hue) ?? this.ballSprites.values().next().value!;
+      // Trail (simpler: fewer ops)
+      for (let i = 0; i < b.trail.length; i++) {
+        const t = b.trail[i];
+        const tr = b.radius * (0.55 + i * 0.05);
+        const drawSize = tr * 4;
+        c.globalAlpha = t.a * 0.35;
+        c.drawImage(sprite, t.x - drawSize / 2, t.y - drawSize / 2, drawSize, drawSize);
       }
-      // Glow
-      c.shadowBlur = 24;
-      c.shadowColor = `hsl(${b.hue}, 100%, 60%)`;
-      const grad = c.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.radius);
-      grad.addColorStop(0, `hsl(${b.hue}, 100%, 92%)`);
-      grad.addColorStop(0.6, `hsl(${b.hue}, 100%, 65%)`);
-      grad.addColorStop(1, `hsl(${b.hue}, 100%, 50%)`);
-      c.fillStyle = grad;
-      c.beginPath();
-      c.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-      c.fill();
-      c.shadowBlur = 0;
+      c.globalAlpha = 1;
+      const drawSize = b.radius * 4; // sprite is glow-padded — render at 4x radius
+      c.drawImage(sprite, b.x - drawSize / 2, b.y - drawSize / 2, drawSize, drawSize);
       // Shield ring
       if (b.shielded) {
         c.strokeStyle = "hsla(180, 100%, 80%, 0.9)";
@@ -650,22 +690,20 @@ export class GameEngine {
       }
     }
 
-    // Floating texts (above balls so they pop)
+    c.globalCompositeOperation = "source-over";
+
+    // Floating texts (above balls)
     for (const f of this.floatTexts) {
       const t = f.life / f.maxLife;
       const a = 1 - t;
       const scale = 1 + (1 - a) * 0.3;
-      c.save();
       c.font = `bold ${Math.floor(f.size * scale)}px Inter, system-ui`;
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.shadowBlur = 14;
-      c.shadowColor = `hsl(${f.hue}, 100%, 60%)`;
       c.fillStyle = `hsla(${f.hue}, 100%, ${85 - t * 20}%, ${a})`;
       c.fillText(f.text, f.x, f.y);
-      c.restore();
     }
-    c.shadowBlur = 0;
+
+    // (floating texts already drawn above)
+
 
     // Flash overlay (perfect pass)
     if (ts < this.flashUntil) {
@@ -688,29 +726,20 @@ export class GameEngine {
     }
     if (cursor < 1) segments.push([cursor, 1]);
 
-    c.shadowBlur = 16;
-    c.shadowColor = `hsl(${bar.hue}, 100%, 60%)`;
+    // Solid color bar (no shadowBlur, no per-segment gradient — much faster)
+    c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
     for (const [s, e] of segments) {
-      const x = s * W;
-      const w = (e - s) * W;
-      const grad = c.createLinearGradient(0, top, 0, top + bar.height);
-      grad.addColorStop(0, `hsl(${bar.hue}, 100%, 70%)`);
-      grad.addColorStop(0.5, `hsl(${bar.hue}, 100%, 55%)`);
-      grad.addColorStop(1, `hsl(${bar.hue}, 100%, 40%)`);
-      c.fillStyle = grad;
-      c.fillRect(x, top, w, bar.height);
-      // Bright top edge
-      c.fillStyle = `hsla(${bar.hue}, 100%, 90%, 0.9)`;
-      c.fillRect(x, top, w, 1.5);
+      c.fillRect(s * W, top, (e - s) * W, bar.height);
     }
-    c.shadowBlur = 0;
+    c.fillStyle = `hsla(${bar.hue}, 100%, 92%, 0.9)`;
+    for (const [s, e] of segments) {
+      c.fillRect(s * W, top, (e - s) * W, 1.5);
+    }
   }
 
   private drawPowerup(c: CanvasRenderingContext2D, p: PowerUp, ts: number) {
     const hue = p.kind === "shield" ? 180 : p.kind === "slowmo" ? 270 : 55;
     const r = 14 + Math.sin(ts / 200) * 2;
-    c.shadowBlur = 20;
-    c.shadowColor = `hsl(${hue}, 100%, 60%)`;
     c.strokeStyle = `hsl(${hue}, 100%, 70%)`;
     c.lineWidth = 2.5;
     c.beginPath();
@@ -718,10 +747,7 @@ export class GameEngine {
     c.stroke();
     c.fillStyle = `hsla(${hue}, 100%, 90%, 0.95)`;
     c.font = "bold 14px Inter, system-ui";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
     const letter = p.kind === "shield" ? "S" : p.kind === "slowmo" ? "T" : "M";
     c.fillText(letter, p.x, p.y + 1);
-    c.shadowBlur = 0;
   }
 }
