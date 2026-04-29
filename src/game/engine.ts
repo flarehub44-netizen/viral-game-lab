@@ -367,6 +367,10 @@ export class GameEngine {
       gaps.push({ start: c2 - w / 2, end: Math.min(1, c2 + w / 2) });
     }
     const hue = HUES[Math.floor(Math.random() * HUES.length)];
+    // Total gap width — shrinks with difficulty + multi-gap. Below threshold,
+    // we flag as "dangerous" so render layer pulses a warning color.
+    const totalGap = gaps.reduce((s, g) => s + (g.end - g.start), 0);
+    const dangerous = totalGap < 0.18 || (gapCount === 2 && diff > 0.45);
     this.barriers.push({
       y: this.height + 20,
       height,
@@ -374,6 +378,8 @@ export class GameEngine {
       hue,
       passed: false,
       speed,
+      dangerous,
+      nearMissChecked: false,
     });
   }
 
