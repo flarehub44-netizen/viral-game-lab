@@ -1,0 +1,1 @@
+drop policy if exists "Anyone can insert scores" on public.scores;
