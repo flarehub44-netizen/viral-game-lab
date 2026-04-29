@@ -556,6 +556,7 @@ export class GameEngine {
             } else {
               b.alive = false;
               sfx.hit();
+              haptic(40); // strong tactile feedback on death
               this.spawnParticles(b.x, b.y, b.hue, 24);
               this.shakeUntil = ts + 240;
               this.shakeIntensity = 7;
@@ -564,6 +565,30 @@ export class GameEngine {
                 this.addFloatText(b.x, b.y - 20, "COMBO X", 0, 16);
               }
               this.combo = 0;
+              this.comboBar = 0;
+            }
+          } else if (!bar.nearMissChecked) {
+            // Near-miss: ball passed through gap but very close to an edge.
+            // Check distance from ball edge to nearest gap boundary in px.
+            const px = b.x;
+            let minEdgeDist = Infinity;
+            for (const g of bar.gaps) {
+              if (nx >= g.start && nx <= g.end) {
+                const left = g.start * this.width;
+                const right = g.end * this.width;
+                const d = Math.min(px - left, right - px);
+                if (d < minEdgeDist) minEdgeDist = d;
+              }
+            }
+            // Only count as near-miss if within 6px of the edge (very tight)
+            if (minEdgeDist >= 0 && minEdgeDist < 6) {
+              const cm = this.comboMultiplier();
+              const bonus = 5 * cm;
+              this.score += bonus;
+              this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
+              haptic(15);
+              this.flashUntil = Math.max(this.flashUntil, ts + 80);
+              bar.nearMissChecked = true; // one near-miss bonus per barrier
             }
           }
         }
