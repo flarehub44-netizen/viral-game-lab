@@ -7,7 +7,7 @@ import { sfx, haptic } from "./audio";
 // pass through gaps in horizontal barriers that scroll up toward them.
 // ----------------------------------------------------------------------------
 
-export type GameState = "ready" | "playing" | "over";
+export type GameState = "ready" | "countdown" | "playing" | "paused" | "over";
 
 export interface PublicGameStats {
   score: number;
@@ -18,6 +18,10 @@ export interface PublicGameStats {
   durationSeconds: number;
   combo: number;
   comboMultiplier: number;
+  /** 0..1 — current combo bar fill (drains over time, refills on perfect pass) */
+  comboBar: number;
+  /** Countdown number to display (3,2,1) when state === "countdown", else null */
+  countdown: number | null;
 }
 
 interface Ball {
