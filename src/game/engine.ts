@@ -702,22 +702,8 @@ export class GameEngine {
       c.fillText(f.text, f.x, f.y);
     }
 
-    // Floating texts (above balls so they pop)
-    for (const f of this.floatTexts) {
-      const t = f.life / f.maxLife;
-      const a = 1 - t;
-      const scale = 1 + (1 - a) * 0.3;
-      c.save();
-      c.font = `bold ${Math.floor(f.size * scale)}px Inter, system-ui`;
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.shadowBlur = 14;
-      c.shadowColor = `hsl(${f.hue}, 100%, 60%)`;
-      c.fillStyle = `hsla(${f.hue}, 100%, ${85 - t * 20}%, ${a})`;
-      c.fillText(f.text, f.x, f.y);
-      c.restore();
-    }
-    c.shadowBlur = 0;
+    // (floating texts already drawn above)
+
 
     // Flash overlay (perfect pass)
     if (ts < this.flashUntil) {
