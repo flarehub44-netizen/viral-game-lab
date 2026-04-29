@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       !Number.isFinite(maxMult) ||
       !Number.isFinite(duration) ||
       score < 0 ||
-      score > 10_000_000 ||
+      score > 1_000_000_000 ||
       maxMult < 1 ||
       maxMult > 4096 ||
       duration < 0 ||
