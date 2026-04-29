@@ -237,6 +237,7 @@ export class GameEngine {
     if (alive.length === 0) return;
     if (alive.length >= 128) return; // safety cap (lower = stable on long runs)
     sfx.split();
+    haptic(8); // light tactile pulse to give the tap "weight"
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
     this.graceUntil = ts + 90;
@@ -275,6 +276,8 @@ export class GameEngine {
     // Set defaults that don't change every frame
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
+    // Rebuild sprites if DPR changed (e.g. window dragged between monitors)
+    this.buildSprites();
   }
 
   // ---------------- internal ----------------
@@ -294,7 +297,10 @@ export class GameEngine {
     this.shakeUntil = 0;
     this.flashUntil = 0;
     this.combo = 0;
+    this.comboBar = 0;
     this.graceUntil = 0;
+    this.frameCount = 0;
+    this.pausedAt = 0;
   }
 
   private spawnInitialBall() {
