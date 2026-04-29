@@ -20,6 +20,8 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     alive: 1,
     state: "ready",
     durationSeconds: 0,
+    combo: 0,
+    comboMultiplier: 1,
   });
   const [muted, setMutedState] = useState(isMuted());
   const [showTutorial, setShowTutorial] = useState(() => {
