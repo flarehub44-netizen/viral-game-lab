@@ -331,11 +331,11 @@ export class GameEngine {
       this.spawnBarrier();
     }
 
-    // Spawn powerups occasionally
+    // Spawn powerups occasionally — more frequent
     this.powerupTimer -= dt;
     if (this.powerupTimer <= 0) {
       this.spawnPowerup();
-      this.powerupTimer = 7 + Math.random() * 6;
+      this.powerupTimer = 4 + Math.random() * 4;
     }
 
     // Update barriers
@@ -414,33 +414,53 @@ export class GameEngine {
             (g) => nx >= g.start + 0.005 && nx <= g.end - 0.005,
           );
           if (!inGap) {
+            // Tap grace: brief invuln right after splitting
+            if (ts < this.graceUntil) continue;
             if (b.shielded) {
               b.shielded = false;
               this.spawnParticles(b.x, b.y, b.hue, 10);
             } else {
               b.alive = false;
               sfx.hit();
-              this.spawnParticles(b.x, b.y, b.hue, 22);
-              this.shakeUntil = ts + 220;
-              this.shakeIntensity = 6;
+              this.spawnParticles(b.x, b.y, b.hue, 24);
+              this.shakeUntil = ts + 240;
+              this.shakeIntensity = 7;
+              // Reset combo on any loss
+              if (this.combo > 5) {
+                this.addFloatText(b.x, b.y - 20, "COMBO X", 0, 16);
+              }
+              this.combo = 0;
             }
           }
         }
       }
 
-      // When barrier fully scrolled past the band of balls, mark passed and award
+      // When barrier fully scrolled past the band, mark passed and award
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
         const aliveNow = this.balls.filter((b) => b.alive).length;
         if (aliveNow > 0) {
-          const gained = aliveNow; // 1 point per alive ball
+          const perfect = aliveNow === aliveBefore;
+          if (perfect) this.combo += 1;
+          const comboMult = this.comboMultiplier();
+          // Quadratic-ish reward: more balls = exponentially more pts
+          const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
+          const gained = Math.max(1, Math.floor(base * comboMult));
           this.score += gained;
           sfx.pass(aliveNow);
-          // Perfect pass bonus if no losses on this barrier (all still alive)
-          if (aliveNow === aliveBefore && aliveNow >= 4) {
-            this.score += aliveNow; // double
+
+          // Floating "+points" text near barrier
+          const cx = this.width / 2;
+          const cy = this.height * 0.4 - 10;
+          const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
+          this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
+
+          if (perfect && aliveNow >= 4) {
             sfx.perfect();
-            this.flashUntil = ts + 120;
+            this.flashUntil = ts + 140;
+            if (this.combo >= 3 && this.combo % 3 === 0) {
+              this.addFloatText(cx, cy - 30, `COMBO ×${comboMult}`, 320, 20);
+            }
           }
         }
       }
