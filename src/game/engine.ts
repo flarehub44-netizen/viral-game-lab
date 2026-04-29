@@ -648,6 +648,7 @@ export class GameEngine {
         if (dx * dx + dy * dy < (b.radius + 14) ** 2) {
           p.collected = true;
           sfx.powerup();
+          haptic(20);
           if (p.kind === "shield") {
             for (const bb of this.balls) if (bb.alive) bb.shielded = true;
           } else if (p.kind === "slowmo") {
@@ -710,6 +711,11 @@ export class GameEngine {
 
   private snapshot(): PublicGameStats {
     const alive = this.balls.length;
+    let countdown: number | null = null;
+    if (this.state === "countdown") {
+      const remaining = Math.max(0, this.countdownEndsAt - performance.now());
+      countdown = Math.ceil(remaining / 1000);
+    }
     return {
       score: this.score,
       multiplier: alive,
@@ -719,6 +725,8 @@ export class GameEngine {
       durationSeconds: Math.floor(this.elapsedMs / 1000),
       combo: this.combo,
       comboMultiplier: this.comboMultiplier(),
+      comboBar: this.comboBar,
+      countdown,
     };
   }
 
