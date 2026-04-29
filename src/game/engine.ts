@@ -16,6 +16,8 @@ export interface PublicGameStats {
   alive: number;
   state: GameState;
   durationSeconds: number;
+  combo: number;
+  comboMultiplier: number;
 }
 
 interface Ball {
@@ -59,6 +61,17 @@ interface Particle {
   size: number;
 }
 
+interface FloatText {
+  x: number;
+  y: number;
+  text: string;
+  hue: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  vy: number;
+}
+
 const HUES = [180, 320, 55, 140, 270, 25];
 
 interface EngineCallbacks {
@@ -77,6 +90,7 @@ export class GameEngine {
   private barriers: Barrier[] = [];
   private powerups: PowerUp[] = [];
   private particles: Particle[] = [];
+  private floatTexts: FloatText[] = [];
 
   private score = 0;
   private maxMultiplier = 1;
@@ -95,6 +109,10 @@ export class GameEngine {
   private shakeUntil = 0;
   private shakeIntensity = 0;
   private flashUntil = 0;
+
+  // Combo system: consecutive perfect passes
+  private combo = 0;
+  private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
 
   private cb: EngineCallbacks;
 
