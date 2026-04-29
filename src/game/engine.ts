@@ -191,6 +191,7 @@ export class GameEngine {
     this.barriers = [];
     this.powerups = [];
     this.particles = [];
+    this.floatTexts = [];
     this.score = 0;
     this.maxMultiplier = 1;
     this.elapsedMs = 0;
@@ -199,6 +200,8 @@ export class GameEngine {
     this.magnetUntil = 0;
     this.shakeUntil = 0;
     this.flashUntil = 0;
+    this.combo = 0;
+    this.graceUntil = 0;
   }
 
   private spawnInitialBall() {
@@ -216,9 +219,33 @@ export class GameEngine {
   }
 
   private currentDifficulty() {
-    // 0..1 grows with time, capped
+    // 0..1 grows with time, capped — faster ramp for more tension
     const t = this.elapsedMs / 1000;
-    return Math.min(1, t / 90);
+    return Math.min(1, t / 60);
+  }
+
+  private comboMultiplier() {
+    // 1x, then 1.5x, 2x, 3x, 4x... capped at 8x
+    if (this.combo < 3) return 1;
+    if (this.combo < 6) return 1.5;
+    if (this.combo < 10) return 2;
+    if (this.combo < 16) return 3;
+    if (this.combo < 24) return 4;
+    if (this.combo < 35) return 6;
+    return 8;
+  }
+
+  private addFloatText(x: number, y: number, text: string, hue: number, size = 22) {
+    this.floatTexts.push({
+      x,
+      y,
+      text,
+      hue,
+      life: 0,
+      maxLife: 0.9,
+      size,
+      vy: -60,
+    });
   }
 
   private spawnBarrier() {
