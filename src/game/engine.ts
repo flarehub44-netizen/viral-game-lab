@@ -793,8 +793,9 @@ export class GameEngine {
     }
 
     // Barriers
+    const playerY = H * 0.4;
     for (const bar of this.barriers) {
-      this.drawBarrier(c, bar, W);
+      this.drawBarrier(c, bar, W, ts, playerY);
     }
 
     // Powerups
@@ -865,7 +866,13 @@ export class GameEngine {
     c.restore();
   }
 
-  private drawBarrier(c: CanvasRenderingContext2D, bar: Barrier, W: number) {
+  private drawBarrier(
+    c: CanvasRenderingContext2D,
+    bar: Barrier,
+    W: number,
+    ts: number,
+    playerY: number,
+  ) {
     const top = bar.y;
     let cursor = 0;
     const segments: [number, number][] = [];
@@ -876,12 +883,27 @@ export class GameEngine {
     }
     if (cursor < 1) segments.push([cursor, 1]);
 
+    // Warning pulse for dangerous barriers approaching the player band.
+    // Active in a window of ~120px before reaching the player line.
+    const distToPlayer = top - playerY;
+    const inWarnWindow = bar.dangerous && distToPlayer > 0 && distToPlayer < 140;
+    let hue = bar.hue;
+    let highlightHue = bar.hue;
+    if (inWarnWindow) {
+      // Pulse hue toward red and add a 1px halo above/below the bar
+      const pulse = 0.5 + 0.5 * Math.sin(ts / 60);
+      hue = 0; // red
+      highlightHue = 0;
+      c.fillStyle = `hsla(0, 100%, 60%, ${0.18 + pulse * 0.22})`;
+      c.fillRect(0, top - 6, W, bar.height + 12);
+    }
+
     // Solid color bar (no shadowBlur, no per-segment gradient — much faster)
-    c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
+    c.fillStyle = `hsl(${hue}, 100%, ${inWarnWindow ? 60 : 55}%)`;
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, bar.height);
     }
-    c.fillStyle = `hsla(${bar.hue}, 100%, 92%, 0.9)`;
+    c.fillStyle = `hsla(${highlightHue}, 100%, 92%, 0.9)`;
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, 1.5);
     }
