@@ -529,11 +529,15 @@ export class GameEngine {
       }
     }
 
-    // Cleanup off-screen
+    // Cleanup off-screen + prune dead balls (prevents unbounded growth)
     this.barriers = this.barriers.filter((b) => b.y + b.height > -20);
+    // Hard caps on barriers to defend against pathological frame drops
+    if (this.barriers.length > 60) this.barriers.length = 60;
     this.powerups = this.powerups.filter((p) => !p.collected && p.y > -30);
+    const hadBalls = this.balls.length > 0;
+    this.balls = this.balls.filter((b) => b.alive);
 
-    // Particles
+    // Particles (capped)
     for (const p of this.particles) {
       p.life += dt;
       p.x += p.vx * dt;
@@ -542,21 +546,27 @@ export class GameEngine {
       p.vy *= 0.96;
     }
     this.particles = this.particles.filter((p) => p.life < p.maxLife);
+    if (this.particles.length > 240) {
+      this.particles.splice(0, this.particles.length - 240);
+    }
 
-    // Floating texts
+    // Floating texts (capped)
     for (const f of this.floatTexts) {
       f.life += dt;
       f.y += f.vy * dt;
       f.vy *= 0.94;
     }
     this.floatTexts = this.floatTexts.filter((f) => f.life < f.maxLife);
+    if (this.floatTexts.length > 24) {
+      this.floatTexts.splice(0, this.floatTexts.length - 24);
+    }
 
     // Track multiplier
-    const aliveAfter = this.balls.filter((b) => b.alive).length;
+    const aliveAfter = this.balls.length;
     if (aliveAfter > this.maxMultiplier) this.maxMultiplier = aliveAfter;
 
     // Game over
-    if (aliveAfter === 0 && this.balls.length > 0) {
+    if (aliveAfter === 0 && hadBalls) {
       this.state = "over";
       sfx.gameOver();
       const stats = this.snapshot();
