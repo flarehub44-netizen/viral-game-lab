@@ -177,9 +177,10 @@ export class GameEngine {
   /** User tapped — split all alive balls in two */
   tap() {
     if (this.state !== "playing") return;
-    const alive = this.balls.filter((b) => b.alive);
+    // balls array only contains alive balls (dead are pruned each frame)
+    const alive = this.balls;
     if (alive.length === 0) return;
-    if (alive.length >= 256) return; // safety cap
+    if (alive.length >= 128) return; // safety cap (lower = stable on long runs)
     sfx.split();
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
@@ -256,9 +257,9 @@ export class GameEngine {
   }
 
   private currentDifficulty() {
-    // 0..1 grows with time, capped — faster ramp for more tension
+    // 0..1 grows with time, capped. Slower ramp so 10min sessions stay playable.
     const t = this.elapsedMs / 1000;
-    return Math.min(1, t / 60);
+    return Math.min(0.92, t / 120);
   }
 
   private comboMultiplier() {
@@ -386,8 +387,8 @@ export class GameEngine {
       p.y -= pSpeed * dt;
     }
 
-    // Update balls
-    const aliveBefore = this.balls.filter((b) => b.alive).length;
+    // Update balls (array contains only alive balls — pruned each frame)
+    const aliveBefore = this.balls.length;
     for (const b of this.balls) {
       if (!b.alive) continue;
 
@@ -478,7 +479,7 @@ export class GameEngine {
       // When barrier fully scrolled past the band, mark passed and award
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
-        const aliveNow = this.balls.filter((b) => b.alive).length;
+        const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
           if (perfect) this.combo += 1;
@@ -528,11 +529,15 @@ export class GameEngine {
       }
     }
 
-    // Cleanup off-screen
+    // Cleanup off-screen + prune dead balls (prevents unbounded growth)
     this.barriers = this.barriers.filter((b) => b.y + b.height > -20);
+    // Hard caps on barriers to defend against pathological frame drops
+    if (this.barriers.length > 60) this.barriers.length = 60;
     this.powerups = this.powerups.filter((p) => !p.collected && p.y > -30);
+    const hadBalls = this.balls.length > 0;
+    this.balls = this.balls.filter((b) => b.alive);
 
-    // Particles
+    // Particles (capped)
     for (const p of this.particles) {
       p.life += dt;
       p.x += p.vx * dt;
@@ -541,21 +546,27 @@ export class GameEngine {
       p.vy *= 0.96;
     }
     this.particles = this.particles.filter((p) => p.life < p.maxLife);
+    if (this.particles.length > 240) {
+      this.particles.splice(0, this.particles.length - 240);
+    }
 
-    // Floating texts
+    // Floating texts (capped)
     for (const f of this.floatTexts) {
       f.life += dt;
       f.y += f.vy * dt;
       f.vy *= 0.94;
     }
     this.floatTexts = this.floatTexts.filter((f) => f.life < f.maxLife);
+    if (this.floatTexts.length > 24) {
+      this.floatTexts.splice(0, this.floatTexts.length - 24);
+    }
 
     // Track multiplier
-    const aliveAfter = this.balls.filter((b) => b.alive).length;
+    const aliveAfter = this.balls.length;
     if (aliveAfter > this.maxMultiplier) this.maxMultiplier = aliveAfter;
 
     // Game over
-    if (aliveAfter === 0 && this.balls.length > 0) {
+    if (aliveAfter === 0 && hadBalls) {
       this.state = "over";
       sfx.gameOver();
       const stats = this.snapshot();
@@ -567,7 +578,7 @@ export class GameEngine {
   }
 
   private snapshot(): PublicGameStats {
-    const alive = this.balls.filter((b) => b.alive).length;
+    const alive = this.balls.length;
     return {
       score: this.score,
       multiplier: alive,
