@@ -431,9 +431,12 @@ export class GameEngine {
       }
 
       // Update trail
-      b.trail.push({ x: b.x, y: b.y, a: 1 });
-      if (b.trail.length > 8) b.trail.shift();
-      for (const t of b.trail) t.a *= 0.85;
+      // Lightweight trail (only every other frame, max 4 points)
+      if ((this.elapsedMs | 0) % 2 === 0) {
+        b.trail.push({ x: b.x, y: b.y, a: 1 });
+        if (b.trail.length > 4) b.trail.shift();
+        for (const t of b.trail) t.a *= 0.78;
+      }
     }
 
     // Collisions: ball vs barrier
