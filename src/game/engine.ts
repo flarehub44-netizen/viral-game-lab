@@ -1,4 +1,4 @@
-import { sfx } from "./audio";
+import { sfx, haptic } from "./audio";
 
 // ============================================================================
 // Neon Split — Game Engine
