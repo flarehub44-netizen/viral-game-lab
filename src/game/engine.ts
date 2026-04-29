@@ -578,7 +578,7 @@ export class GameEngine {
   }
 
   private snapshot(): PublicGameStats {
-    const alive = this.balls.filter((b) => b.alive).length;
+    const alive = this.balls.length;
     return {
       score: this.score,
       multiplier: alive,
