@@ -122,10 +122,25 @@ export class GameEngine {
   // Combo system: consecutive perfect passes
   private combo = 0;
   private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
+  /** 0..1 combo bar — fills on perfect pass, drains over time */
+  private comboBar = 0;
+  private static readonly COMBO_DRAIN_PER_SEC = 0.33; // ~3s to drain from full
+
+  // Frame counter (stable trail throttling, not tied to timestep)
+  private frameCount = 0;
+
+  // Countdown before play
+  private countdownEndsAt = 0; // performance.now() ms
+  private static readonly COUNTDOWN_MS = 3000;
+
+  // Pause: time spent paused, used to keep startTs honest for elapsed
+  private pausedAt = 0;
 
   // Pre-rendered ball sprites (one per hue) — eliminates shadowBlur in hot loop
   private ballSprites = new Map<number, HTMLCanvasElement>();
   private static readonly SPRITE_R = 32; // sprite radius in px (drawn scaled)
+  /** Effective sprite resolution (scales with DPR for crispness on Retina) */
+  private spriteScale = 1;
 
   private cb: EngineCallbacks;
 
