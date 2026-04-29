@@ -146,24 +146,28 @@ export class GameEngine {
     if (this.state !== "playing") return;
     const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
+    if (alive.length >= 256) return; // safety cap
     sfx.split();
+    const ts = performance.now();
+    // Brief grace window so a tap doesn't insta-kill mid-barrier
+    this.graceUntil = ts + 90;
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), HUES.length - 1)];
     for (const b of alive) {
-      // Convert one ball into two — push outward symmetrically
-      const spread = 80 + Math.random() * 30;
+      // Push outward symmetrically — wider spread feels more impactful
+      const spread = 110 + Math.random() * 40;
       const newBall: Ball = {
         x: b.x,
         y: b.y,
         vx: spread,
         vy: b.vy,
-        radius: Math.max(6, b.radius * 0.95),
+        radius: Math.max(8, b.radius * 0.97),
         hue,
         alive: true,
         shielded: false,
         trail: [],
       };
       b.vx = -spread;
-      b.radius = Math.max(6, b.radius * 0.95);
+      b.radius = Math.max(8, b.radius * 0.97);
       b.hue = hue;
       this.balls.push(newBall);
     }
