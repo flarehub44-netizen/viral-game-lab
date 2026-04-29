@@ -412,7 +412,33 @@ export class GameEngine {
   }
 
   private loop = (ts: number) => {
-    if (this.state !== "playing") return;
+    // Keep RAF alive in countdown/paused/playing — only stop on over/ready
+    if (this.state === "over" || this.state === "ready") return;
+    this.frameCount++;
+
+    if (this.state === "countdown") {
+      // Render-only: show overlay number, no game advance
+      this.lastTs = ts;
+      this.render(ts);
+      // Throttle stats so the React countdown number updates ~10Hz
+      this.maybeEmitStats();
+      if (ts >= this.countdownEndsAt) {
+        this.state = "playing";
+        this.startTs = ts;
+        this.emitStats();
+      }
+      this.rafId = requestAnimationFrame(this.loop);
+      return;
+    }
+
+    if (this.state === "paused") {
+      // Freeze: keep last frame on screen, don't advance time
+      this.lastTs = ts;
+      this.render(ts);
+      this.rafId = requestAnimationFrame(this.loop);
+      return;
+    }
+
     const rawDt = (ts - this.lastTs) / 1000;
     this.lastTs = ts;
     const slow = ts < this.slowMoUntil;
