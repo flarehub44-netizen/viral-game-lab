@@ -502,6 +502,14 @@ export class GameEngine {
     }
     this.particles = this.particles.filter((p) => p.life < p.maxLife);
 
+    // Floating texts
+    for (const f of this.floatTexts) {
+      f.life += dt;
+      f.y += f.vy * dt;
+      f.vy *= 0.94;
+    }
+    this.floatTexts = this.floatTexts.filter((f) => f.life < f.maxLife);
+
     // Track multiplier
     const aliveAfter = this.balls.filter((b) => b.alive).length;
     if (aliveAfter > this.maxMultiplier) this.maxMultiplier = aliveAfter;
@@ -527,6 +535,8 @@ export class GameEngine {
       alive,
       state: this.state,
       durationSeconds: Math.floor(this.elapsedMs / 1000),
+      combo: this.combo,
+      comboMultiplier: this.comboMultiplier(),
     };
   }
 
