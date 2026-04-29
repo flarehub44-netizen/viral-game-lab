@@ -20,6 +20,8 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     alive: 1,
     state: "ready",
     durationSeconds: 0,
+    combo: 0,
+    comboMultiplier: 1,
   });
   const [muted, setMutedState] = useState(isMuted());
   const [showTutorial, setShowTutorial] = useState(() => {
@@ -112,9 +114,15 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
           <div className="text-5xl font-bold text-glow-cyan tabular-nums leading-none">
             {stats.score.toLocaleString()}
           </div>
-          <div className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">
-            Score
-          </div>
+          {stats.comboMultiplier > 1 ? (
+            <div className="mt-1 text-xs font-bold uppercase tracking-widest text-glow-magenta animate-pulse">
+              Combo ×{stats.comboMultiplier}
+            </div>
+          ) : (
+            <div className="mt-1 text-xs uppercase tracking-widest text-muted-foreground">
+              Score
+            </div>
+          )}
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           <button

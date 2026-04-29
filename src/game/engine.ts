@@ -16,6 +16,8 @@ export interface PublicGameStats {
   alive: number;
   state: GameState;
   durationSeconds: number;
+  combo: number;
+  comboMultiplier: number;
 }
 
 interface Ball {
@@ -59,6 +61,17 @@ interface Particle {
   size: number;
 }
 
+interface FloatText {
+  x: number;
+  y: number;
+  text: string;
+  hue: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  vy: number;
+}
+
 const HUES = [180, 320, 55, 140, 270, 25];
 
 interface EngineCallbacks {
@@ -77,6 +90,7 @@ export class GameEngine {
   private barriers: Barrier[] = [];
   private powerups: PowerUp[] = [];
   private particles: Particle[] = [];
+  private floatTexts: FloatText[] = [];
 
   private score = 0;
   private maxMultiplier = 1;
@@ -96,6 +110,10 @@ export class GameEngine {
   private shakeIntensity = 0;
   private flashUntil = 0;
 
+  // Combo system: consecutive perfect passes
+  private combo = 0;
+  private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
+
   private cb: EngineCallbacks;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
@@ -113,7 +131,7 @@ export class GameEngine {
     this.lastTs = this.startTs;
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
-    this.powerupTimer = 6;
+    this.powerupTimer = 4;
     this.emitStats();
     this.loop(this.lastTs);
   }
@@ -128,24 +146,28 @@ export class GameEngine {
     if (this.state !== "playing") return;
     const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
+    if (alive.length >= 256) return; // safety cap
     sfx.split();
+    const ts = performance.now();
+    // Brief grace window so a tap doesn't insta-kill mid-barrier
+    this.graceUntil = ts + 90;
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), HUES.length - 1)];
     for (const b of alive) {
-      // Convert one ball into two — push outward symmetrically
-      const spread = 80 + Math.random() * 30;
+      // Push outward symmetrically — wider spread feels more impactful
+      const spread = 110 + Math.random() * 40;
       const newBall: Ball = {
         x: b.x,
         y: b.y,
         vx: spread,
         vy: b.vy,
-        radius: Math.max(6, b.radius * 0.95),
+        radius: Math.max(8, b.radius * 0.97),
         hue,
         alive: true,
         shielded: false,
         trail: [],
       };
       b.vx = -spread;
-      b.radius = Math.max(6, b.radius * 0.95);
+      b.radius = Math.max(8, b.radius * 0.97);
       b.hue = hue;
       this.balls.push(newBall);
     }
@@ -169,6 +191,7 @@ export class GameEngine {
     this.barriers = [];
     this.powerups = [];
     this.particles = [];
+    this.floatTexts = [];
     this.score = 0;
     this.maxMultiplier = 1;
     this.elapsedMs = 0;
@@ -177,6 +200,8 @@ export class GameEngine {
     this.magnetUntil = 0;
     this.shakeUntil = 0;
     this.flashUntil = 0;
+    this.combo = 0;
+    this.graceUntil = 0;
   }
 
   private spawnInitialBall() {
@@ -194,9 +219,33 @@ export class GameEngine {
   }
 
   private currentDifficulty() {
-    // 0..1 grows with time, capped
+    // 0..1 grows with time, capped — faster ramp for more tension
     const t = this.elapsedMs / 1000;
-    return Math.min(1, t / 90);
+    return Math.min(1, t / 60);
+  }
+
+  private comboMultiplier() {
+    // 1x, then 1.5x, 2x, 3x, 4x... capped at 8x
+    if (this.combo < 3) return 1;
+    if (this.combo < 6) return 1.5;
+    if (this.combo < 10) return 2;
+    if (this.combo < 16) return 3;
+    if (this.combo < 24) return 4;
+    if (this.combo < 35) return 6;
+    return 8;
+  }
+
+  private addFloatText(x: number, y: number, text: string, hue: number, size = 22) {
+    this.floatTexts.push({
+      x,
+      y,
+      text,
+      hue,
+      life: 0,
+      maxLife: 0.9,
+      size,
+      vy: -60,
+    });
   }
 
   private spawnBarrier() {
@@ -282,11 +331,11 @@ export class GameEngine {
       this.spawnBarrier();
     }
 
-    // Spawn powerups occasionally
+    // Spawn powerups occasionally — more frequent
     this.powerupTimer -= dt;
     if (this.powerupTimer <= 0) {
       this.spawnPowerup();
-      this.powerupTimer = 7 + Math.random() * 6;
+      this.powerupTimer = 4 + Math.random() * 4;
     }
 
     // Update barriers
@@ -365,33 +414,53 @@ export class GameEngine {
             (g) => nx >= g.start + 0.005 && nx <= g.end - 0.005,
           );
           if (!inGap) {
+            // Tap grace: brief invuln right after splitting
+            if (ts < this.graceUntil) continue;
             if (b.shielded) {
               b.shielded = false;
               this.spawnParticles(b.x, b.y, b.hue, 10);
             } else {
               b.alive = false;
               sfx.hit();
-              this.spawnParticles(b.x, b.y, b.hue, 22);
-              this.shakeUntil = ts + 220;
-              this.shakeIntensity = 6;
+              this.spawnParticles(b.x, b.y, b.hue, 24);
+              this.shakeUntil = ts + 240;
+              this.shakeIntensity = 7;
+              // Reset combo on any loss
+              if (this.combo > 5) {
+                this.addFloatText(b.x, b.y - 20, "COMBO X", 0, 16);
+              }
+              this.combo = 0;
             }
           }
         }
       }
 
-      // When barrier fully scrolled past the band of balls, mark passed and award
+      // When barrier fully scrolled past the band, mark passed and award
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
         const aliveNow = this.balls.filter((b) => b.alive).length;
         if (aliveNow > 0) {
-          const gained = aliveNow; // 1 point per alive ball
+          const perfect = aliveNow === aliveBefore;
+          if (perfect) this.combo += 1;
+          const comboMult = this.comboMultiplier();
+          // Quadratic-ish reward: more balls = exponentially more pts
+          const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
+          const gained = Math.max(1, Math.floor(base * comboMult));
           this.score += gained;
           sfx.pass(aliveNow);
-          // Perfect pass bonus if no losses on this barrier (all still alive)
-          if (aliveNow === aliveBefore && aliveNow >= 4) {
-            this.score += aliveNow; // double
+
+          // Floating "+points" text near barrier
+          const cx = this.width / 2;
+          const cy = this.height * 0.4 - 10;
+          const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
+          this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
+
+          if (perfect && aliveNow >= 4) {
             sfx.perfect();
-            this.flashUntil = ts + 120;
+            this.flashUntil = ts + 140;
+            if (this.combo >= 3 && this.combo % 3 === 0) {
+              this.addFloatText(cx, cy - 30, `COMBO ×${comboMult}`, 320, 20);
+            }
           }
         }
       }
@@ -433,6 +502,14 @@ export class GameEngine {
     }
     this.particles = this.particles.filter((p) => p.life < p.maxLife);
 
+    // Floating texts
+    for (const f of this.floatTexts) {
+      f.life += dt;
+      f.y += f.vy * dt;
+      f.vy *= 0.94;
+    }
+    this.floatTexts = this.floatTexts.filter((f) => f.life < f.maxLife);
+
     // Track multiplier
     const aliveAfter = this.balls.filter((b) => b.alive).length;
     if (aliveAfter > this.maxMultiplier) this.maxMultiplier = aliveAfter;
@@ -458,6 +535,8 @@ export class GameEngine {
       alive,
       state: this.state,
       durationSeconds: Math.floor(this.elapsedMs / 1000),
+      combo: this.combo,
+      comboMultiplier: this.comboMultiplier(),
     };
   }
 
@@ -571,10 +650,27 @@ export class GameEngine {
       }
     }
 
+    // Floating texts (above balls so they pop)
+    for (const f of this.floatTexts) {
+      const t = f.life / f.maxLife;
+      const a = 1 - t;
+      const scale = 1 + (1 - a) * 0.3;
+      c.save();
+      c.font = `bold ${Math.floor(f.size * scale)}px Inter, system-ui`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.shadowBlur = 14;
+      c.shadowColor = `hsl(${f.hue}, 100%, 60%)`;
+      c.fillStyle = `hsla(${f.hue}, 100%, ${85 - t * 20}%, ${a})`;
+      c.fillText(f.text, f.x, f.y);
+      c.restore();
+    }
+    c.shadowBlur = 0;
+
     // Flash overlay (perfect pass)
     if (ts < this.flashUntil) {
-      const a = (this.flashUntil - ts) / 120;
-      c.fillStyle = `hsla(0, 0%, 100%, ${a * 0.25})`;
+      const a = (this.flashUntil - ts) / 140;
+      c.fillStyle = `hsla(0, 0%, 100%, ${a * 0.3})`;
       c.fillRect(0, 0, W, H);
     }
 
