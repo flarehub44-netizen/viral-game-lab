@@ -257,9 +257,9 @@ export class GameEngine {
   }
 
   private currentDifficulty() {
-    // 0..1 grows with time, capped — faster ramp for more tension
+    // 0..1 grows with time, capped. Slower ramp so 10min sessions stay playable.
     const t = this.elapsedMs / 1000;
-    return Math.min(1, t / 60);
+    return Math.min(0.92, t / 120);
   }
 
   private comboMultiplier() {
