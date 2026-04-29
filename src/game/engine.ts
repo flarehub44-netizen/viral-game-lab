@@ -177,9 +177,10 @@ export class GameEngine {
   /** User tapped — split all alive balls in two */
   tap() {
     if (this.state !== "playing") return;
-    const alive = this.balls.filter((b) => b.alive);
+    // balls array only contains alive balls (dead are pruned each frame)
+    const alive = this.balls;
     if (alive.length === 0) return;
-    if (alive.length >= 256) return; // safety cap
+    if (alive.length >= 128) return; // safety cap (lower = stable on long runs)
     sfx.split();
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
