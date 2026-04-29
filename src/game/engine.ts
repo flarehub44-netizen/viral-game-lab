@@ -207,7 +207,8 @@ export class GameEngine {
   }
 
   handleResize() {
-    const dpr = window.devicePixelRatio || 1;
+    // Cap DPR at 2 — render @ 3x is wasted on high-end mobiles for our visuals
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = dpr;
     this.width = rect.width;
@@ -215,6 +216,9 @@ export class GameEngine {
     this.canvas.width = Math.floor(rect.width * dpr);
     this.canvas.height = Math.floor(rect.height * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Set defaults that don't change every frame
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
   }
 
   // ---------------- internal ----------------
