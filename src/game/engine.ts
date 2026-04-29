@@ -600,7 +600,13 @@ export class GameEngine {
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
-          if (perfect) this.combo += 1;
+          if (perfect) {
+            this.combo += 1;
+            // Refill combo bar — fully on perfect, partial on plain pass
+            this.comboBar = Math.min(1, this.comboBar + 0.35);
+          } else {
+            this.comboBar = Math.min(1, this.comboBar + 0.12);
+          }
           const comboMult = this.comboMultiplier();
           // Quadratic-ish reward: more balls = exponentially more pts
           const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
@@ -623,6 +629,13 @@ export class GameEngine {
           }
         }
       }
+    }
+
+    // Drain combo bar over time (~3s to empty from full)
+    this.comboBar = Math.max(0, this.comboBar - GameEngine.COMBO_DRAIN_PER_SEC * dt);
+    if (this.comboBar === 0 && this.combo > 0) {
+      // Bar fully empty → reset combo silently
+      this.combo = 0;
     }
 
     // Collisions: ball vs powerup
