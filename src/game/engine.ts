@@ -99,6 +99,7 @@ export class GameEngine {
   private lastTs = 0;
   private startTs = 0;
   private elapsedMs = 0;
+  private lastEmitTs = 0; // throttle stats updates to React
 
   private spawnTimer = 0;
   private nextSpawnIn = 0;
@@ -113,6 +114,10 @@ export class GameEngine {
   // Combo system: consecutive perfect passes
   private combo = 0;
   private graceUntil = 0; // brief invulnerability right after a tap (tap feel)
+
+  // Pre-rendered ball sprites (one per hue) — eliminates shadowBlur in hot loop
+  private ballSprites = new Map<number, HTMLCanvasElement>();
+  private static readonly SPRITE_R = 32; // sprite radius in px (drawn scaled)
 
   private cb: EngineCallbacks;
 
