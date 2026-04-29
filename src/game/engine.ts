@@ -563,7 +563,7 @@ export class GameEngine {
       return;
     }
 
-    this.emitStats();
+    this.maybeEmitStats();
   }
 
   private snapshot(): PublicGameStats {
@@ -580,7 +580,16 @@ export class GameEngine {
     };
   }
 
+  /** Throttled emit (~10 Hz) so React doesn't re-render every frame. */
+  private maybeEmitStats() {
+    const now = performance.now();
+    if (now - this.lastEmitTs < 100) return;
+    this.lastEmitTs = now;
+    this.cb.onStatsChange(this.snapshot());
+  }
+
   private emitStats() {
+    this.lastEmitTs = performance.now();
     this.cb.onStatsChange(this.snapshot());
   }
 
