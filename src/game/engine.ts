@@ -125,7 +125,35 @@ export class GameEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
+    this.buildSprites();
     this.handleResize();
+  }
+
+  /** Pre-render glowing ball sprites to offscreen canvases (one per hue). */
+  private buildSprites() {
+    const R = GameEngine.SPRITE_R;
+    const size = R * 2;
+    for (const hue of HUES) {
+      const off = document.createElement("canvas");
+      off.width = size;
+      off.height = size;
+      const oc = off.getContext("2d")!;
+      // Outer soft glow
+      const glow = oc.createRadialGradient(R, R, 1, R, R, R);
+      glow.addColorStop(0, `hsla(${hue}, 100%, 75%, 1)`);
+      glow.addColorStop(0.35, `hsla(${hue}, 100%, 60%, 0.7)`);
+      glow.addColorStop(0.7, `hsla(${hue}, 100%, 50%, 0.18)`);
+      glow.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+      oc.fillStyle = glow;
+      oc.fillRect(0, 0, size, size);
+      // Bright core
+      const core = oc.createRadialGradient(R, R, 0, R, R, R * 0.5);
+      core.addColorStop(0, `hsl(${hue}, 100%, 95%)`);
+      core.addColorStop(1, `hsla(${hue}, 100%, 65%, 0)`);
+      oc.fillStyle = core;
+      oc.fillRect(0, 0, size, size);
+      this.ballSprites.set(hue, off);
+    }
   }
 
   // ---------------- public API ----------------
