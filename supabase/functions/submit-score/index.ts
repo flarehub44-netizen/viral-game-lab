@@ -61,9 +61,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Anti-cheat: score plausibility based on duration.
-    // Theoretical max ~ 60 barriers/sec * maxMult points/barrier.
-    const theoreticalMax = Math.max(60, duration) * Math.min(maxMult, 4096) * 4;
+    // Anti-cheat: score plausibility based on duration & combo multiplier.
+    // Quadratic scoring with up to ~256 balls and combo stacking can yield
+    // very high values per barrier. Use a generous upper bound.
+    const secs = Math.max(10, duration);
+    const theoreticalMax = secs * Math.min(maxMult, 4096) * 2000;
     if (score > theoreticalMax) {
       return new Response(JSON.stringify({ error: "Implausible score" }), {
         status: 400,
