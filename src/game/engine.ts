@@ -524,9 +524,9 @@ export class GameEngine {
         b.vx = -Math.abs(b.vx) * 0.6;
       }
 
-      // Update trail
-      // Lightweight trail (only every other frame, max 4 points)
-      if ((this.elapsedMs | 0) % 2 === 0) {
+      // Lightweight trail (every other frame, max 4 points). Frame counter is
+      // FPS-independent so trail spacing stays even on slow devices.
+      if (this.frameCount % 2 === 0) {
         b.trail.push({ x: b.x, y: b.y, a: 1 });
         if (b.trail.length > 4) b.trail.shift();
         for (const t of b.trail) t.a *= 0.78;
