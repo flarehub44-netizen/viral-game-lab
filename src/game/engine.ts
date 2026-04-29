@@ -131,7 +131,7 @@ export class GameEngine {
     this.lastTs = this.startTs;
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
-    this.powerupTimer = 6;
+    this.powerupTimer = 4;
     this.emitStats();
     this.loop(this.lastTs);
   }
