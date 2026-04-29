@@ -726,29 +726,20 @@ export class GameEngine {
     }
     if (cursor < 1) segments.push([cursor, 1]);
 
-    c.shadowBlur = 16;
-    c.shadowColor = `hsl(${bar.hue}, 100%, 60%)`;
+    // Solid color bar (no shadowBlur, no per-segment gradient — much faster)
+    c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
     for (const [s, e] of segments) {
-      const x = s * W;
-      const w = (e - s) * W;
-      const grad = c.createLinearGradient(0, top, 0, top + bar.height);
-      grad.addColorStop(0, `hsl(${bar.hue}, 100%, 70%)`);
-      grad.addColorStop(0.5, `hsl(${bar.hue}, 100%, 55%)`);
-      grad.addColorStop(1, `hsl(${bar.hue}, 100%, 40%)`);
-      c.fillStyle = grad;
-      c.fillRect(x, top, w, bar.height);
-      // Bright top edge
-      c.fillStyle = `hsla(${bar.hue}, 100%, 90%, 0.9)`;
-      c.fillRect(x, top, w, 1.5);
+      c.fillRect(s * W, top, (e - s) * W, bar.height);
     }
-    c.shadowBlur = 0;
+    c.fillStyle = `hsla(${bar.hue}, 100%, 92%, 0.9)`;
+    for (const [s, e] of segments) {
+      c.fillRect(s * W, top, (e - s) * W, 1.5);
+    }
   }
 
   private drawPowerup(c: CanvasRenderingContext2D, p: PowerUp, ts: number) {
     const hue = p.kind === "shield" ? 180 : p.kind === "slowmo" ? 270 : 55;
     const r = 14 + Math.sin(ts / 200) * 2;
-    c.shadowBlur = 20;
-    c.shadowColor = `hsl(${hue}, 100%, 60%)`;
     c.strokeStyle = `hsl(${hue}, 100%, 70%)`;
     c.lineWidth = 2.5;
     c.beginPath();
@@ -756,10 +747,7 @@ export class GameEngine {
     c.stroke();
     c.fillStyle = `hsla(${hue}, 100%, 90%, 0.95)`;
     c.font = "bold 14px Inter, system-ui";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
     const letter = p.kind === "shield" ? "S" : p.kind === "slowmo" ? "T" : "M";
     c.fillText(letter, p.x, p.y + 1);
-    c.shadowBlur = 0;
   }
 }
