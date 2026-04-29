@@ -154,8 +154,13 @@ export class GameEngine {
 
   /** Pre-render glowing ball sprites to offscreen canvases (one per hue). */
   private buildSprites() {
-    const R = GameEngine.SPRITE_R;
+    // Render sprites at 2x on HiDPI displays so drawImage scaling stays crisp.
+    const scale = (window.devicePixelRatio || 1) >= 2 ? 2 : 1;
+    if (scale === this.spriteScale && this.ballSprites.size > 0) return;
+    this.spriteScale = scale;
+    const R = GameEngine.SPRITE_R * scale;
     const size = R * 2;
+    this.ballSprites.clear();
     for (const hue of HUES) {
       const off = document.createElement("canvas");
       off.width = size;
@@ -182,14 +187,41 @@ export class GameEngine {
   // ---------------- public API ----------------
   start() {
     this.reset();
-    this.state = "playing";
-    this.startTs = performance.now();
-    this.lastTs = this.startTs;
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
     this.powerupTimer = 4;
+    // Begin with a 3-2-1 countdown that freezes spawn/collisions/score time
+    this.state = "countdown";
+    const now = performance.now();
+    this.countdownEndsAt = now + GameEngine.COUNTDOWN_MS;
+    this.startTs = this.countdownEndsAt; // elapsed only counts after GO
+    this.lastTs = now;
     this.emitStats();
-    this.loop(this.lastTs);
+    this.loop(now);
+  }
+
+  /** Pause the game (no-op if not playing). Keeps RAF running for render. */
+  pause() {
+    if (this.state !== "playing") return;
+    this.state = "paused";
+    this.pausedAt = performance.now();
+    this.emitStats();
+  }
+
+  /** Resume from pause. Adjusts time-based timers so they don't fire instantly. */
+  resume() {
+    if (this.state !== "paused") return;
+    const now = performance.now();
+    const delta = now - this.pausedAt;
+    // Shift all absolute-time deadlines forward by the pause duration
+    this.slowMoUntil += delta;
+    this.magnetUntil += delta;
+    this.shakeUntil += delta;
+    this.flashUntil += delta;
+    this.graceUntil += delta;
+    this.lastTs = now;
+    this.state = "playing";
+    this.emitStats();
   }
 
   stop() {
