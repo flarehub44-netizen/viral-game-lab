@@ -187,6 +187,29 @@ export class GameEngine {
   private bestPerfectStreak = 0;
   private nearMisses = 0;
   private pickedAnyPowerup = false;
+  private bossesKilled = 0;
+  private mergesUsed = 0;
+  private collectedPowerKinds = new Set<PowerKind>();
+
+  // Rush event (a cada 30s, 10s ativo, ×3 pontos, +60% velocidade)
+  private rushUntil = 0;
+  private nextRushAt = 30; // segundos de elapsed
+  private static readonly RUSH_DURATION_MS = 10000;
+
+  // Boss barrier (a cada 60s)
+  private nextBossAt = 60; // segundos de elapsed
+  private bossWarningUntil = 0;
+  private bossPending = false;
+
+  // Score 2x temporário (power-up)
+  private scoreMultUntil = 0;
+
+  // Repel ímã reverso (afasta de paredes)
+  private repelUntil = 0;
+
+  // Tap duplo → merge
+  private lastTapTs = 0;
+  private static readonly DOUBLE_TAP_MS = 250;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks, options: EngineOptions = {}) {
     this.canvas = canvas;
