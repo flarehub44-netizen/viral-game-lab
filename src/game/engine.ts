@@ -398,7 +398,6 @@ export class GameEngine {
     this.nearMisses = 0;
     this.pickedAnyPowerup = false;
     this.bossesKilled = 0;
-    this.mergesUsed = 0;
     this.collectedPowerKinds.clear();
     this.rushUntil = 0;
     this.nextRushAt = 30;
