@@ -845,7 +845,8 @@ export class GameEngine {
             this.comboBar = Math.min(1, this.comboBar + 0.12);
           }
           const comboMult = this.comboMultiplier();
-          const scoreMult = ts < this.scoreMultUntil ? 2 : 1;
+          const dailyMult = this.dailyMod?.scoreMultiplier ?? 1;
+          const scoreMult = (ts < this.scoreMultUntil ? 2 : 1) * dailyMult;
           const rushMult = ts < this.rushUntil ? 3 : 1;
           if (bar.boss) {
             // Boss reward: aliveBalls × 50 × comboMult × score2x × rush
