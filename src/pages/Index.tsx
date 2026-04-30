@@ -7,6 +7,8 @@ import { NicknameDialog } from "@/components/NicknameDialog";
 import type { PublicGameStats } from "@/game/engine";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { applyRunToMissions, type Mission } from "@/game/missions";
+import { addLifetimeScore } from "@/game/skins";
 
 type Screen = "menu" | "playing" | "over" | "leaderboard";
 
