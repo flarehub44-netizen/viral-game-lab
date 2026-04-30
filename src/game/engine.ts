@@ -747,6 +747,16 @@ export class GameEngine {
       this.floatTexts.splice(0, this.floatTexts.length - 24);
     }
 
+    // Flush coalesced SFX/haptic — one sound per frame no matter how many balls died
+    if (this.hitsThisFrame > 0) {
+      sfx.hit();
+      this.hitsThisFrame = 0;
+    }
+    if (this.hapticThisFrame > 0) {
+      haptic(this.hapticThisFrame);
+      this.hapticThisFrame = 0;
+    }
+
     // Track multiplier
     const aliveAfter = this.balls.length;
     if (aliveAfter > this.maxMultiplier) this.maxMultiplier = aliveAfter;
