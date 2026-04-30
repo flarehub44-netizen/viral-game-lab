@@ -477,12 +477,50 @@ export class GameEngine {
       speed,
       dangerous,
       nearMissChecked: false,
+      boss: false,
     });
   }
 
+  private spawnBoss() {
+    const diff = this.currentDifficulty();
+    const speed = 70 + diff * 100; // mais lento que barreira normal — mais dramático
+    const height = 50; // 3-4x mais alto
+    const center = 0.2 + Math.random() * 0.6;
+    const w = 0.10; // gap minúsculo (10% da largura)
+    this.barriers.push({
+      y: this.height + 30,
+      height,
+      gaps: [{ start: center - w / 2, end: center + w / 2 }],
+      hue: 0, // vermelho
+      passed: false,
+      speed,
+      dangerous: true,
+      nearMissChecked: false,
+      boss: true,
+    });
+    sfx.boss();
+  }
+
   private spawnPowerup() {
-    const kinds: PowerKind[] = ["shield", "slowmo", "magnet"];
-    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    // Pesos: comuns mais frequentes, bomb e score2x raros
+    const pool: { kind: PowerKind; weight: number }[] = [
+      { kind: "shield", weight: 22 },
+      { kind: "slowmo", weight: 22 },
+      { kind: "magnet", weight: 22 },
+      { kind: "repel", weight: 14 },
+      { kind: "score2x", weight: 12 },
+      { kind: "bomb", weight: 8 },
+    ];
+    const total = pool.reduce((s, p) => s + p.weight, 0);
+    let r = Math.random() * total;
+    let kind: PowerKind = "shield";
+    for (const p of pool) {
+      if (r < p.weight) {
+        kind = p.kind;
+        break;
+      }
+      r -= p.weight;
+    }
     this.powerups.push({
       x: 30 + Math.random() * (this.width - 60),
       y: this.height + 10,
