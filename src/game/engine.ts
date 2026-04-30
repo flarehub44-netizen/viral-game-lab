@@ -391,7 +391,7 @@ export class GameEngine {
     b.alive = false;
     this.mergesUsed++;
     sfx.merge();
-    haptic(20);
+    haptic(hapticPatterns.merge);
     this.spawnParticles(a.x, a.y, 50, 18);
     this.addFloatText(a.x, a.y - 20, "SUPER!", 50, 18);
   }
@@ -912,7 +912,7 @@ export class GameEngine {
           this.pickedAnyPowerup = true;
           this.collectedPowerKinds.add(p.kind);
           sfx.powerup();
-          haptic(20);
+          haptic(hapticPatterns.merge);
           if (p.kind === "shield") {
             for (const bb of this.balls) if (bb.alive) bb.shielded = true;
           } else if (p.kind === "slowmo") {
