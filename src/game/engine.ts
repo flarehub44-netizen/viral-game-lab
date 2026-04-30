@@ -1,4 +1,9 @@
 import { sfx, haptic, hapticPatterns } from "./audio";
+import type { RoundScript } from "./economy/multiplierTable";
+import { getDifficultySnapshot } from "./difficulty";
+import { multiplierForBarrier } from "./GravityClimb";
+import { calculateZones } from "./economy/zoneCalculator";
+import type { LayoutBarrier } from "./economy/liveDeterministicLayout";
 
 // Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
@@ -14,6 +19,10 @@ export interface PublicGameStats {
   shieldActive: boolean;
   ghostCharges: number;
   multiplierUntilSec: number; // 0 if inactive
+  currentMultiplier?: number;
+  currentZone?: number;
+  nextZoneThreshold?: number;
+  barriersPassed?: number;
 }
 
 export interface RoundSummaryOut {
@@ -23,6 +32,8 @@ export interface RoundSummaryOut {
   maxAlive: number;
   splits: number;
   powerupsCollected: number;
+  /** Barreiras cuja linha de pontuação foi ultrapassada (modo revelação). */
+  barriersPassed?: number;
 }
 
 interface Ball {
@@ -86,6 +97,28 @@ interface EngineCallbacks {
   onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
 }
 
+interface ScriptTerminateInputs {
+  script: RoundScript | null;
+  allowScriptTerminate: boolean;
+  state: GameState;
+  aliveAfter: number;
+  elapsedSec: number;
+  barriersPassedCount: number;
+  score: number;
+}
+
+export function shouldTerminateScriptRound(input: ScriptTerminateInputs): boolean {
+  if (!input.script) return false;
+  if (!input.allowScriptTerminate) return false;
+  if (input.state !== "playing") return false;
+  if (input.aliveAfter <= 0) return false;
+  return (
+    input.barriersPassedCount >= input.script.barriers_crossed ||
+    input.score >= input.script.score_target ||
+    input.elapsedSec >= input.script.duration_seconds
+  );
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -146,6 +179,17 @@ export class GameEngine {
 
   private cb: EngineCallbacks;
 
+  /** Rodada servidor-first: encerra quando metas visuais forem atingidas. */
+  private script: RoundScript | null = null;
+  private allowScriptTerminate = true;
+  private barriersPassedCount = 0;
+  private mode: "demo" | "live" = "demo";
+  private targetBarrier = 0;
+  private finalMultiplier = 0;
+  private currentClimbMultiplier = 0;
+  private layoutPlan: LayoutBarrier[] | null = null;
+  private layoutCursor = 0;
+
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
@@ -179,7 +223,22 @@ export class GameEngine {
   }
 
   // -------- public API --------
-  start() {
+  start(opts?: {
+    script?: RoundScript | null;
+    allowScriptTerminate?: boolean;
+    mode?: "demo" | "live";
+    targetBarrier?: number;
+    finalMultiplier?: number;
+    layoutPlan?: LayoutBarrier[] | null;
+  }) {
+    this.script = opts?.script ?? null;
+    this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
+    this.mode = opts?.mode ?? "demo";
+    this.targetBarrier = Math.max(0, opts?.targetBarrier ?? this.script?.barriers_crossed ?? 0);
+    this.finalMultiplier = Math.max(0, opts?.finalMultiplier ?? 0);
+    this.currentClimbMultiplier = 0;
+    this.layoutPlan = opts?.layoutPlan ?? null;
+    this.layoutCursor = 0;
     this.reset();
     this.spawnInitialBall();
     this.nextSpawnIn = 1.2;
@@ -291,12 +350,15 @@ export class GameEngine {
     this.maxAlive = 1;
     this.splitsCount = 0;
     this.powerupsCollected = 0;
+    this.barriersPassedCount = 0;
     this.shieldActive = false;
     this.ghostCharges = 0;
     this.multiplierUntilMs = 0;
     this.shakeUntil = 0;
     this.slowMoUntil = 0;
     this.flashUntil = 0;
+    this.currentClimbMultiplier = 0;
+    this.layoutCursor = 0;
   }
 
   private spawnInitialBall() {
@@ -315,17 +377,24 @@ export class GameEngine {
   }
 
   private currentDifficulty() {
-    const t = this.elapsedMs / 1000;
-    // Wave: 20s ramp, 5s breath
-    const cycle = 25;
-    const within = t % cycle;
-    const cycleNum = Math.floor(t / cycle);
-    const baseRamp = Math.min(0.85, t / 160);
-    const wavePhase = within < 20 ? within / 20 : 1 - (within - 20) / 5 * 0.35;
-    return Math.min(0.92, baseRamp * 0.6 + wavePhase * 0.35 + cycleNum * 0.02);
+    return getDifficultySnapshot(this.elapsedMs).value;
   }
 
   private spawnBarrier() {
+    if (this.mode === "live" && this.layoutPlan && this.layoutCursor < this.layoutPlan.length) {
+      const row = this.layoutPlan[this.layoutCursor++];
+      const start = Math.max(0.01, Math.min(0.95, row.gapPosition));
+      const end = Math.min(0.99, start + row.gapSize);
+      this.barriers.push({
+        y: this.height + 20,
+        height: 18,
+        gaps: [{ start, end }],
+        hue: HUES[row.index % HUES.length],
+        passed: false,
+        speed: row.speed,
+      });
+      return;
+    }
     const diff = this.currentDifficulty();
     const t = this.elapsedMs / 1000;
     // Decide variant: chance of double-gap rises after 30s
@@ -386,9 +455,9 @@ export class GameEngine {
     }
   }
 
-  private addPopup(x: number, y: number, text: string, hue: number, size = 22) {
+  private addPopup(x: number, y: number, text: string, hue: number, size = 22, life = 0.9) {
     if (this.popups.length > 18) this.popups.shift();
-    this.popups.push({ x, y, text, life: 0.9, maxLife: 0.9, hue, size });
+    this.popups.push({ x, y, text, life, maxLife: life, hue, size });
   }
 
   private loop = (ts: number) => {
@@ -427,18 +496,20 @@ export class GameEngine {
     // Spawn barriers
     this.spawnTimer += dt;
     if (this.spawnTimer >= this.nextSpawnIn) {
-      this.spawnTimer = 0;
-      const diff = this.currentDifficulty();
-      this.nextSpawnIn = 1.5 - diff * 0.7;
+      this.spawnTimer -= this.nextSpawnIn;
+      const difficulty = getDifficultySnapshot(this.elapsedMs);
+      this.nextSpawnIn = difficulty.barrierSpawnEverySec;
       this.spawnBarrier();
     }
 
-    // Spawn power-ups
-    this.powerupTimer += dt;
-    if (this.powerupTimer >= this.nextPowerupIn) {
-      this.powerupTimer = 0;
-      this.nextPowerupIn = 8 + Math.random() * 6;
-      this.spawnPowerup();
+    // Spawn power-ups (desativado no modo revelação para reduzir variância)
+    if (!this.script) {
+      this.powerupTimer += dt;
+      if (this.powerupTimer >= this.nextPowerupIn) {
+        this.powerupTimer -= this.nextPowerupIn;
+        this.nextPowerupIn = 8 + Math.random() * 6;
+        this.spawnPowerup();
+      }
     }
 
     // Update balls
@@ -568,15 +639,27 @@ export class GameEngine {
 
       if (bar.y + bar.height < this.height * 0.25 - 20 && !bar.passed) {
         bar.passed = true;
+        this.barriersPassedCount += 1;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
+          const prevCombo = this.combo;
           this.combo += 1;
           if (this.combo > this.maxCombo) this.maxCombo = this.combo;
           const multActive = ts < this.multiplierUntilMs;
           const mult = multActive ? 2 : 1;
-          const gained = aliveNow * mult;
+          // Combo tier score bonus
+          const comboMult = this.combo >= 30 ? 2.0 : this.combo >= 20 ? 1.5 : this.combo >= 10 ? 1.25 : this.combo >= 5 ? 1.1 : 1.0;
+          const gained = Math.ceil(aliveNow * mult * comboMult);
           this.score += gained;
           sfx.pass(aliveNow + Math.min(this.combo, 12));
+          // Milestone popup when crossing a combo tier
+          const milestones = [5, 10, 20, 30] as const;
+          const hit = milestones.find((m) => prevCombo < m && this.combo >= m);
+          if (hit) {
+            const mHue = hit >= 30 ? 300 : hit >= 20 ? 30 : hit >= 10 ? 55 : 140;
+            this.addPopup(this.width / 2, this.height * 0.38, `COMBO x${hit}!`, mHue, 32, 1.4);
+            this.flashUntil = ts + 140;
+          }
           // Popup at center top of play zone, near a random alive ball
           const sample = this.balls.find((b) => b.alive)!;
           this.addPopup(sample.x, sample.y - 28, `+${gained}${mult > 1 ? " x2" : ""}`, multActive ? 55 : 180, 20);
@@ -611,8 +694,30 @@ export class GameEngine {
     }
 
     // Track maxAlive
-    const aliveAfter = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+    let aliveAfter = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     if (aliveAfter > this.maxAlive) this.maxAlive = aliveAfter;
+    if (this.finalMultiplier > 0 && this.targetBarrier > 0) {
+      this.currentClimbMultiplier = multiplierForBarrier(
+        this.barriersPassedCount,
+        this.finalMultiplier,
+        this.targetBarrier,
+      );
+    }
+
+    if (
+      shouldTerminateScriptRound({
+        script: this.script,
+        allowScriptTerminate: this.allowScriptTerminate,
+        state: this.state,
+        aliveAfter,
+        elapsedSec: this.elapsedMs / 1000,
+        barriersPassedCount: this.barriersPassedCount,
+        score: this.score,
+      })
+    ) {
+      this.forceTerminateRound(ts);
+      aliveAfter = 0;
+    }
 
     if (aliveAfter === 0) {
       this.state = "over";
@@ -624,9 +729,21 @@ export class GameEngine {
         maxAlive: this.maxAlive,
         splits: this.splitsCount,
         powerupsCollected: this.powerupsCollected,
+        barriersPassed: this.barriersPassedCount,
       };
       this.cb.onGameOver(this.snapshot(), summary);
     }
+  }
+
+  /** Encerra a rodada imediatamente (revelação alinhada ao servidor). */
+  private forceTerminateRound(ts: number) {
+    for (const b of this.balls) {
+      if (!b.alive) continue;
+      b.alive = false;
+      this.spawnParticles(b.x, b.y, b.hue, 10);
+    }
+    this.shakeUntil = ts + 100;
+    this.shakeMag = 4;
   }
 
   private collectPowerup(p: Powerup, ts: number) {
@@ -786,22 +903,25 @@ export class GameEngine {
       c.fillStyle = `hsla(${p.hue}, 100%, 75%, ${a})`;
       c.font = `bold ${p.size}px Inter, system-ui, sans-serif`;
       c.shadowColor = `hsl(${p.hue}, 100%, 60%)`;
-      c.shadowBlur = 8;
+      c.shadowBlur = p.size >= 28 ? 18 : 8;
       c.fillText(p.text, p.x, p.y);
       c.shadowBlur = 0;
     }
 
     // Combo display
     if (this.combo >= 3 && this.state === "playing") {
-      const hue = Math.min(280, 180 + this.combo * 6);
-      const scale = 1 + Math.sin(ts / 120) * 0.05;
+      const hue = this.combo >= 30 ? 300 : this.combo >= 20 ? 30 : this.combo >= 10 ? 55 : this.combo >= 5 ? 140 : 180;
+      const fontSize = Math.round(22 + Math.min(this.combo, 30) * 0.47);
+      const pulseMag = this.combo >= 10 ? 0.09 : 0.05;
+      const blurSize = this.combo >= 20 ? 24 : this.combo >= 10 ? 18 : 12;
+      const scale = 1 + Math.sin(ts / 120) * pulseMag;
       c.save();
       c.translate(this.width / 2, this.height * 0.15);
       c.scale(scale, scale);
       c.fillStyle = `hsla(${hue}, 100%, 75%, 0.95)`;
       c.shadowColor = `hsl(${hue}, 100%, 60%)`;
-      c.shadowBlur = 15;
-      c.font = "bold 36px Inter, system-ui, sans-serif";
+      c.shadowBlur = blurSize;
+      c.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
       c.fillText(`COMBO ×${this.combo}`, 0, 0);
       c.shadowBlur = 0;
       c.restore();
@@ -837,9 +957,14 @@ export class GameEngine {
       if (countdown > 3) countdown = 3;
     }
     const alive = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+    const zones = calculateZones();
+    const z =
+      zones.find((it) => this.currentClimbMultiplier >= it.minMultiplier && this.currentClimbMultiplier <= it.maxMultiplier) ??
+      zones[zones.length - 1];
+    const next = zones[Math.min(z.index + 1, zones.length - 1)];
     return {
       score: this.score,
-      alive: Math.max(1, alive),
+      alive,
       state: this.state,
       durationSeconds: Math.floor(this.elapsedMs / 1000),
       countdown,
@@ -847,6 +972,10 @@ export class GameEngine {
       shieldActive: this.shieldActive,
       ghostCharges: this.ghostCharges,
       multiplierUntilSec: Math.max(0, (this.multiplierUntilMs - now) / 1000),
+      currentMultiplier: this.currentClimbMultiplier,
+      currentZone: z.index + 1,
+      nextZoneThreshold: next.minMultiplier,
+      barriersPassed: this.barriersPassedCount,
     };
   }
 

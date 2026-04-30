@@ -1,12 +1,14 @@
-import { ArrowLeft, Target, Check } from "lucide-react";
-import { loadProgression } from "@/game/progression";
+import { ArrowLeft, Target, Check, Flag } from "lucide-react";
+import { loadProgression, getRunGoals, type ProgressionProfile } from "@/game/progression";
 
 interface Props {
   onBack: () => void;
+  progressionProfile?: ProgressionProfile;
 }
 
-export const MissionsPanel = ({ onBack }: Props) => {
-  const data = loadProgression();
+export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props) => {
+  const data = loadProgression(progressionProfile);
+  const runGoals = getRunGoals();
   return (
     <div className="absolute inset-0 flex flex-col p-6 bg-gradient-to-b from-background via-background to-card overflow-y-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -58,6 +60,19 @@ export const MissionsPanel = ({ onBack }: Props) => {
             </div>
           );
         })}
+      </div>
+      <div className="mt-6">
+        <h3 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">
+          Metas de rodada
+        </h3>
+        <div className="flex flex-col gap-2">
+          {runGoals.map((goal) => (
+            <div key={goal.id} className="rounded-xl border border-border bg-card/40 p-3 flex items-center gap-2">
+              <Flag size={14} className="text-accent" />
+              <div className="text-sm">{goal.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

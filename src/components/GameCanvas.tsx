@@ -1,11 +1,27 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { GameEngine, type PublicGameStats, type RoundSummaryOut } from "@/game/engine";
+import type { RoundScript } from "@/game/economy/multiplierTable";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
+import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
+import { ClimbHUD } from "./ClimbHUD";
+import { ZoneTransition } from "./ZoneTransition";
 
 interface Props {
   onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
   onExit: () => void;
+  roundId: string;
+  visualScript: RoundScript | null;
+  allowScriptTerminate?: boolean;
+  qaMode?: "demo" | "live";
+  targetBarrier?: number;
+  mode?: "demo" | "live";
+  layoutPlan?: LayoutBarrier[] | null;
+  stakeCredits?: number;
+  /** Meta de payout (ex.: 20). */
+  targetMultiplier?: number;
+  /** Multiplicador já sorteado ao iniciar (HUD). */
+  resultMultiplier?: number;
 }
 
 const MENU_HOLD_MS = 600;
@@ -22,9 +38,24 @@ const initialStats: PublicGameStats = {
   multiplierUntilSec: 0,
 };
 
-export const GameCanvas = ({ onGameOver, onExit }: Props) => {
+export const GameCanvas = ({
+  onGameOver,
+  onExit,
+  roundId,
+  visualScript,
+  allowScriptTerminate = true,
+  qaMode,
+  targetBarrier,
+  mode = "demo",
+  layoutPlan,
+  stakeCredits,
+  targetMultiplier,
+  resultMultiplier,
+}: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  const onGameOverRef = useRef(onGameOver);
+  onGameOverRef.current = onGameOver;
   const [stats, setStats] = useState<PublicGameStats>(initialStats);
   const [muted, setMutedState] = useState(isMuted());
 
@@ -36,7 +67,7 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     const canvas = canvasRef.current!;
     const engine = new GameEngine(canvas, {
       onStatsChange: (s) => setStats(s),
-      onGameOver: (s, summary) => onGameOver(s, summary),
+      onGameOver: (s, summary) => onGameOverRef.current(s, summary),
     });
     engineRef.current = engine;
 
@@ -51,16 +82,24 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     window.addEventListener("blur", onBlur);
 
     unlockAudio();
-    engine.start();
+    engine.start({
+      script: visualScript ?? undefined,
+      allowScriptTerminate,
+      mode,
+      targetBarrier,
+      finalMultiplier: resultMultiplier,
+      layoutPlan: layoutPlan ?? null,
+    });
 
     return () => {
+      cancelMenuHold();
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       engine.stop();
+      engineRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [roundId, visualScript, allowScriptTerminate, mode, targetBarrier, resultMultiplier, layoutPlan]);
 
   const handleTap = useCallback(
     (e: React.PointerEvent) => {
@@ -112,10 +151,32 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
   const isCountdown = stats.state === "countdown";
   const isPaused = stats.state === "paused";
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      engineRef.current?.stop();
+      onExit();
+      return;
+    }
+    if (e.key !== " " && e.key !== "Enter") return;
+    e.preventDefault();
+    unlockAudio();
+    const eng = engineRef.current;
+    if (!eng) return;
+    if (stats.state === "paused") {
+      eng.resume();
+      return;
+    }
+    eng.tap();
+  };
+
   return (
     <div
       className="relative w-full h-full select-none touch-none"
       onPointerDown={handleTap}
+      onKeyDown={handleKeyDown}
+      role="application"
+      tabIndex={0}
+      aria-label="Área principal do jogo. Use toque, Enter ou Espaço para dividir."
     >
       <canvas
         ref={canvasRef}
@@ -150,6 +211,16 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5">
               Score
             </div>
+            {stakeCredits != null && stakeCredits > 0 && (
+              <div className="text-[9px] font-bold uppercase tracking-wide text-[hsl(140_90%_58%)] mt-1 tabular-nums">
+                Entrada R$ {stakeCredits.toFixed(2)}
+              </div>
+            )}
+            {targetMultiplier != null && resultMultiplier != null && (
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground mt-1 tabular-nums">
+                Meta {targetMultiplier}x · resultado ×{resultMultiplier.toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -163,7 +234,9 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
             {stats.ghostCharges > 0 && (
               <div className="p-1.5 rounded-md bg-secondary/20 border border-secondary text-secondary animate-pulse flex items-center gap-1">
                 <Ghost size={14} />
-                {stats.ghostCharges > 1 && <span className="text-[10px] font-bold">{stats.ghostCharges}</span>}
+                {stats.ghostCharges > 1 && (
+                  <span className="text-[10px] font-bold">{stats.ghostCharges}</span>
+                )}
               </div>
             )}
           </div>
@@ -184,6 +257,33 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
           </button>
         </div>
       </div>
+
+      {import.meta.env.DEV && qaMode && (
+        <div className="absolute top-2 right-2 pointer-events-none">
+          <span
+            className={`inline-flex items-center rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+              qaMode === "demo"
+                ? "text-[hsl(30_100%_60%)] bg-[hsl(30_60%_12%/0.72)] border border-[hsl(30_100%_45%/0.45)]"
+                : "text-[hsl(140_90%_65%)] bg-[hsl(140_45%_10%/0.72)] border border-[hsl(140_90%_45%/0.45)]"
+            }`}
+          >
+            {qaMode === "demo" ? "DEMO" : "LIVE"}
+          </span>
+        </div>
+      )}
+
+      {(stats.currentMultiplier ?? 0) > 0 && (
+        <>
+          <ClimbHUD
+            multiplier={stats.currentMultiplier ?? 0}
+            currentZone={stats.currentZone}
+            nextZoneThreshold={stats.nextZoneThreshold}
+            stake={stakeCredits}
+            barriersPassed={stats.barriersPassed}
+          />
+          <ZoneTransition zone={stats.currentZone} />
+        </>
+      )}
 
       {/* Countdown */}
       {isCountdown && stats.countdown != null && (

@@ -1,12 +1,13 @@
 import { ArrowLeft, Award, Lock } from "lucide-react";
-import { getAllAchievements, loadProgression } from "@/game/progression";
+import { getAllAchievements, loadProgression, type ProgressionProfile } from "@/game/progression";
 
 interface Props {
   onBack: () => void;
+  progressionProfile?: ProgressionProfile;
 }
 
-export const AchievementsPanel = ({ onBack }: Props) => {
-  const data = loadProgression();
+export const AchievementsPanel = ({ onBack, progressionProfile = "default" }: Props) => {
+  const data = loadProgression(progressionProfile);
   const all = getAllAchievements();
   const unlocked = new Set(data.achievements);
 

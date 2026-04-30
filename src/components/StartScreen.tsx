@@ -1,5 +1,5 @@
-import { Trophy, Play, Target, Award } from "lucide-react";
-import { levelFromXp, loadProgression } from "@/game/progression";
+import { Trophy, Play, Target, Award, Coins } from "lucide-react";
+import { levelFromXp, loadProgression, getRunGoals } from "@/game/progression";
 
 interface Props {
   bestScore: number;
@@ -23,11 +23,12 @@ export const StartScreen = ({
   const prog = loadProgression();
   const lvl = levelFromXp(prog.xp);
   const missionsLeft = prog.missions.list.filter((m) => !m.done).length;
+  const runGoalsCount = getRunGoals().length;
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-background via-background to-card">
       {/* Top: Level + XP */}
-      <div className="w-full max-w-xs">
+      <div className="w-full max-w-xs flex flex-col gap-2">
         <div className="rounded-xl border border-border bg-card/40 p-3">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
@@ -49,6 +50,15 @@ export const StartScreen = ({
             />
           </div>
         </div>
+        <div className="rounded-xl border border-border bg-card/40 p-3 flex items-center justify-between">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            Créditos
+          </div>
+          <div className="flex items-center gap-1 text-sm font-bold text-glow-yellow tabular-nums">
+            <Coins size={14} />
+            {prog.credits}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col items-center text-center">
@@ -63,6 +73,9 @@ export const StartScreen = ({
         </p>
         <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground mt-1">
           Desvie das barreiras
+        </p>
+        <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mt-3">
+          Metas da rodada: {runGoalsCount}
         </p>
 
         {bestScore > 0 && (

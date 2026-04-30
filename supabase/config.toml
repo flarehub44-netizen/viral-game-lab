@@ -1,1 +1,4 @@
-project_id = "vezortwznwmziqukypjj"
+project_id = "pbkdmcjlscjdvkaiypye"
+
+[functions.start-round]
+verify_jwt = true
