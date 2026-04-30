@@ -156,11 +156,20 @@ export class GameEngine {
   private spriteScale = 1;
 
   private cb: EngineCallbacks;
+  private HUES: number[] = DEFAULT_HUES;
+  private attract = false;
 
-  constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
+  // Mission tracking
+  private bestPerfectStreak = 0;
+  private nearMisses = 0;
+  private pickedAnyPowerup = false;
+
+  constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks, options: EngineOptions = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
+    if (options.hues && options.hues.length > 0) this.HUES = options.hues;
+    this.attract = !!options.attract;
     this.buildSprites();
     this.handleResize();
   }
