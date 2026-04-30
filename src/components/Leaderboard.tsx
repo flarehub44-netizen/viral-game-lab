@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseExternal";
 import { ArrowLeft, Trophy } from "lucide-react";
 
 interface ScoreRow {

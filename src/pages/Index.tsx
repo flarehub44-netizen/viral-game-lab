@@ -25,7 +25,7 @@ import { loadWallet } from "@/game/economy/walletStore";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
 import { applyRound, type ProgressionProfile, type RoundResult } from "@/game/progression";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseExternal";
 import { toast } from "sonner";
 
 type ProfileRow = {
