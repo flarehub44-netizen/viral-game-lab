@@ -27,6 +27,13 @@ const initialStats: PublicGameStats = {
   bestPerfectStreak: 0,
   nearMisses: 0,
   pickedAnyPowerup: false,
+  rushActive: false,
+  rushRemaining: 0,
+  bossWarning: false,
+  bossesKilled: 0,
+  scoreMultActive: 1,
+  uniquePowerupsCollected: 0,
+  mergesUsed: 0,
 };
 
 /** Pick a hue for the combo bar based on current multiplier tier. */
