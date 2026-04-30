@@ -142,6 +142,11 @@ export class GameEngine {
   // Frame counter (stable trail throttling, not tied to timestep)
   private frameCount = 0;
 
+  // Per-frame SFX coalescing — prevents 64+ oscillators from hammering WebAudio
+  // when many balls collide on the same frame (was the cause of "tap freezes").
+  private hitsThisFrame = 0;
+  private hapticThisFrame = 0;
+
   // Countdown before play
   private countdownEndsAt = 0; // performance.now() ms
   private static readonly COUNTDOWN_MS = 3000;
@@ -601,8 +606,8 @@ export class GameEngine {
               this.spawnParticles(b.x, b.y, b.hue, 10);
             } else {
               b.alive = false;
-              sfx.hit();
-              haptic(40); // strong tactile feedback on death
+              this.hitsThisFrame++;
+              this.hapticThisFrame = Math.max(this.hapticThisFrame, 40);
               this.spawnParticles(b.x, b.y, b.hue, 24);
               this.shakeUntil = ts + 240;
               this.shakeIntensity = 7;
@@ -633,7 +638,7 @@ export class GameEngine {
               this.score += bonus;
               this.nearMisses += 1;
               this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
-              haptic(15);
+              this.hapticThisFrame = Math.max(this.hapticThisFrame, 15);
               this.flashUntil = Math.max(this.flashUntil, ts + 80);
               bar.nearMissChecked = true; // one near-miss bonus per barrier
             }
@@ -740,6 +745,16 @@ export class GameEngine {
     this.floatTexts = this.floatTexts.filter((f) => f.life < f.maxLife);
     if (this.floatTexts.length > 24) {
       this.floatTexts.splice(0, this.floatTexts.length - 24);
+    }
+
+    // Flush coalesced SFX/haptic — one sound per frame no matter how many balls died
+    if (this.hitsThisFrame > 0) {
+      sfx.hit();
+      this.hitsThisFrame = 0;
+    }
+    if (this.hapticThisFrame > 0) {
+      haptic(this.hapticThisFrame);
+      this.hapticThisFrame = 0;
     }
 
     // Track multiplier
