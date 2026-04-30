@@ -638,7 +638,7 @@ export class GameEngine {
               this.score += bonus;
               this.nearMisses += 1;
               this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
-              haptic(15);
+              this.hapticThisFrame = Math.max(this.hapticThisFrame, 15);
               this.flashUntil = Math.max(this.flashUntil, ts + 80);
               bar.nearMissChecked = true; // one near-miss bonus per barrier
             }
