@@ -335,6 +335,7 @@ export class GameEngine {
         hue,
         alive: true,
         shielded: false,
+        isSuper: false,
         trail: [],
       };
       b.vx = -spread;
