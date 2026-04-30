@@ -1202,13 +1202,23 @@ export class GameEngine {
         c.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
         c.stroke();
       }
-      // Super ball: ring dourado pulsante
+      // Super ball: aura dourada pulsante + ring
       if (b.isSuper) {
         const pulse = 0.7 + 0.3 * Math.sin(ts / 120);
-        c.strokeStyle = `hsla(50, 100%, 70%, ${pulse})`;
+        // Aura radial
+        const aura = c.createRadialGradient(b.x, b.y, b.radius * 0.6, b.x, b.y, b.radius * 3.2);
+        aura.addColorStop(0, `hsla(50, 100%, 70%, ${0.45 * pulse})`);
+        aura.addColorStop(0.5, `hsla(45, 100%, 60%, ${0.18 * pulse})`);
+        aura.addColorStop(1, "hsla(50, 100%, 50%, 0)");
+        c.fillStyle = aura;
+        c.beginPath();
+        c.arc(b.x, b.y, b.radius * 3.2, 0, Math.PI * 2);
+        c.fill();
+        // Ring sólido
+        c.strokeStyle = `hsla(50, 100%, 75%, ${pulse})`;
         c.lineWidth = 3;
         c.beginPath();
-        c.arc(b.x, b.y, b.radius + 4, 0, Math.PI * 2);
+        c.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
         c.stroke();
       }
     }
