@@ -330,14 +330,7 @@ export const GameCanvas = ({ onGameOver, onExit, dailyMode = false }: Props) => 
         </div>
       )}
 
-      {/* Super balls active badge */}
-      {stats.superBallsActive > 0 && (
-        <div className="absolute top-32 right-3 pointer-events-none">
-          <div className="px-2 py-0.5 rounded-md bg-yellow-300/25 border border-yellow-300 text-yellow-100 text-[10px] font-black uppercase tracking-wider">
-            ⭐ SUPER ×{stats.superBallsActive} · +10/barr
-          </div>
-        </div>
-      )}
+      {/* (super-ball badge removed) */}
 
       {/* Countdown overlay */}
       {isCountdown && stats.countdown != null && (
