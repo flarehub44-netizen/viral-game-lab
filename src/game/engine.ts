@@ -234,6 +234,8 @@ export class GameEngine {
       hue: HUES[0],
       alive: true,
       trail: [],
+      prevX: this.width / 2,
+      prevY: this.height * 0.25,
     });
   }
 
