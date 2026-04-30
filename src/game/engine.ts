@@ -23,6 +23,8 @@ interface Ball {
   hue: number;
   alive: boolean;
   trail: { x: number; y: number }[];
+  prevY: number;
+  prevX: number;
 }
 
 interface Barrier {
@@ -183,6 +185,8 @@ export class GameEngine {
         hue,
         alive: true,
         trail: [],
+        prevX: b.x + jitterX,
+        prevY: b.y + jitterY,
       });
       b.x -= jitterX * 0.6;
       b.y -= jitterY * 0.6;
@@ -230,6 +234,8 @@ export class GameEngine {
       hue: HUES[0],
       alive: true,
       trail: [],
+      prevX: this.width / 2,
+      prevY: this.height * 0.25,
     });
   }
 
@@ -321,6 +327,9 @@ export class GameEngine {
       // Trail
       b.trail.push({ x: b.x, y: b.y });
       if (b.trail.length > GameEngine.TRAIL_LEN) b.trail.shift();
+      // Save previous position for swept collision
+      b.prevX = b.x;
+      b.prevY = b.y;
       // Horizontal motion
       b.x += b.vx * dt;
       b.vx *= 0.97; // lighter damping so balls keep separation
@@ -371,15 +380,30 @@ export class GameEngine {
     const aliveBefore = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     for (let i = this.barriers.length - 1; i >= 0; i--) {
       const bar = this.barriers[i];
+      const prevBarY = bar.y;
       bar.y -= bar.speed * dt;
       const top = bar.y;
       const bottom = bar.y + bar.height;
+      const prevTop = prevBarY;
+      const prevBottom = prevBarY + bar.height;
 
       for (const b of this.balls) {
         if (!b.alive) continue;
-        if (b.y + b.radius >= top && b.y - b.radius <= bottom) {
+        // Swept overlap: did the ball band [y-r, y+r] overlap the barrier band
+        // at any time between previous and current frame?
+        const ballMinNow = b.y - b.radius;
+        const ballMaxNow = b.y + b.radius;
+        const ballMinPrev = b.prevY - b.radius;
+        const ballMaxPrev = b.prevY + b.radius;
+        const ballMin = Math.min(ballMinNow, ballMinPrev);
+        const ballMax = Math.max(ballMaxNow, ballMaxPrev);
+        const barMin = Math.min(top, prevTop);
+        const barMax = Math.max(bottom, prevBottom);
+        if (ballMax >= barMin && ballMin <= barMax) {
           if (ts < this.graceUntil) continue;
-          const nx = b.x / this.width;
+          // Check x at the moment of crossing — use midpoint of prev/now for robustness
+          const midX = (b.x + b.prevX) * 0.5;
+          const nx = midX / this.width;
           const inGap = nx >= bar.gap.start + 0.005 && nx <= bar.gap.end - 0.005;
           if (!inGap) {
             b.alive = false;
