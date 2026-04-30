@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { GameEngine, type PublicGameStats } from "@/game/engine";
+import { GameEngine, type PublicGameStats, type RoundSummaryOut } from "@/game/engine";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
-import { Volume2, VolumeX, Menu } from "lucide-react";
+import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 
 interface Props {
-  onGameOver: (stats: PublicGameStats) => void;
+  onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
   onExit: () => void;
 }
 
@@ -16,6 +16,10 @@ const initialStats: PublicGameStats = {
   state: "ready",
   durationSeconds: 0,
   countdown: null,
+  combo: 0,
+  shieldActive: false,
+  ghostCharges: 0,
+  multiplierUntilSec: 0,
 };
 
 export const GameCanvas = ({ onGameOver, onExit }: Props) => {
