@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { GameEngine, type PublicGameStats } from "@/game/engine";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { getSelectedSkin } from "@/game/skins";
+import { getDailyMod } from "@/game/daily";
+import { getSettings } from "@/game/settings";
 import { Volume2, VolumeX, Menu } from "lucide-react";
 
 interface Props {
   onGameOver: (stats: PublicGameStats) => void;
   onExit: () => void;
+  dailyMode?: boolean;
 }
 
 const TUTORIAL_KEY = "ns_tutorial_seen";
