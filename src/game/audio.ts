@@ -1,141 +1,66 @@
-// Tiny Web Audio synth — no external assets
-import { getSettings } from "./settings";
+// Minimal WebAudio SFX + haptics. Lazy-init on first user gesture.
 
 let ctx: AudioContext | null = null;
 let muted = false;
+const MUTE_KEY = "ns_muted";
 
-function ensureCtx() {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    try {
-      ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    } catch {
-      return null;
-    }
-  }
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
-  return ctx;
+try {
+  muted = localStorage.getItem(MUTE_KEY) === "1";
+} catch {}
+
+export function isMuted() {
+  return muted;
 }
-
-export function setMuted(m: boolean) {
-  muted = m;
+export function setMuted(v: boolean) {
+  muted = v;
   try {
-    localStorage.setItem("ns_muted", m ? "1" : "0");
+    localStorage.setItem(MUTE_KEY, v ? "1" : "0");
   } catch {}
 }
 
-export function isMuted() {
-  if (typeof window === "undefined") return false;
+export function unlockAudio() {
+  if (ctx) return;
   try {
-    return localStorage.getItem("ns_muted") === "1";
-  } catch {
-    return muted;
-  }
+    const C = window.AudioContext || (window as any).webkitAudioContext;
+    if (!C) return;
+    ctx = new C();
+  } catch {}
 }
 
-function tone(
-  freq: number,
-  duration: number,
-  type: OscillatorType = "sine",
-  gain = 0.15,
-  freqEnd?: number,
-) {
-  if (isMuted()) return;
-  const c = ensureCtx();
-  if (!c) return;
-  const sfxVol = getSettings().sfxVolume;
-  if (sfxVol <= 0) return;
-  const osc = c.createOscillator();
-  const g = c.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, c.currentTime);
-  if (freqEnd != null) {
-    osc.frequency.exponentialRampToValueAtTime(
-      Math.max(20, freqEnd),
-      c.currentTime + duration,
-    );
-  }
-  g.gain.setValueAtTime(gain * sfxVol, c.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
-  osc.connect(g).connect(c.destination);
-  osc.start();
-  osc.stop(c.currentTime + duration + 0.02);
+function tone(freq: number, dur: number, type: OscillatorType = "sine", gain = 0.05) {
+  if (muted || !ctx) return;
+  try {
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + dur);
+  } catch {}
 }
 
 export const sfx = {
-  split: () => tone(880, 0.08, "square", 0.08, 1320),
-  pass: (mult: number) => {
-    const base = 440 + Math.min(mult, 32) * 30;
-    tone(base, 0.06, "triangle", 0.06, base * 1.4);
-  },
-  perfect: () => {
-    tone(660, 0.12, "triangle", 0.1, 1320);
-    setTimeout(() => tone(990, 0.18, "triangle", 0.08, 1980), 60);
-  },
-  hit: () => tone(220, 0.18, "sawtooth", 0.1, 80),
+  tap: () => tone(420, 0.05, "triangle", 0.04),
+  split: () => tone(680, 0.08, "triangle", 0.05),
+  pass: (n: number) => tone(440 + Math.min(n, 16) * 30, 0.08, "sine", 0.05),
   gameOver: () => {
-    tone(330, 0.25, "sawtooth", 0.15, 80);
-    setTimeout(() => tone(180, 0.4, "sawtooth", 0.12, 50), 120);
-  },
-  powerup: () => {
-    tone(523, 0.08, "sine", 0.1, 784);
-    setTimeout(() => tone(784, 0.1, "sine", 0.1, 1046), 70);
-  },
-  click: () => tone(660, 0.04, "square", 0.05),
-  bomb: () => {
-    tone(120, 0.35, "sawtooth", 0.18, 40);
-    setTimeout(() => tone(80, 0.5, "sawtooth", 0.14, 30), 80);
-  },
-  rush: () => {
-    tone(440, 0.15, "square", 0.1, 880);
-    setTimeout(() => tone(660, 0.18, "square", 0.1, 1320), 100);
-  },
-  boss: () => {
-    tone(80, 0.6, "sawtooth", 0.18, 60);
-    setTimeout(() => tone(110, 0.4, "sawtooth", 0.14, 80), 200);
-  },
-  bossKill: () => {
-    tone(880, 0.1, "triangle", 0.12, 1760);
-    setTimeout(() => tone(1320, 0.15, "triangle", 0.12, 2640), 80);
-    setTimeout(() => tone(1760, 0.25, "triangle", 0.1, 3520), 180);
-  },
-  merge: () => {
-    tone(523, 0.1, "triangle", 0.1, 1046);
-    setTimeout(() => tone(1046, 0.12, "triangle", 0.08, 2093), 60);
-  },
-  comboTick: () => tone(880, 0.03, "square", 0.04),
-  achievement: () => {
-    tone(784, 0.1, "triangle", 0.1, 1046);
-    setTimeout(() => tone(1046, 0.1, "triangle", 0.1, 1318), 80);
-    setTimeout(() => tone(1318, 0.18, "triangle", 0.1, 1568), 160);
+    tone(220, 0.18, "sawtooth", 0.06);
+    setTimeout(() => tone(160, 0.25, "sawtooth", 0.05), 120);
   },
 };
 
-export function unlockAudio() {
-  ensureCtx();
-}
+export const hapticPatterns = {
+  tap: 10,
+  hit: 40,
+};
 
-/** Haptic feedback. Respects mute toggle AND the haptics setting. */
-export function haptic(pattern: number | number[]) {
-  if (isMuted()) return;
-  if (!getSettings().hapticsEnabled) return;
-  if (typeof navigator === "undefined" || !navigator.vibrate) return;
+export function haptic(ms: number) {
+  if (muted) return;
   try {
-    navigator.vibrate(pattern);
+    if ("vibrate" in navigator) navigator.vibrate(ms);
   } catch {}
 }
-
-/** Named haptic patterns for differentiated feedback. */
-export const hapticPatterns = {
-  tap: 8,
-  nearMiss: [4, 6, 4],
-  perfect: [10, 20, 10],
-  hit: 40,
-  bomb: [30, 40, 60],
-  rush: [20, 30, 20, 30, 20],
-  boss: [40, 60, 40],
-  bossKill: [60, 30, 60, 30, 80],
-  merge: 20,
-  achievement: [15, 25, 15, 25],
-  levelUp: [30, 50, 30, 50, 80],
-};
