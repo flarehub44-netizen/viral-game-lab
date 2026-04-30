@@ -142,6 +142,11 @@ export class GameEngine {
   // Frame counter (stable trail throttling, not tied to timestep)
   private frameCount = 0;
 
+  // Per-frame SFX coalescing — prevents 64+ oscillators from hammering WebAudio
+  // when many balls collide on the same frame (was the cause of "tap freezes").
+  private hitsThisFrame = 0;
+  private hapticThisFrame = 0;
+
   // Countdown before play
   private countdownEndsAt = 0; // performance.now() ms
   private static readonly COUNTDOWN_MS = 3000;
