@@ -192,6 +192,8 @@ export class GameEngine {
   private cb: EngineCallbacks;
   private HUES: number[] = DEFAULT_HUES;
   private attract = false;
+  private dailyMod: DailyMod | null = null;
+  private trailStyle: "normal" | "sparkle" | "fire" | "pixel" = "normal";
 
   // Mission tracking
   private bestPerfectStreak = 0;
