@@ -340,12 +340,11 @@ export class GameEngine {
     }
     this.lastTapTs = ts;
     // Snapshot first: never iterate the same array we're pushing into.
-    // Super balls não dividem (mantêm escudo + bônus); apenas normais splitam.
+    // Todas as bolinhas vivas dividem (super balls preservam status/escudo).
     const alive = this.balls.filter((b) => b.alive);
-    const splittable = alive.filter((b) => !b.isSuper);
-    if (splittable.length === 0) return;
+    if (alive.length === 0) return;
     if (alive.length >= GameEngine.MAX_BALLS) return;
-    const splitCount = Math.min(splittable.length, GameEngine.MAX_BALLS - alive.length);
+    const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
     if (splitCount <= 0) return;
     sfx.split();
     haptic(hapticPatterns.tap);
@@ -353,15 +352,16 @@ export class GameEngine {
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
     this.lastSplitSpawned = [];
     for (let i = 0; i < splitCount; i++) {
-      const b = splittable[i];
+      const b = alive[i];
       const spread = 110 + Math.random() * 40;
+      // Super balls geram filhotes normais (o "pai" mantém o status super).
       const newBall: Ball = {
         x: b.x,
         y: b.y,
         vx: spread,
         vy: b.vy,
         radius: Math.max(8, b.radius * 0.97),
-        hue,
+        hue: b.isSuper ? hue : hue,
         alive: true,
         shielded: false,
         isSuper: false,
@@ -369,8 +369,11 @@ export class GameEngine {
         trail: [],
       };
       b.vx = -spread;
-      b.radius = Math.max(8, b.radius * 0.97);
-      b.hue = hue;
+      // Não encolhe super balls (preserva visual dourado / hitbox de escudo).
+      if (!b.isSuper) {
+        b.radius = Math.max(8, b.radius * 0.97);
+        b.hue = hue;
+      }
       this.balls.push(newBall);
       this.lastSplitSpawned.push(newBall);
     }
