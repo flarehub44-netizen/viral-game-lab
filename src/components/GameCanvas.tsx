@@ -36,7 +36,7 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     const canvas = canvasRef.current!;
     const engine = new GameEngine(canvas, {
       onStatsChange: (s) => setStats(s),
-      onGameOver: (s) => onGameOver(s),
+      onGameOver: (s, summary) => onGameOver(s, summary),
     });
     engineRef.current = engine;
 
