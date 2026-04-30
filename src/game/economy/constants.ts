@@ -23,8 +23,11 @@ export const RTP_ADJUST_MAX = 1.12;
 /** Amplitude do ruído probabilístico por rodada (0–1). */
 export const NOISE_AMPLITUDE = 0.22;
 
-/** Saldo inicial para demonstração (somente local). */
+/** Saldo inicial para demonstração (somente local/demo). */
 export const INITIAL_WALLET_BALANCE = 150;
+
+/** Saldo inicial para contas reais (online). */
+export const INITIAL_ONLINE_WALLET_BALANCE = 0;
 
 /** Máximo de lançamentos no histórico persistido. */
 export const MAX_TRANSACTION_HISTORY = 80;
