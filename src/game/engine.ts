@@ -340,7 +340,7 @@ export class GameEngine {
     if (alive.length >= GameEngine.MAX_BALLS) return;
     const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
     sfx.split();
-    haptic(8);
+    haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
@@ -658,7 +658,7 @@ export class GameEngine {
       this.rushUntil = ts + GameEngine.RUSH_DURATION_MS;
       this.nextRushAt = elapsedSec + 30;
       sfx.rush();
-      haptic([20, 30, 20]);
+      haptic(hapticPatterns.rush);
       this.addFloatText(this.width / 2, this.height * 0.3, "RUSH ×3", 0, 32);
       this.flashUntil = Math.max(this.flashUntil, ts + 200);
     }
@@ -670,7 +670,7 @@ export class GameEngine {
       this.bossPending = true;
       this.bossWarningUntil = ts + 2000;
       this.addFloatText(this.width / 2, this.height * 0.25, "⚠ BOSS", 0, 36);
-      haptic([40, 60, 40]);
+      haptic(hapticPatterns.boss);
     }
     if (this.bossPending && elapsedSec >= this.nextBossAt) {
       this.bossPending = false;
