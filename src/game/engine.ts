@@ -229,6 +229,8 @@ export class GameEngine {
     this.cb = cb;
     if (options.hues && options.hues.length > 0) this.HUES = options.hues;
     this.attract = !!options.attract;
+    this.dailyMod = options.dailyMod ?? null;
+    this.trailStyle = options.trailStyle ?? "normal";
     this.buildSprites();
     this.handleResize();
   }
