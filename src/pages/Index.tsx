@@ -147,6 +147,7 @@ const Index = () => {
             onMenu={() => setScreen("menu")}
             onLeaderboard={() => setScreen("leaderboard")}
             saving={savingScore}
+            newlyCompletedMissions={newlyCompletedMissions}
           />
         )}
 
