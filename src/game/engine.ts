@@ -22,6 +22,12 @@ export interface PublicGameStats {
   comboBar: number;
   /** Countdown number to display (3,2,1) when state === "countdown", else null */
   countdown: number | null;
+  /** Maior streak de passes perfeitos atingido na run */
+  bestPerfectStreak: number;
+  /** Quantos near-misses na run */
+  nearMisses: number;
+  /** Coletou ao menos um power-up nesta run */
+  pickedAnyPowerup: boolean;
 }
 
 interface Ball {
@@ -80,11 +86,18 @@ interface FloatText {
   vy: number;
 }
 
-const HUES = [180, 320, 55, 140, 270, 25];
+const DEFAULT_HUES = [180, 320, 55, 140, 270, 25];
 
 interface EngineCallbacks {
   onStatsChange: (stats: PublicGameStats) => void;
   onGameOver: (stats: PublicGameStats) => void;
+}
+
+export interface EngineOptions {
+  /** Paletas de hue customizadas (skin selecionada) */
+  hues?: number[];
+  /** Modo "attract": loop demo sem colisão / sem game over (usado no menu) */
+  attract?: boolean;
 }
 
 export class GameEngine {
@@ -143,11 +156,20 @@ export class GameEngine {
   private spriteScale = 1;
 
   private cb: EngineCallbacks;
+  private HUES: number[] = DEFAULT_HUES;
+  private attract = false;
 
-  constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
+  // Mission tracking
+  private bestPerfectStreak = 0;
+  private nearMisses = 0;
+  private pickedAnyPowerup = false;
+
+  constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks, options: EngineOptions = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
+    if (options.hues && options.hues.length > 0) this.HUES = options.hues;
+    this.attract = !!options.attract;
     this.buildSprites();
     this.handleResize();
   }
@@ -161,7 +183,7 @@ export class GameEngine {
     const R = GameEngine.SPRITE_R * scale;
     const size = R * 2;
     this.ballSprites.clear();
-    for (const hue of HUES) {
+    for (const hue of this.HUES) {
       const off = document.createElement("canvas");
       off.width = size;
       off.height = size;
@@ -190,9 +212,18 @@ export class GameEngine {
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
     this.powerupTimer = 4;
+    const now = performance.now();
+    if (this.attract) {
+      // Attract mode: skip countdown, jump straight to playing
+      this.state = "playing";
+      this.startTs = now;
+      this.lastTs = now;
+      this.emitStats();
+      this.loop(now);
+      return;
+    }
     // Begin with a 3-2-1 countdown that freezes spawn/collisions/score time
     this.state = "countdown";
-    const now = performance.now();
     this.countdownEndsAt = now + GameEngine.COUNTDOWN_MS;
     this.startTs = this.countdownEndsAt; // elapsed only counts after GO
     this.lastTs = now;
@@ -241,7 +272,7 @@ export class GameEngine {
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
     this.graceUntil = ts + 90;
-    const hue = HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), HUES.length - 1)];
+    const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), this.HUES.length - 1)];
     for (const b of alive) {
       // Push outward symmetrically — wider spread feels more impactful
       const spread = 110 + Math.random() * 40;
@@ -301,6 +332,9 @@ export class GameEngine {
     this.graceUntil = 0;
     this.frameCount = 0;
     this.pausedAt = 0;
+    this.bestPerfectStreak = 0;
+    this.nearMisses = 0;
+    this.pickedAnyPowerup = false;
   }
 
   private spawnInitialBall() {
@@ -310,7 +344,7 @@ export class GameEngine {
       vx: 0,
       vy: 0,
       radius: 12,
-      hue: HUES[0],
+      hue: this.HUES[0],
       alive: true,
       shielded: false,
       trail: [],
@@ -366,7 +400,7 @@ export class GameEngine {
       gaps.push({ start: Math.max(0, c1 - w / 2), end: c1 + w / 2 });
       gaps.push({ start: c2 - w / 2, end: Math.min(1, c2 + w / 2) });
     }
-    const hue = HUES[Math.floor(Math.random() * HUES.length)];
+    const hue = this.HUES[Math.floor(Math.random() * this.HUES.length)];
     // Total gap width — shrinks with difficulty + multi-gap. Below threshold,
     // we flag as "dangerous" so render layer pulses a warning color.
     const totalGap = gaps.reduce((s, g) => s + (g.end - g.start), 0);
@@ -451,8 +485,18 @@ export class GameEngine {
     this.rafId = requestAnimationFrame(this.loop);
   };
 
+  private attractTapTimer = 0;
   private update(dt: number, ts: number) {
     const diff = this.currentDifficulty();
+
+    // Attract mode: auto-split occasionally to keep the demo lively, but cap balls
+    if (this.attract) {
+      this.attractTapTimer += dt;
+      if (this.attractTapTimer > 1.6 && this.balls.length < 6) {
+        this.attractTapTimer = 0;
+        this.tap();
+      }
+    }
 
     // Spawn barriers
     this.spawnTimer += dt;
@@ -548,6 +592,8 @@ export class GameEngine {
             (g) => nx >= g.start + 0.005 && nx <= g.end - 0.005,
           );
           if (!inGap) {
+            // Attract mode: never die, never lose combo
+            if (this.attract) continue;
             // Tap grace: brief invuln right after splitting
             if (ts < this.graceUntil) continue;
             if (b.shielded) {
@@ -585,6 +631,7 @@ export class GameEngine {
               const cm = this.comboMultiplier();
               const bonus = 5 * cm;
               this.score += bonus;
+              this.nearMisses += 1;
               this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
               haptic(15);
               this.flashUntil = Math.max(this.flashUntil, ts + 80);
@@ -602,6 +649,7 @@ export class GameEngine {
           const perfect = aliveNow === aliveBefore;
           if (perfect) {
             this.combo += 1;
+            if (this.combo > this.bestPerfectStreak) this.bestPerfectStreak = this.combo;
             // Refill combo bar — fully on perfect, partial on plain pass
             this.comboBar = Math.min(1, this.comboBar + 0.35);
           } else {
@@ -647,6 +695,7 @@ export class GameEngine {
         const dy = b.y - p.y;
         if (dx * dx + dy * dy < (b.radius + 14) ** 2) {
           p.collected = true;
+          this.pickedAnyPowerup = true;
           sfx.powerup();
           haptic(20);
           if (p.kind === "shield") {
@@ -727,6 +776,9 @@ export class GameEngine {
       comboMultiplier: this.comboMultiplier(),
       comboBar: this.comboBar,
       countdown,
+      bestPerfectStreak: this.bestPerfectStreak,
+      nearMisses: this.nearMisses,
+      pickedAnyPowerup: this.pickedAnyPowerup,
     };
   }
 

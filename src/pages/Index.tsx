@@ -7,6 +7,8 @@ import { NicknameDialog } from "@/components/NicknameDialog";
 import type { PublicGameStats } from "@/game/engine";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { applyRunToMissions, type Mission } from "@/game/missions";
+import { addLifetimeScore } from "@/game/skins";
 
 type Screen = "menu" | "playing" | "over" | "leaderboard";
 
@@ -38,6 +40,7 @@ const Index = () => {
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
+  const [newlyCompletedMissions, setNewlyCompletedMissions] = useState<Mission[]>([]);
 
   // Persist nickname
   useEffect(() => {
@@ -70,6 +73,21 @@ const Index = () => {
         localStorage.setItem(BEST_KEY, String(stats.score));
       } catch {}
     }
+
+    // Lifetime score (desbloqueia skins)
+    addLifetimeScore(stats.score);
+
+    // Atualiza missões diárias
+    const completed = applyRunToMissions({
+      score: stats.score,
+      maxMultiplier: stats.maxMultiplier,
+      durationSeconds: stats.durationSeconds,
+      bestPerfectStreak: stats.bestPerfectStreak,
+      nearMisses: stats.nearMisses,
+      pickedAnyPowerup: stats.pickedAnyPowerup,
+    });
+    setNewlyCompletedMissions(completed);
+
     setScreen("over");
 
     // Submit to leaderboard if score is meaningful
@@ -129,6 +147,7 @@ const Index = () => {
             onMenu={() => setScreen("menu")}
             onLeaderboard={() => setScreen("leaderboard")}
             saving={savingScore}
+            newlyCompletedMissions={newlyCompletedMissions}
           />
         )}
 
