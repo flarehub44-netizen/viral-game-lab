@@ -37,6 +37,7 @@ const initialStats: PublicGameStats = {
   scoreMultActive: 1,
   uniquePowerupsCollected: 0,
   mergesUsed: 0,
+  superBallsActive: 0,
 };
 
 /** Pick a hue for the combo bar based on current multiplier tier. */
