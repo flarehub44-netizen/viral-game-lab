@@ -854,6 +854,7 @@ export class GameEngine {
             this.score += bossGain;
             this.bossesKilled += 1;
             sfx.bossKill();
+            haptic(hapticPatterns.bossKill);
             this.flashUntil = ts + 300;
             this.shakeUntil = ts + 200;
             this.shakeIntensity = 5;
@@ -937,6 +938,7 @@ export class GameEngine {
             this.shakeIntensity = 12;
             this.flashUntil = ts + 250;
             sfx.bomb();
+            haptic(hapticPatterns.bomb);
             this.addFloatText(this.width / 2, this.height * 0.4, `BOMB! +${bombGain}`, 0, 28);
           } else if (p.kind === "score2x") {
             this.scoreMultUntil = ts + 8000;
