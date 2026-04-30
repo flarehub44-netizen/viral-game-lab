@@ -307,24 +307,28 @@ export class GameEngine {
     this.rafId = null;
   }
 
-  /** User tapped — split all alive balls in two */
+  /** User tapped — split all alive balls. Tap duplo (2 toques < 250ms) = merge. */
   tap() {
     if (this.state !== "playing") return;
+    const ts = performance.now();
+    if (ts - this.lastTapTs < GameEngine.DOUBLE_TAP_MS) {
+      this.lastTapTs = 0;
+      this.mergeNearest();
+      return;
+    }
+    this.lastTapTs = ts;
     // Snapshot first: never iterate the same array we're pushing into.
-    // `for...of` over a growing array can keep consuming newly added balls and freeze.
     const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
     if (alive.length >= GameEngine.MAX_BALLS) return;
     const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
     sfx.split();
-    haptic(8); // light tactile pulse to give the tap "weight"
-    const ts = performance.now();
-    // Brief grace window so a tap doesn't insta-kill mid-barrier
+    haptic(8);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
-      // Push outward symmetrically — wider spread feels more impactful
+      if (b.isSuper) continue;
       const spread = 110 + Math.random() * 40;
       const newBall: Ball = {
         x: b.x,
