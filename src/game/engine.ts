@@ -170,9 +170,10 @@ export class GameEngine {
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
-      const spread = 180 + Math.random() * 80;
-      const jitterX = (Math.random() - 0.5) * 10;
-      const jitterY = (Math.random() - 0.5) * 10;
+      const direction = i % 2 === 0 ? 1 : -1;
+      const spread = direction * (190 + Math.random() * 90);
+      const jitterX = direction * (b.radius * 1.8 + Math.random() * 10);
+      const jitterY = (Math.random() - 0.5) * 18;
       this.balls.push({
         x: b.x + jitterX,
         y: b.y + jitterY,
@@ -183,8 +184,8 @@ export class GameEngine {
         alive: true,
         trail: [],
       });
-      b.x -= jitterX;
-      b.y -= jitterY;
+      b.x -= jitterX * 0.6;
+      b.y -= jitterY * 0.6;
       b.vx = -spread;
       b.vy += (Math.random() - 0.5) * 50;
       b.radius = Math.max(8, b.radius * 0.97);
