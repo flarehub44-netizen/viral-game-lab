@@ -1,4 +1,6 @@
 // Tiny Web Audio synth — no external assets
+import { getSettings } from "./settings";
+
 let ctx: AudioContext | null = null;
 let muted = false;
 
@@ -41,6 +43,8 @@ function tone(
   if (isMuted()) return;
   const c = ensureCtx();
   if (!c) return;
+  const sfxVol = getSettings().sfxVolume;
+  if (sfxVol <= 0) return;
   const osc = c.createOscillator();
   const g = c.createGain();
   osc.type = type;
@@ -51,7 +55,7 @@ function tone(
       c.currentTime + duration,
     );
   }
-  g.gain.setValueAtTime(gain, c.currentTime);
+  g.gain.setValueAtTime(gain * sfxVol, c.currentTime);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
   osc.connect(g).connect(c.destination);
   osc.start();
@@ -111,11 +115,27 @@ export function unlockAudio() {
   ensureCtx();
 }
 
-/** Haptic feedback. Respects the mute toggle (one switch = full silent mode). */
+/** Haptic feedback. Respects mute toggle AND the haptics setting. */
 export function haptic(pattern: number | number[]) {
   if (isMuted()) return;
+  if (!getSettings().hapticsEnabled) return;
   if (typeof navigator === "undefined" || !navigator.vibrate) return;
   try {
     navigator.vibrate(pattern);
   } catch {}
 }
+
+/** Named haptic patterns for differentiated feedback. */
+export const hapticPatterns = {
+  tap: 8,
+  nearMiss: [4, 6, 4],
+  perfect: [10, 20, 10],
+  hit: 40,
+  bomb: [30, 40, 60],
+  rush: [20, 30, 20, 30, 20],
+  boss: [40, 60, 40],
+  bossKill: [60, 30, 60, 30, 80],
+  merge: 20,
+  achievement: [15, 25, 15, 25],
+  levelUp: [30, 50, 30, 50, 80],
+};
