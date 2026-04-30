@@ -866,7 +866,15 @@ export class GameEngine {
     }
 
     // Drain combo bar over time (~3s to empty from full)
+    const prevBar = this.comboBar;
     this.comboBar = Math.max(0, this.comboBar - GameEngine.COMBO_DRAIN_PER_SEC * dt);
+    // Tick sonoro nos últimos 1.5s do combo (a cada 200ms)
+    if (this.combo > 0 && this.comboBar > 0 && this.comboBar < 0.5) {
+      const tickInterval = 200;
+      const tsMod = Math.floor(ts / tickInterval);
+      const prevTsMod = Math.floor((ts - dt * 1000) / tickInterval);
+      if (tsMod !== prevTsMod) sfx.comboTick();
+    }
     if (this.comboBar === 0 && this.combo > 0) {
       // Bar fully empty → reset combo silently
       this.combo = 0;
