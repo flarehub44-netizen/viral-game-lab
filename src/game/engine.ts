@@ -42,6 +42,8 @@ export interface PublicGameStats {
   uniquePowerupsCollected: number;
   /** Quantas vezes usou merge (tap duplo) na run */
   mergesUsed: number;
+  /** Super balls vivas no momento (HUD badge) */
+  superBallsActive: number;
 }
 
 interface Ball {
@@ -1067,6 +1069,7 @@ export class GameEngine {
       scoreMultActive: now < this.scoreMultUntil ? 2 : 1,
       uniquePowerupsCollected: this.collectedPowerKinds.size,
       mergesUsed: this.mergesUsed,
+      superBallsActive: this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0),
     };
   }
 
