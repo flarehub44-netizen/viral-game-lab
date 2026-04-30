@@ -111,11 +111,21 @@ interface EngineCallbacks {
   onGameOver: (stats: PublicGameStats) => void;
 }
 
+export interface DailyMod {
+  speedMultiplier: number;
+  gapMultiplier: number;
+  scoreMultiplier: number;
+}
+
 export interface EngineOptions {
   /** Paletas de hue customizadas (skin selecionada) */
   hues?: number[];
   /** Modo "attract": loop demo sem colisão / sem game over (usado no menu) */
   attract?: boolean;
+  /** Modificadores do desafio diário */
+  dailyMod?: DailyMod;
+  /** Trail style: 'normal' | 'sparkle' | 'fire' | 'pixel' */
+  trailStyle?: "normal" | "sparkle" | "fire" | "pixel";
 }
 
 export class GameEngine {
