@@ -75,7 +75,7 @@ export class GameEngine {
 
   private graceUntil = 0;
 
-  private static readonly MAX_BALLS = 32;
+  private static readonly MAX_BALLS = 128;
   private static readonly TRAIL_LEN = 4;
   private static readonly MAX_PARTICLES = 40;
   private static readonly COUNTDOWN_MS = 3000;
