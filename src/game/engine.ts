@@ -23,6 +23,8 @@ interface Ball {
   hue: number;
   alive: boolean;
   trail: { x: number; y: number }[];
+  prevY: number;
+  prevX: number;
 }
 
 interface Barrier {
