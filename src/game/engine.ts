@@ -386,6 +386,17 @@ export class GameEngine {
     this.bestPerfectStreak = 0;
     this.nearMisses = 0;
     this.pickedAnyPowerup = false;
+    this.bossesKilled = 0;
+    this.mergesUsed = 0;
+    this.collectedPowerKinds.clear();
+    this.rushUntil = 0;
+    this.nextRushAt = 30;
+    this.nextBossAt = 60;
+    this.bossWarningUntil = 0;
+    this.bossPending = false;
+    this.scoreMultUntil = 0;
+    this.repelUntil = 0;
+    this.lastTapTs = 0;
   }
 
   private spawnInitialBall() {
@@ -398,6 +409,7 @@ export class GameEngine {
       hue: this.HUES[0],
       alive: true,
       shielded: false,
+      isSuper: false,
       trail: [],
     });
   }
