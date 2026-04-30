@@ -291,12 +291,15 @@ export class GameEngine {
     if (this.state !== "paused") return;
     const now = performance.now();
     const delta = now - this.pausedAt;
-    // Shift all absolute-time deadlines forward by the pause duration
     this.slowMoUntil += delta;
     this.magnetUntil += delta;
     this.shakeUntil += delta;
     this.flashUntil += delta;
     this.graceUntil += delta;
+    this.rushUntil += delta;
+    this.bossWarningUntil += delta;
+    this.scoreMultUntil += delta;
+    this.repelUntil += delta;
     this.lastTs = now;
     this.state = "playing";
     this.emitStats();
