@@ -154,6 +154,19 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         </div>
 
         <div className="pointer-events-auto flex items-start gap-2">
+          <div className="flex items-center gap-1">
+            {stats.shieldActive && (
+              <div className="p-1.5 rounded-md bg-primary/20 border border-primary text-primary animate-pulse">
+                <Shield size={14} />
+              </div>
+            )}
+            {stats.ghostCharges > 0 && (
+              <div className="p-1.5 rounded-md bg-secondary/20 border border-secondary text-secondary animate-pulse flex items-center gap-1">
+                <Ghost size={14} />
+                {stats.ghostCharges > 1 && <span className="text-[10px] font-bold">{stats.ghostCharges}</span>}
+              </div>
+            )}
+          </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-glow-magenta tabular-nums leading-none">
               ×{stats.alive}
