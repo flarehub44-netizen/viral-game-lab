@@ -212,9 +212,18 @@ export class GameEngine {
     this.spawnInitialBall();
     this.nextSpawnIn = 1.1;
     this.powerupTimer = 4;
+    const now = performance.now();
+    if (this.attract) {
+      // Attract mode: skip countdown, jump straight to playing
+      this.state = "playing";
+      this.startTs = now;
+      this.lastTs = now;
+      this.emitStats();
+      this.loop(now);
+      return;
+    }
     // Begin with a 3-2-1 countdown that freezes spawn/collisions/score time
     this.state = "countdown";
-    const now = performance.now();
     this.countdownEndsAt = now + GameEngine.COUNTDOWN_MS;
     this.startTs = this.countdownEndsAt; // elapsed only counts after GO
     this.lastTs = now;
