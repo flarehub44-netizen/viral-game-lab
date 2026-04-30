@@ -633,6 +633,32 @@ export class GameEngine {
       }
     }
 
+    // Rush event: a cada 30s, dura 10s. +60% speed, ×3 score.
+    const elapsedSec = this.elapsedMs / 1000;
+    if (!this.attract && elapsedSec >= this.nextRushAt && ts >= this.rushUntil) {
+      this.rushUntil = ts + GameEngine.RUSH_DURATION_MS;
+      this.nextRushAt = elapsedSec + 30;
+      sfx.rush();
+      haptic([20, 30, 20]);
+      this.addFloatText(this.width / 2, this.height * 0.3, "RUSH ×3", 0, 32);
+      this.flashUntil = Math.max(this.flashUntil, ts + 200);
+    }
+    const inRush = ts < this.rushUntil;
+    const rushSpeedMult = inRush ? 1.6 : 1;
+
+    // Boss barrier: a cada 60s. Aviso 2s antes.
+    if (!this.attract && elapsedSec >= this.nextBossAt - 2 && !this.bossPending && ts > this.bossWarningUntil) {
+      this.bossPending = true;
+      this.bossWarningUntil = ts + 2000;
+      this.addFloatText(this.width / 2, this.height * 0.25, "⚠ BOSS", 0, 36);
+      haptic([40, 60, 40]);
+    }
+    if (this.bossPending && elapsedSec >= this.nextBossAt) {
+      this.bossPending = false;
+      this.nextBossAt = elapsedSec + 60;
+      this.spawnBoss();
+    }
+
     // Spawn barriers
     this.spawnTimer += dt;
     const spawnInterval = Math.max(0.55, 1.2 - diff * 0.7);
@@ -648,9 +674,9 @@ export class GameEngine {
       this.powerupTimer = 4 + Math.random() * 4;
     }
 
-    // Update barriers
+    // Update barriers (rush acelera tudo)
     for (const bar of this.barriers) {
-      bar.y -= bar.speed * dt;
+      bar.y -= bar.speed * rushSpeedMult * dt;
     }
 
     // Update powerups (move up with average barrier speed)
