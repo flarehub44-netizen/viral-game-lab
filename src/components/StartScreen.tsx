@@ -44,10 +44,15 @@ export const StartScreen = ({
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Demo loop ao fundo */}
-      <AttractCanvas />
-      {/* Vinheta para legibilidade */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/30 to-background/80 pointer-events-none" />
+      {/* Background ambient orbs */}
+      <div
+        className="absolute -top-20 -left-20 w-72 h-72 rounded-full blur-3xl opacity-30"
+        style={{ background: "hsl(var(--neon-cyan))" }}
+      />
+      <div
+        className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full blur-3xl opacity-20"
+        style={{ background: "hsl(var(--neon-magenta))" }}
+      />
 
       <div className="relative w-full h-full flex flex-col items-center justify-between py-8 px-6 overflow-y-auto">
         {/* Título */}
