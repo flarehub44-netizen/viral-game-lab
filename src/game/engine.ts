@@ -340,18 +340,20 @@ export class GameEngine {
     }
     this.lastTapTs = ts;
     // Snapshot first: never iterate the same array we're pushing into.
+    // Super balls não dividem (mantêm escudo + bônus); apenas normais splitam.
     const alive = this.balls.filter((b) => b.alive);
-    if (alive.length === 0) return;
+    const splittable = alive.filter((b) => !b.isSuper);
+    if (splittable.length === 0) return;
     if (alive.length >= GameEngine.MAX_BALLS) return;
-    const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
+    const splitCount = Math.min(splittable.length, GameEngine.MAX_BALLS - alive.length);
+    if (splitCount <= 0) return;
     sfx.split();
     haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
     this.lastSplitSpawned = [];
     for (let i = 0; i < splitCount; i++) {
-      const b = alive[i];
-      if (b.isSuper) continue;
+      const b = splittable[i];
       const spread = 110 + Math.random() * 40;
       const newBall: Ball = {
         x: b.x,
@@ -661,7 +663,8 @@ export class GameEngine {
     // Attract mode: auto-split occasionally to keep the demo lively, but cap balls
     if (this.attract) {
       this.attractTapTimer += dt;
-      if (this.attractTapTimer > 1.6 && this.balls.length < 6) {
+      const aliveCount = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+      if (this.attractTapTimer > 1.6 && aliveCount < 6) {
         this.attractTapTimer = 0;
         this.tap();
       }
@@ -720,7 +723,7 @@ export class GameEngine {
     }
 
     // Update balls (array contains only alive balls — pruned each frame)
-    const aliveBefore = this.balls.length;
+    const aliveBefore = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     for (const b of this.balls) {
       if (!b.alive) continue;
 
@@ -1041,7 +1044,7 @@ export class GameEngine {
   }
 
   private snapshot(): PublicGameStats {
-    const alive = this.balls.length;
+    const alive = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     let countdown: number | null = null;
     if (this.state === "countdown") {
       const remaining = Math.max(0, this.countdownEndsAt - performance.now());
