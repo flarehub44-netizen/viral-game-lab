@@ -930,7 +930,8 @@ export class GameEngine {
             // Remove fisicamente
             this.barriers = this.barriers.filter((bar) => !visible.includes(bar));
             const cm = this.comboMultiplier();
-            const bombGain = Math.floor(cleared * 25 * cm);
+            const dm = this.dailyMod?.scoreMultiplier ?? 1;
+            const bombGain = Math.floor(cleared * 25 * cm * dm);
             this.score += bombGain;
             this.shakeUntil = ts + 350;
             this.shakeIntensity = 12;
