@@ -9,13 +9,11 @@ const corsHeaders = {
 interface SubmitBody {
   nickname?: unknown;
   score?: unknown;
-  max_multiplier?: unknown;
   duration_seconds?: unknown;
 }
 
 function sanitizeNickname(raw: string): string {
   const trimmed = raw.trim().slice(0, 20);
-  // Strip control chars
   return trimmed.replace(/[\u0000-\u001F\u007F]/g, "");
 }
 
@@ -36,7 +34,6 @@ Deno.serve(async (req) => {
 
     const nicknameRaw = typeof body.nickname === "string" ? body.nickname : "";
     const score = Number(body.score);
-    const maxMult = Number(body.max_multiplier);
     const duration = Number(body.duration_seconds);
 
     const nickname = sanitizeNickname(nicknameRaw);
@@ -46,13 +43,10 @@ Deno.serve(async (req) => {
       nickname.length < 1 ||
       nickname.length > 20 ||
       !Number.isFinite(score) ||
-      !Number.isFinite(maxMult) ||
       !Number.isFinite(duration) ||
-      score < 0 ||
-      score > 1_000_000_000 ||
-      maxMult < 1 ||
-      maxMult > 4096 ||
-      duration < 0 ||
+      score < 1 ||
+      score > 10_000_000 ||
+      duration < 1 ||
       duration > 3600
     ) {
       return new Response(JSON.stringify({ error: "Invalid payload" }), {
@@ -61,12 +55,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Anti-cheat: score plausibility based on duration & combo multiplier.
-    // Quadratic scoring with up to ~256 balls and combo stacking can yield
-    // very high values per barrier. Use a generous upper bound.
-    const secs = Math.max(10, duration);
-    const theoreticalMax = secs * Math.min(maxMult, 4096) * 2000;
-    if (score > theoreticalMax) {
+    // Plausibility: score = aliveBalls per barrier, max ~32 balls,
+    // ~1 barrier/sec → ~32 pts/sec ceiling, plus generous slack.
+    const maxPlausible = duration * 200 + 100;
+    if (score > maxPlausible) {
       return new Response(JSON.stringify({ error: "Implausible score" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -82,7 +74,7 @@ Deno.serve(async (req) => {
       .insert({
         nickname,
         score: Math.floor(score),
-        max_multiplier: Math.floor(maxMult),
+        max_multiplier: 1, // legacy column kept non-null for back-compat
         duration_seconds: Math.floor(duration),
       })
       .select("id")
