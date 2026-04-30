@@ -606,8 +606,8 @@ export class GameEngine {
               this.spawnParticles(b.x, b.y, b.hue, 10);
             } else {
               b.alive = false;
-              sfx.hit();
-              haptic(40); // strong tactile feedback on death
+              this.hitsThisFrame++;
+              this.hapticThisFrame = Math.max(this.hapticThisFrame, 40);
               this.spawnParticles(b.x, b.y, b.hue, 24);
               this.shakeUntil = ts + 240;
               this.shakeIntensity = 7;
