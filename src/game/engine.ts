@@ -185,6 +185,8 @@ export class GameEngine {
         hue,
         alive: true,
         trail: [],
+        prevX: b.x + jitterX,
+        prevY: b.y + jitterY,
       });
       b.x -= jitterX * 0.6;
       b.y -= jitterY * 0.6;
