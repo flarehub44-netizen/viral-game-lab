@@ -92,13 +92,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     check: (_r, l) => l.bossesKilled >= 5,
   },
   {
-    id: "merger",
-    name: "Fusão",
-    description: "Use o merge (tap duplo) pela primeira vez",
-    icon: "🟡",
-    check: (_r, l) => l.merges >= 1,
-  },
-  {
     id: "veteran",
     name: "Veterano",
     description: "Jogue 50 runs",

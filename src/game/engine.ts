@@ -55,10 +55,6 @@ interface Ball {
   hue: number;
   alive: boolean;
   shielded: boolean;
-  /** Super ball (criada via merge) — +10pt flat por barreira + escudo de 1 hit */
-  isSuper: boolean;
-  /** Escudo único da super: ao ser atingida, sobrevive mas perde status super */
-  superShield: boolean;
   trail: { x: number; y: number; a: number }[];
 }
 
@@ -204,7 +200,7 @@ export class GameEngine {
   private nearMisses = 0;
   private pickedAnyPowerup = false;
   private bossesKilled = 0;
-  private mergesUsed = 0;
+  
   private collectedPowerKinds = new Set<PowerKind>();
 
   // Rush event (a cada 30s, 10s ativo, ×3 pontos, +60% velocidade)
@@ -223,10 +219,6 @@ export class GameEngine {
   // Repel ímã reverso (afasta de paredes)
   private repelUntil = 0;
 
-  // Tap duplo → merge
-  private lastTapTs = 0;
-  private lastSplitSpawned: Ball[] = [];
-  private static readonly DOUBLE_TAP_MS = 250;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks, options: EngineOptions = {}) {
     this.canvas = canvas;
@@ -329,18 +321,11 @@ export class GameEngine {
     this.rafId = null;
   }
 
-  /** User tapped — split all alive balls. Tap duplo (2 toques < 250ms) = merge. */
+  /** User tapped — split all alive balls. */
   tap() {
     if (this.state !== "playing") return;
     const ts = performance.now();
-    if (ts - this.lastTapTs < GameEngine.DOUBLE_TAP_MS) {
-      this.lastTapTs = 0;
-      this.mergeNearest();
-      return;
-    }
-    this.lastTapTs = ts;
     // Snapshot first: never iterate the same array we're pushing into.
-    // Todas as bolinhas vivas dividem (super balls preservam status/escudo).
     const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
     if (alive.length >= GameEngine.MAX_BALLS) return;
@@ -350,69 +335,25 @@ export class GameEngine {
     haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
-    this.lastSplitSpawned = [];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
       const spread = 110 + Math.random() * 40;
-      // Super balls geram filhotes normais (o "pai" mantém o status super).
       const newBall: Ball = {
         x: b.x,
         y: b.y,
         vx: spread,
         vy: b.vy,
         radius: Math.max(8, b.radius * 0.97),
-        hue: b.isSuper ? hue : hue,
+        hue,
         alive: true,
         shielded: false,
-        isSuper: false,
-        superShield: false,
         trail: [],
       };
       b.vx = -spread;
-      // Não encolhe super balls (preserva visual dourado / hitbox de escudo).
-      if (!b.isSuper) {
-        b.radius = Math.max(8, b.radius * 0.97);
-        b.hue = hue;
-      }
+      b.radius = Math.max(8, b.radius * 0.97);
+      b.hue = hue;
       this.balls.push(newBall);
-      this.lastSplitSpawned.push(newBall);
     }
-  }
-
-  /** Funde as 2 bolinhas vivas mais próximas em 1 super ball (escudo + bônus). */
-  private mergeNearest() {
-    // Reverte o split do 1º toque: bolinhas recém-criadas viram inativas.
-    if (this.lastSplitSpawned.length > 0) {
-      for (const sp of this.lastSplitSpawned) sp.alive = false;
-      this.lastSplitSpawned = [];
-    }
-    const alive = this.balls.filter((b) => b.alive && !b.isSuper);
-    if (alive.length < 2) return;
-    let bestI = 0, bestJ = 1, bestD = Infinity;
-    for (let i = 0; i < alive.length; i++) {
-      for (let j = i + 1; j < alive.length; j++) {
-        const dx = alive[i].x - alive[j].x;
-        const dy = alive[i].y - alive[j].y;
-        const d = dx * dx + dy * dy;
-        if (d < bestD) { bestD = d; bestI = i; bestJ = j; }
-      }
-    }
-    const a = alive[bestI];
-    const b = alive[bestJ];
-    a.x = (a.x + b.x) / 2;
-    a.y = (a.y + b.y) / 2;
-    a.vx = (a.vx + b.vx) / 2;
-    a.vy = (a.vy + b.vy) / 2;
-    a.radius = Math.min(28, a.radius * 1.5);
-    a.hue = 50; // dourado
-    a.isSuper = true;
-    a.superShield = true;
-    b.alive = false;
-    this.mergesUsed++;
-    sfx.merge();
-    haptic(hapticPatterns.merge);
-    this.spawnParticles(a.x, a.y, 50, 28);
-    this.addFloatText(a.x, a.y - 24, "SUPER! +10/barr • escudo", 50, 18);
   }
 
   handleResize() {
@@ -457,7 +398,6 @@ export class GameEngine {
     this.nearMisses = 0;
     this.pickedAnyPowerup = false;
     this.bossesKilled = 0;
-    this.mergesUsed = 0;
     this.collectedPowerKinds.clear();
     this.rushUntil = 0;
     this.nextRushAt = 30;
@@ -466,7 +406,6 @@ export class GameEngine {
     this.bossPending = false;
     this.scoreMultUntil = 0;
     this.repelUntil = 0;
-    this.lastTapTs = 0;
   }
 
   private spawnInitialBall() {
@@ -479,8 +418,6 @@ export class GameEngine {
       hue: this.HUES[0],
       alive: true,
       shielded: false,
-      isSuper: false,
-      superShield: false,
       trail: [],
     });
   }
@@ -809,16 +746,6 @@ export class GameEngine {
             if (b.shielded) {
               b.shielded = false;
               this.spawnParticles(b.x, b.y, b.hue, 10);
-            } else if (b.superShield) {
-              // Escudo da super ball: sobrevive mas perde o status super
-              b.superShield = false;
-              b.isSuper = false;
-              b.radius = Math.max(10, b.radius / 1.5);
-              b.hue = this.HUES[0];
-              this.spawnParticles(b.x, b.y, 50, 20);
-              this.addFloatText(b.x, b.y - 18, "ESCUDO!", 50, 16);
-              sfx.merge();
-              haptic(hapticPatterns.merge);
             } else {
               b.alive = false;
               this.hitsThisFrame++;
@@ -865,17 +792,14 @@ export class GameEngine {
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
-        const superCount = this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0);
          if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
-          // Super balls fazem o combo bar crescer mais rápido
-          const superBoost = 1 + superCount * 0.5;
           if (perfect) {
             this.combo += 1;
             if (this.combo > this.bestPerfectStreak) this.bestPerfectStreak = this.combo;
-            this.comboBar = Math.min(1, this.comboBar + 0.35 * superBoost);
+            this.comboBar = Math.min(1, this.comboBar + 0.35);
           } else {
-            this.comboBar = Math.min(1, this.comboBar + 0.12 * superBoost);
+            this.comboBar = Math.min(1, this.comboBar + 0.12);
           }
           const comboMult = this.comboMultiplier();
           const dailyMult = this.dailyMod?.scoreMultiplier ?? 1;
@@ -896,19 +820,15 @@ export class GameEngine {
           } else {
             // Pontos base pela quantidade de bolinhas (fórmula original)
             const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
-            const baseGained = Math.max(1, Math.floor(base * comboMult * scoreMult * rushMult));
-            // Bônus flat por super ball ativa: +10 cada (×combo×score2x×rush)
-            const superBonus = Math.floor(superCount * 10 * comboMult * scoreMult * rushMult);
-            const gained = baseGained + superBonus;
+            const gained = Math.max(1, Math.floor(base * comboMult * scoreMult * rushMult));
             this.score += gained;
             sfx.pass(aliveNow);
 
             // Floating "+points" text near barrier
             const cx = this.width / 2;
             const cy = this.height * 0.4 - 10;
-            const hue = superCount > 0 ? 50 : aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
-            const label = superBonus > 0 ? `+${gained} ⭐` : `+${gained}`;
-            this.addFloatText(cx, cy, label, hue, 22 + Math.min(18, aliveNow));
+            const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
+            this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
           }
 
           if (perfect && aliveNow >= 4) {
@@ -1074,8 +994,8 @@ export class GameEngine {
       bossesKilled: this.bossesKilled,
       scoreMultActive: now < this.scoreMultUntil ? 2 : 1,
       uniquePowerupsCollected: this.collectedPowerKinds.size,
-      mergesUsed: this.mergesUsed,
-      superBallsActive: this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0),
+      mergesUsed: 0,
+      superBallsActive: 0,
     };
   }
 
@@ -1207,25 +1127,6 @@ export class GameEngine {
       if (b.shielded) {
         c.strokeStyle = "hsla(180, 100%, 80%, 0.9)";
         c.lineWidth = 2;
-        c.beginPath();
-        c.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
-        c.stroke();
-      }
-      // Super ball: aura dourada pulsante + ring
-      if (b.isSuper) {
-        const pulse = 0.7 + 0.3 * Math.sin(ts / 120);
-        // Aura radial
-        const aura = c.createRadialGradient(b.x, b.y, b.radius * 0.6, b.x, b.y, b.radius * 3.2);
-        aura.addColorStop(0, `hsla(50, 100%, 70%, ${0.45 * pulse})`);
-        aura.addColorStop(0.5, `hsla(45, 100%, 60%, ${0.18 * pulse})`);
-        aura.addColorStop(1, "hsla(50, 100%, 50%, 0)");
-        c.fillStyle = aura;
-        c.beginPath();
-        c.arc(b.x, b.y, b.radius * 3.2, 0, Math.PI * 2);
-        c.fill();
-        // Ring sólido
-        c.strokeStyle = `hsla(50, 100%, 75%, ${pulse})`;
-        c.lineWidth = 3;
         c.beginPath();
         c.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
         c.stroke();
