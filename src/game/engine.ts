@@ -156,7 +156,7 @@ export class GameEngine {
   private spriteScale = 1;
 
   private cb: EngineCallbacks;
-  private this.HUES: number[] = DEFAULT_HUES;
+  private HUES: number[] = DEFAULT_HUES;
   private attract = false;
 
   // Mission tracking
@@ -168,7 +168,7 @@ export class GameEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
-    if (options.hues && options.hues.length > 0) this.this.HUES = options.hues;
+    if (options.hues && options.hues.length > 0) this.HUES = options.hues;
     this.attract = !!options.attract;
     this.buildSprites();
     this.handleResize();
