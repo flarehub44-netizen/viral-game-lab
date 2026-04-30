@@ -485,8 +485,18 @@ export class GameEngine {
     this.rafId = requestAnimationFrame(this.loop);
   };
 
+  private attractTapTimer = 0;
   private update(dt: number, ts: number) {
     const diff = this.currentDifficulty();
+
+    // Attract mode: auto-split occasionally to keep the demo lively, but cap balls
+    if (this.attract) {
+      this.attractTapTimer += dt;
+      if (this.attractTapTimer > 1.6 && this.balls.length < 6) {
+        this.attractTapTimer = 0;
+        this.tapInternal();
+      }
+    }
 
     // Spawn barriers
     this.spawnTimer += dt;
