@@ -1,6 +1,5 @@
 import { Trophy, Play, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { AttractCanvas } from "./AttractCanvas";
 import { getTodayMissions, getStreak, type Mission } from "@/game/missions";
 import { SKINS, getSelectedSkin, setSelectedSkin, isUnlocked, getLifetimeScore } from "@/game/skins";
 
