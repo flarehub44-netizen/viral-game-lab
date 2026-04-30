@@ -801,6 +801,16 @@ export class GameEngine {
             if (b.shielded) {
               b.shielded = false;
               this.spawnParticles(b.x, b.y, b.hue, 10);
+            } else if (b.superShield) {
+              // Escudo da super ball: sobrevive mas perde o status super
+              b.superShield = false;
+              b.isSuper = false;
+              b.radius = Math.max(10, b.radius / 1.5);
+              b.hue = this.HUES[0];
+              this.spawnParticles(b.x, b.y, 50, 20);
+              this.addFloatText(b.x, b.y - 18, "ESCUDO!", 50, 16);
+              sfx.merge();
+              haptic(hapticPatterns.merge);
             } else {
               b.alive = false;
               this.hitsThisFrame++;
