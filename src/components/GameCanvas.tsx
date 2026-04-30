@@ -27,6 +27,13 @@ const initialStats: PublicGameStats = {
   bestPerfectStreak: 0,
   nearMisses: 0,
   pickedAnyPowerup: false,
+  rushActive: false,
+  rushRemaining: 0,
+  bossWarning: false,
+  bossesKilled: 0,
+  scoreMultActive: 1,
+  uniquePowerupsCollected: 0,
+  mergesUsed: 0,
 };
 
 /** Pick a hue for the combo bar based on current multiplier tier. */
@@ -225,17 +232,48 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
             Combo ×{stats.comboMultiplier}
           </div>
           {showComboBar && (
-            <div className="mt-1 w-32 h-1.5 rounded-full bg-card/40 border border-border overflow-hidden">
+            <div className={`mt-1 w-32 h-1.5 rounded-full bg-card/40 border border-border overflow-hidden ${stats.comboBar < 0.25 ? "animate-pulse" : ""}`}>
               <div
                 className="h-full rounded-full transition-[width] duration-100"
                 style={{
                   width: `${stats.comboBar * 100}%`,
-                  background: `linear-gradient(90deg, hsl(${barHue}, 100%, 60%), hsl(${barHue}, 100%, 80%))`,
-                  boxShadow: `0 0 8px hsl(${barHue}, 100%, 60%)`,
+                  background: stats.comboBar < 0.25
+                    ? "linear-gradient(90deg, hsl(0, 100%, 55%), hsl(15, 100%, 70%))"
+                    : `linear-gradient(90deg, hsl(${barHue}, 100%, 60%), hsl(${barHue}, 100%, 80%))`,
+                  boxShadow: stats.comboBar < 0.25
+                    ? "0 0 10px hsl(0, 100%, 55%)"
+                    : `0 0 8px hsl(${barHue}, 100%, 60%)`,
                 }}
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Rush event banner */}
+      {stats.rushActive && (
+        <div className="absolute top-16 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="px-4 py-1 rounded-full bg-destructive/30 border border-destructive text-destructive text-xs font-black uppercase tracking-widest animate-pulse">
+            🔥 RUSH ×3 · {stats.rushRemaining.toFixed(1)}s
+          </div>
+        </div>
+      )}
+
+      {/* Boss warning */}
+      {stats.bossWarning && !stats.rushActive && (
+        <div className="absolute top-16 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="px-4 py-1 rounded-full bg-red-500/30 border border-red-500 text-red-300 text-xs font-black uppercase tracking-widest animate-pulse">
+            ⚠ BOSS APPROACHING
+          </div>
+        </div>
+      )}
+
+      {/* Score×2 indicator */}
+      {stats.scoreMultActive > 1 && (
+        <div className="absolute top-24 right-3 pointer-events-none">
+          <div className="px-2 py-0.5 rounded-md bg-yellow-500/30 border border-yellow-400 text-yellow-200 text-[10px] font-black uppercase tracking-wider animate-pulse">
+            ×2 SCORE
+          </div>
         </div>
       )}
 
