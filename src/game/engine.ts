@@ -323,6 +323,9 @@ export class GameEngine {
     this.graceUntil = 0;
     this.frameCount = 0;
     this.pausedAt = 0;
+    this.bestPerfectStreak = 0;
+    this.nearMisses = 0;
+    this.pickedAnyPowerup = false;
   }
 
   private spawnInitialBall() {
