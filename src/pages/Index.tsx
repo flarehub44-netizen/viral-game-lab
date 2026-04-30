@@ -266,7 +266,8 @@ const Index = () => {
       try {
         const res = startDemoRound(stake, targetMultiplier);
         if (!res.ok) {
-          if (res.error === "insufficient_balance") toast.error("Saldo insuficiente.");
+          const err = res as { ok: false; error: string };
+          if (err.error === "insufficient_balance") toast.error("Saldo insuficiente.");
           else toast.error("Valor de entrada inválido.");
           return;
         }
