@@ -848,14 +848,16 @@ export class GameEngine {
         bar.passed = true;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         const superCount = this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0);
-        if (aliveNow > 0) {
+         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
+          // Super balls fazem o combo bar crescer mais rápido
+          const superBoost = 1 + superCount * 0.5;
           if (perfect) {
             this.combo += 1;
             if (this.combo > this.bestPerfectStreak) this.bestPerfectStreak = this.combo;
-            this.comboBar = Math.min(1, this.comboBar + 0.35);
+            this.comboBar = Math.min(1, this.comboBar + 0.35 * superBoost);
           } else {
-            this.comboBar = Math.min(1, this.comboBar + 0.12);
+            this.comboBar = Math.min(1, this.comboBar + 0.12 * superBoost);
           }
           const comboMult = this.comboMultiplier();
           const dailyMult = this.dailyMod?.scoreMultiplier ?? 1;
@@ -874,18 +876,21 @@ export class GameEngine {
             this.spawnParticles(this.width / 2, this.height * 0.4, 0, 60);
             this.addFloatText(this.width / 2, this.height * 0.35, `BOSS! +${bossGain.toLocaleString()}`, 0, 30);
           } else {
-            // Pontos normais. Super balls valem 5x cada.
-            const effectiveBalls = aliveNow + superCount * 4; // super conta como 5x (1 + 4)
-            const base = effectiveBalls + Math.floor(effectiveBalls * effectiveBalls * 0.25);
-            const gained = Math.max(1, Math.floor(base * comboMult * scoreMult * rushMult));
+            // Pontos base pela quantidade de bolinhas (fórmula original)
+            const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
+            const baseGained = Math.max(1, Math.floor(base * comboMult * scoreMult * rushMult));
+            // Bônus flat por super ball ativa: +10 cada (×combo×score2x×rush)
+            const superBonus = Math.floor(superCount * 10 * comboMult * scoreMult * rushMult);
+            const gained = baseGained + superBonus;
             this.score += gained;
             sfx.pass(aliveNow);
 
             // Floating "+points" text near barrier
             const cx = this.width / 2;
             const cy = this.height * 0.4 - 10;
-            const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
-            this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
+            const hue = superCount > 0 ? 50 : aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
+            const label = superBonus > 0 ? `+${gained} ⭐` : `+${gained}`;
+            this.addFloatText(cx, cy, label, hue, 22 + Math.min(18, aliveNow));
           }
 
           if (perfect && aliveNow >= 4) {
