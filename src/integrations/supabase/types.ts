@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_scores: {
+        Row: {
+          created_at: string
+          date_key: string
+          duration_seconds: number
+          id: string
+          max_multiplier: number
+          nickname: string
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          date_key: string
+          duration_seconds: number
+          id?: string
+          max_multiplier: number
+          nickname: string
+          score: number
+        }
+        Update: {
+          created_at?: string
+          date_key?: string
+          duration_seconds?: number
+          id?: string
+          max_multiplier?: number
+          nickname?: string
+          score?: number
+        }
+        Relationships: []
+      }
       scores: {
         Row: {
           created_at: string

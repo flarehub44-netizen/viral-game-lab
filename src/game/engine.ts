@@ -1,4 +1,4 @@
-import { sfx, haptic } from "./audio";
+import { sfx, haptic, hapticPatterns } from "./audio";
 
 // ============================================================================
 // Neon Split — Game Engine
@@ -111,11 +111,21 @@ interface EngineCallbacks {
   onGameOver: (stats: PublicGameStats) => void;
 }
 
+export interface DailyMod {
+  speedMultiplier: number;
+  gapMultiplier: number;
+  scoreMultiplier: number;
+}
+
 export interface EngineOptions {
   /** Paletas de hue customizadas (skin selecionada) */
   hues?: number[];
   /** Modo "attract": loop demo sem colisão / sem game over (usado no menu) */
   attract?: boolean;
+  /** Modificadores do desafio diário */
+  dailyMod?: DailyMod;
+  /** Trail style: 'normal' | 'sparkle' | 'fire' | 'pixel' */
+  trailStyle?: "normal" | "sparkle" | "fire" | "pixel";
 }
 
 export class GameEngine {
@@ -182,6 +192,8 @@ export class GameEngine {
   private cb: EngineCallbacks;
   private HUES: number[] = DEFAULT_HUES;
   private attract = false;
+  private dailyMod: DailyMod | null = null;
+  private trailStyle: "normal" | "sparkle" | "fire" | "pixel" = "normal";
 
   // Mission tracking
   private bestPerfectStreak = 0;
@@ -217,6 +229,8 @@ export class GameEngine {
     this.cb = cb;
     if (options.hues && options.hues.length > 0) this.HUES = options.hues;
     this.attract = !!options.attract;
+    this.dailyMod = options.dailyMod ?? null;
+    this.trailStyle = options.trailStyle ?? "normal";
     this.buildSprites();
     this.handleResize();
   }
@@ -326,7 +340,7 @@ export class GameEngine {
     if (alive.length >= GameEngine.MAX_BALLS) return;
     const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
     sfx.split();
-    haptic(8);
+    haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
@@ -377,7 +391,7 @@ export class GameEngine {
     b.alive = false;
     this.mergesUsed++;
     sfx.merge();
-    haptic(20);
+    haptic(hapticPatterns.merge);
     this.spawnParticles(a.x, a.y, 50, 18);
     this.addFloatText(a.x, a.y - 20, "SUPER!", 50, 18);
   }
@@ -483,10 +497,12 @@ export class GameEngine {
 
   private spawnBarrier() {
     const diff = this.currentDifficulty();
-    const speed = 90 + diff * 160; // px/s upward
+    const speedBase = 90 + diff * 160;
+    const speed = this.dailyMod ? speedBase * this.dailyMod.speedMultiplier : speedBase;
     const height = 14 + Math.random() * 8;
     // Gap count decreases over time, gap width shrinks
-    const baseGapWidth = 0.22 - diff * 0.1;
+    const gapMod = this.dailyMod?.gapMultiplier ?? 1;
+    const baseGapWidth = (0.22 - diff * 0.1) * gapMod;
     const gapCount = Math.random() < 0.55 + diff * 0.15 ? 1 : 2;
     const gaps: { start: number; end: number }[] = [];
     if (gapCount === 1) {
@@ -642,7 +658,7 @@ export class GameEngine {
       this.rushUntil = ts + GameEngine.RUSH_DURATION_MS;
       this.nextRushAt = elapsedSec + 30;
       sfx.rush();
-      haptic([20, 30, 20]);
+      haptic(hapticPatterns.rush);
       this.addFloatText(this.width / 2, this.height * 0.3, "RUSH ×3", 0, 32);
       this.flashUntil = Math.max(this.flashUntil, ts + 200);
     }
@@ -654,7 +670,7 @@ export class GameEngine {
       this.bossPending = true;
       this.bossWarningUntil = ts + 2000;
       this.addFloatText(this.width / 2, this.height * 0.25, "⚠ BOSS", 0, 36);
-      haptic([40, 60, 40]);
+      haptic(hapticPatterns.boss);
     }
     if (this.bossPending && elapsedSec >= this.nextBossAt) {
       this.bossPending = false;
@@ -829,7 +845,8 @@ export class GameEngine {
             this.comboBar = Math.min(1, this.comboBar + 0.12);
           }
           const comboMult = this.comboMultiplier();
-          const scoreMult = ts < this.scoreMultUntil ? 2 : 1;
+          const dailyMult = this.dailyMod?.scoreMultiplier ?? 1;
+          const scoreMult = (ts < this.scoreMultUntil ? 2 : 1) * dailyMult;
           const rushMult = ts < this.rushUntil ? 3 : 1;
           if (bar.boss) {
             // Boss reward: aliveBalls × 50 × comboMult × score2x × rush
@@ -837,6 +854,7 @@ export class GameEngine {
             this.score += bossGain;
             this.bossesKilled += 1;
             sfx.bossKill();
+            haptic(hapticPatterns.bossKill);
             this.flashUntil = ts + 300;
             this.shakeUntil = ts + 200;
             this.shakeIntensity = 5;
@@ -895,7 +913,7 @@ export class GameEngine {
           this.pickedAnyPowerup = true;
           this.collectedPowerKinds.add(p.kind);
           sfx.powerup();
-          haptic(20);
+          haptic(hapticPatterns.merge);
           if (p.kind === "shield") {
             for (const bb of this.balls) if (bb.alive) bb.shielded = true;
           } else if (p.kind === "slowmo") {
@@ -913,12 +931,14 @@ export class GameEngine {
             // Remove fisicamente
             this.barriers = this.barriers.filter((bar) => !visible.includes(bar));
             const cm = this.comboMultiplier();
-            const bombGain = Math.floor(cleared * 25 * cm);
+            const dm = this.dailyMod?.scoreMultiplier ?? 1;
+            const bombGain = Math.floor(cleared * 25 * cm * dm);
             this.score += bombGain;
             this.shakeUntil = ts + 350;
             this.shakeIntensity = 12;
             this.flashUntil = ts + 250;
             sfx.bomb();
+            haptic(hapticPatterns.bomb);
             this.addFloatText(this.width / 2, this.height * 0.4, `BOMB! +${bombGain}`, 0, 28);
           } else if (p.kind === "score2x") {
             this.scoreMultUntil = ts + 8000;
@@ -1112,14 +1132,37 @@ export class GameEngine {
     for (const b of this.balls) {
       if (!b.alive) continue;
       const sprite = this.ballSprites.get(b.hue) ?? this.ballSprites.values().next().value!;
-      // Trail (simpler: fewer ops)
+      // Trail (estilo varia por skin)
+      const ts2 = ts;
       for (let i = 0; i < b.trail.length; i++) {
         const t = b.trail[i];
         const tr = b.radius * (0.55 + i * 0.05);
         const drawSize = tr * 4;
-        c.globalAlpha = t.a * 0.35;
-        c.drawImage(sprite, t.x - drawSize / 2, t.y - drawSize / 2, drawSize, drawSize);
+        if (this.trailStyle === "pixel") {
+          c.globalAlpha = t.a * 0.6;
+          const s = Math.max(2, b.radius * 0.5);
+          c.fillStyle = `hsl(${b.hue}, 100%, 65%)`;
+          c.fillRect(Math.floor(t.x - s / 2), Math.floor(t.y - s / 2), s, s);
+        } else if (this.trailStyle === "fire") {
+          c.globalAlpha = t.a * 0.45;
+          const fireHue = 25 + i * 10; // cyan→amarelo
+          c.fillStyle = `hsl(${fireHue}, 100%, 60%)`;
+          c.beginPath();
+          c.arc(t.x, t.y, tr * 1.1, 0, Math.PI * 2);
+          c.fill();
+        } else if (this.trailStyle === "sparkle") {
+          c.globalAlpha = t.a * 0.6;
+          const sparkleSize = tr * 1.5;
+          c.fillStyle = `hsl(${b.hue}, 100%, 80%)`;
+          // pequena estrela: 4 pequenos retângulos
+          c.fillRect(t.x - sparkleSize / 2, t.y - 1, sparkleSize, 2);
+          c.fillRect(t.x - 1, t.y - sparkleSize / 2, 2, sparkleSize);
+        } else {
+          c.globalAlpha = t.a * 0.35;
+          c.drawImage(sprite, t.x - drawSize / 2, t.y - drawSize / 2, drawSize, drawSize);
+        }
       }
+      void ts2;
       c.globalAlpha = 1;
       const drawSize = b.radius * 4; // sprite is glow-padded — render at 4x radius
       c.drawImage(sprite, b.x - drawSize / 2, b.y - drawSize / 2, drawSize, drawSize);
@@ -1236,7 +1279,22 @@ export class GameEngine {
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, 1.5);
     }
+    // Modo daltônico: adiciona padrão listrado nas barreiras (independente da cor)
+    if (GameEngine.colorblindEnabled) {
+      c.fillStyle = "hsla(0, 0%, 0%, 0.45)";
+      for (const [s, e] of segments) {
+        const x0 = s * W;
+        const w = (e - s) * W;
+        const stripeW = 8;
+        for (let x = 0; x < w; x += stripeW * 2) {
+          c.fillRect(x0 + x, top, stripeW, bar.height);
+        }
+      }
+    }
   }
+
+  /** Set globally — flag lida durante o render para alternar padrões daltônicos. */
+  static colorblindEnabled = false;
 
   private drawPowerup(c: CanvasRenderingContext2D, p: PowerUp, ts: number) {
     const hueMap: Record<PowerKind, number> = {

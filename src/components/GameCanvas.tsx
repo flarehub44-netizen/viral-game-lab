@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { GameEngine, type PublicGameStats } from "@/game/engine";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { getSelectedSkin } from "@/game/skins";
+import { getDailyMod } from "@/game/daily";
+import { getSettings } from "@/game/settings";
 import { Volume2, VolumeX, Menu } from "lucide-react";
 
 interface Props {
   onGameOver: (stats: PublicGameStats) => void;
   onExit: () => void;
+  dailyMode?: boolean;
 }
 
 const TUTORIAL_KEY = "ns_tutorial_seen";
@@ -45,11 +48,38 @@ function comboBarHue(mult: number): number {
   return 200;
 }
 
-export const GameCanvas = ({ onGameOver, onExit }: Props) => {
+const TIPS = [
+  "Toque rápido = mais bolinhas, mais pontos",
+  "Tap duplo (250ms) funde 2 bolinhas em SUPER (×5)",
+  "Combo perfeito mantém o multiplicador subindo",
+  "Near-miss vale pontos extras — passe raspando!",
+  "RUSH a cada 30s: 3× pontos por 10s",
+  "BOSS a cada 60s: gap minúsculo, prêmio gigante",
+  "Bomb limpa todas as barreiras visíveis",
+  "Repel afasta as bolinhas das paredes",
+];
+
+function trailStyleForSkin(id: string): "normal" | "sparkle" | "fire" | "pixel" {
+  switch (id) {
+    case "solar":
+      return "fire";
+    case "rainbow":
+      return "sparkle";
+    case "void":
+      return "pixel";
+    default:
+      return "normal";
+  }
+}
+
+export const GameCanvas = ({ onGameOver, onExit, dailyMode = false }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [stats, setStats] = useState<PublicGameStats>(initialStats);
   const [muted, setMutedState] = useState(isMuted());
+  const [fps, setFps] = useState(0);
+  const showFps = useMemo(() => getSettings().showFps, []);
+  const tip = useMemo(() => TIPS[Math.floor(Math.random() * TIPS.length)], []);
 
   const [showTutorial, setShowTutorial] = useState(() => {
     try {
@@ -74,7 +104,11 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         onStatsChange: (s) => setStats(s),
         onGameOver: (s) => onGameOver(s),
       },
-      { hues: skin.hues },
+      {
+        hues: skin.hues,
+        dailyMod: dailyMode ? getDailyMod() : undefined,
+        trailStyle: trailStyleForSkin(skin.id),
+      },
     );
     engineRef.current = engine;
 
@@ -98,8 +132,26 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
       } catch {}
     }, 4000);
 
+    let fpsRaf = 0;
+    if (showFps) {
+      let frames = 0;
+      let lastFpsTs = performance.now();
+      const tick = () => {
+        frames++;
+        const now = performance.now();
+        if (now - lastFpsTs >= 500) {
+          setFps(Math.round((frames * 1000) / (now - lastFpsTs)));
+          frames = 0;
+          lastFpsTs = now;
+        }
+        fpsRaf = requestAnimationFrame(tick);
+      };
+      fpsRaf = requestAnimationFrame(tick);
+    }
+
     return () => {
       clearTimeout(t);
+      if (fpsRaf) cancelAnimationFrame(fpsRaf);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
@@ -279,13 +331,26 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
 
       {/* Countdown overlay */}
       {isCountdown && stats.countdown != null && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-6">
           <div
             key={stats.countdown}
             className="text-9xl font-black text-glow-cyan tabular-nums float-up"
           >
             {stats.countdown === 0 ? "GO!" : stats.countdown}
           </div>
+          <div className="px-5 py-2 max-w-xs mx-4 text-center rounded-xl bg-background/40 backdrop-blur border border-primary/30">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+              💡 Dica
+            </div>
+            <div className="text-xs text-foreground/90">{tip}</div>
+          </div>
+        </div>
+      )}
+
+      {/* FPS counter */}
+      {showFps && (
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-background/60 border border-border text-[10px] font-mono tabular-nums text-muted-foreground pointer-events-none">
+          {fps} FPS
         </div>
       )}
 
