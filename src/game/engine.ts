@@ -28,6 +28,20 @@ export interface PublicGameStats {
   nearMisses: number;
   /** Coletou ao menos um power-up nesta run */
   pickedAnyPowerup: boolean;
+  /** True quando rush event ativo */
+  rushActive: boolean;
+  /** Segundos restantes do rush (0 se inativo) */
+  rushRemaining: number;
+  /** True quando boss vai aparecer em breve */
+  bossWarning: boolean;
+  /** Bosses derrotados na run */
+  bossesKilled: number;
+  /** Multiplicador score2x ativo (1 ou 2) */
+  scoreMultActive: number;
+  /** Power-ups distintos coletados nesta run (para conquistas) */
+  uniquePowerupsCollected: number;
+  /** Quantas vezes usou merge (tap duplo) na run */
+  mergesUsed: number;
 }
 
 interface Ball {
