@@ -372,8 +372,13 @@ export class GameEngine {
     }
   }
 
-  /** Funde as 2 bolinhas vivas mais próximas em 1 super ball (vale 5x). */
+  /** Funde as 2 bolinhas vivas mais próximas em 1 super ball (escudo + bônus). */
   private mergeNearest() {
+    // Reverte o split do 1º toque: bolinhas recém-criadas viram inativas.
+    if (this.lastSplitSpawned.length > 0) {
+      for (const sp of this.lastSplitSpawned) sp.alive = false;
+      this.lastSplitSpawned = [];
+    }
     const alive = this.balls.filter((b) => b.alive && !b.isSuper);
     if (alive.length < 2) return;
     let bestI = 0, bestJ = 1, bestD = Infinity;
@@ -394,12 +399,13 @@ export class GameEngine {
     a.radius = Math.min(28, a.radius * 1.5);
     a.hue = 50; // dourado
     a.isSuper = true;
+    a.superShield = true;
     b.alive = false;
     this.mergesUsed++;
     sfx.merge();
     haptic(hapticPatterns.merge);
-    this.spawnParticles(a.x, a.y, 50, 18);
-    this.addFloatText(a.x, a.y - 20, "SUPER!", 50, 18);
+    this.spawnParticles(a.x, a.y, 50, 28);
+    this.addFloatText(a.x, a.y - 24, "SUPER! +10/barr • escudo", 50, 18);
   }
 
   handleResize() {
