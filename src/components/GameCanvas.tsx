@@ -331,13 +331,26 @@ export const GameCanvas = ({ onGameOver, onExit, dailyMode = false }: Props) => 
 
       {/* Countdown overlay */}
       {isCountdown && stats.countdown != null && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-6">
           <div
             key={stats.countdown}
             className="text-9xl font-black text-glow-cyan tabular-nums float-up"
           >
             {stats.countdown === 0 ? "GO!" : stats.countdown}
           </div>
+          <div className="px-5 py-2 max-w-xs mx-4 text-center rounded-xl bg-background/40 backdrop-blur border border-primary/30">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+              💡 Dica
+            </div>
+            <div className="text-xs text-foreground/90">{tip}</div>
+          </div>
+        </div>
+      )}
+
+      {/* FPS counter */}
+      {showFps && (
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-background/60 border border-border text-[10px] font-mono tabular-nums text-muted-foreground pointer-events-none">
+          {fps} FPS
         </div>
       )}
 
