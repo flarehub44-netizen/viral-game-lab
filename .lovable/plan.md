@@ -1,79 +1,55 @@
-# Plano: Tornar Neon Split viciante
 
-Foco em três pilares de jogos viciantes: **feedback imediato**, **progressão visível** e **variedade que surpreende**. Sem apostas, sem dinheiro — só dopamina honesta.
+# Plano: Apontar para Supabase externo
 
----
+## Situação atual
 
-## 1. Feedback que dá tesão (game feel)
+- O `.env` e `src/integrations/supabase/client.ts` são auto-gerados pelo Lovable Cloud e apontam para `vezortwznwmziqukypjj` — **não podem ser editados**.
+- O seu Supabase externo é `pbkdmcjlscjdvkaiypye` e está vazio (sem tabelas, sem functions).
+- 5 arquivos no frontend importam o client de `@/integrations/supabase/client`.
 
-O que o jogador sente a cada ação importa mais que qualquer feature.
+## O que vou fazer
 
-- **Combo / streak**: cada barreira passada sem perder bola incrementa um combo (x2, x3, x5...). Texto grande pulsando no centro+topo: "COMBO x7!" com cor mudando conforme sobe.
-- **Score popup flutuante**: ao passar uma barreira, número "+8" sobe da bola e some, na cor do combo.
-- **Screen shake sutil** ao perder bola (3-5px, 120ms).
-- **Slow-motion de 150ms** quando sobra só 1 bola (tensão de "quase morri").
-- **Flash branco rápido** ao splitar com muitas bolas (recompensa visual de poder).
-- **Som mais rico**: tom do "pass" sobe junto com o combo, não só com nº de bolas. Som especial a cada múltiplo de 10 do combo.
+### 1. Criar client customizado apontando para seu Supabase
 
-## 2. Progressão e "só mais uma"
+Criar `src/lib/supabaseExternal.ts` com URL e anon key do projeto `pbkdmcjlscjdvkaiypye`. Você vai precisar me fornecer a **anon key** do seu projeto externo (é pública, não é segredo).
 
-O loop de morrer e querer voltar.
+### 2. Substituir todos os imports
 
-- **XP por rodada** = score + bônus por combo máximo + bônus por tempo. Salvo localmente.
-- **Nível do jogador** com barra de progresso na tela inicial e na game over. Subir de nível = pequena animação celebrativa.
-- **Missões diárias simples** (3 por dia, resetam à meia-noite local):
-  - "Faça 50 pontos numa rodada"
-  - "Chegue a combo x10"
-  - "Sobreviva 60 segundos"
-  - Cada missão = bolada de XP extra.
-- **Conquistas one-shot** (badges desbloqueáveis, mostradas no menu):
-  - Primeira split, 10 bolas vivas, combo x20, 100 pontos, 5 min de jogo total, etc.
-- Tela de game over mostra: **"Novo recorde pessoal!"**, **XP ganho com barrinha enchendo**, **missões completadas**, e botão **"Jogar de novo"** GRANDE e centralizado (não precisar clicar fundo).
+Alterar os 5 arquivos que importam o client para usar o novo:
+- `src/contexts/AuthContext.tsx`
+- `src/pages/Index.tsx`
+- `src/components/Leaderboard.tsx`
+- `src/components/auth/AgeGateScreen.tsx`
+- `src/components/admin/ClimbMonitoringPanel.tsx`
 
-## 3. Variedade que surpreende (sem virar bagunça)
+### 3. Gerar SQL consolidado para você rodar no Supabase Dashboard
 
-- **Eventos a cada ~15s**: barreira dupla, barreira com 2 gaps, barreira mais larga, ou "chuva de XP" (orbs caem e ao tocar dão pontos extras).
-- **Power-ups raros** (orbs dourados que aparecem ocasionalmente entre barreiras):
-  - Escudo (próxima colisão é perdoada)
-  - Bola fantasma (atravessa 1 barreira sem morrer)
-  - Multiplicador 2x de pontos por 5s
-- **Curva de dificuldade mais inteligente**: hoje sobe linear até 150s. Mudar para ondas — 20s subindo, 5s "respiro" mais fácil, próxima onda começa um pouco mais difícil. Cria ritmo.
+Consolidar todas as 9 migrations em um único script SQL que você cola no **SQL Editor** do seu Supabase Dashboard. Isso cria:
+- Tabela `scores` (com RLS público)
+- Tabela `profiles` (com RLS por usuário)
+- Tabela `wallets` (com RLS por usuário)
+- Tabela `ledger_entries` (com RLS por usuário)
+- Tabela `game_rounds` (com RLS por usuário + colunas CLIMB)
+- Trigger `handle_new_user` (cria profile + wallet automático)
+- RPC `start_round_atomic` v2 (11 parâmetros)
+- Views de monitoramento (`v_round_health`, `v_rtp_live`, `v_monitor_alerts`)
 
-## 4. Polimento de controles e responsividade
+### 4. Instruções para deploy das Edge Functions
 
-- **Confirmar que tap em qualquer lugar da tela funciona** (já funciona, validar área).
-- **Hold para split contínuo? Não** — manter tap único, mas adicionar feedback visual de "tap registrado" (mini ripple onde o dedo tocou).
-- **Botão de pause maior e mais óbvio** no canto.
-- **Tela de game over não aparece instantânea**: 400ms de "fade do caos" pra jogador absorver o que aconteceu, depois UI entra.
+As 3 edge functions (`start-round`, `end-round`, `submit-score`) precisam ser deployadas via **Supabase CLI** no seu projeto. Vou gerar o comando exato.
 
----
+## O que você precisa fazer (antes de eu implementar)
 
-## Detalhes técnicos
+1. **Me fornecer a anon key** do projeto `pbkdmcjlscjdvkaiypye` (encontra em Project Settings > API no dashboard do Supabase)
+2. Após eu gerar o SQL, **colar e rodar no SQL Editor** do seu dashboard
+3. Após eu ajustar o código, **fazer deploy das edge functions** via Supabase CLI:
+   ```bash
+   supabase link --project-ref pbkdmcjlscjdvkaiypye
+   supabase functions deploy submit-score
+   supabase functions deploy start-round
+   supabase functions deploy end-round
+   ```
 
-**Arquivos a criar:**
-- `src/game/progression.ts` — XP, nível, missões diárias, conquistas (tudo em localStorage).
-- `src/game/powerups.ts` — lógica de spawn/coleta de power-ups.
-- `src/components/MissionsPanel.tsx` — painel de missões na tela inicial.
-- `src/components/AchievementsPanel.tsx` — grid de badges.
-- `src/components/ComboDisplay.tsx` — overlay do combo durante o jogo.
-- `src/components/ScorePopup.tsx` — números flutuantes (ou desenhado no canvas).
+## Resultado final
 
-**Arquivos a editar:**
-- `src/game/engine.ts` — adicionar combo tracking, eventos por onda, power-ups, slow-mo, screen shake, score popups no canvas, callback de XP/missão completada.
-- `src/game/audio.ts` — sons novos (combo up, power-up, missão completa, level up).
-- `src/components/StartScreen.tsx` — barra de XP/nível, botões de Missões e Conquistas.
-- `src/components/GameOverScreen.tsx` — animação de XP ganho, missões completadas, recorde com flair.
-- `src/pages/Index.tsx` — telas novas (missões, conquistas), passar callbacks de progressão.
-
-**Persistência:** tudo em localStorage por enquanto (XP, nível, missões do dia, conquistas, recorde). Sem backend novo — o leaderboard online continua só pra recordes de score como já é.
-
-**Performance:** manter MAX_BALLS=128, manter sprite cache, não passar de ~60 partículas no pico. Power-ups e popups reaproveitam pools.
-
----
-
-## O que NÃO vai mudar
-- Visual neon, cores HSL, fundo, mecânica core de tap-to-split.
-- Leaderboard online existente.
-- Estrutura mobile-first.
-
-Posso começar pela **base de progressão (XP + missões + conquistas)** e depois o **game feel (combo + popups + shake + slow-mo)**, terminando com **power-ups e eventos**. Aprovando, faço nessa ordem.
+O app inteiro vai rodar contra o seu Supabase (`pbkdmcjlscjdvkaiypye`): auth, wallet, rounds, leaderboard e edge functions.
