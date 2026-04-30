@@ -1131,7 +1131,15 @@ export class GameEngine {
         c.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
         c.stroke();
       }
-    }
+      // Super ball: ring dourado pulsante
+      if (b.isSuper) {
+        const pulse = 0.7 + 0.3 * Math.sin(ts / 120);
+        c.strokeStyle = `hsla(50, 100%, 70%, ${pulse})`;
+        c.lineWidth = 3;
+        c.beginPath();
+        c.arc(b.x, b.y, b.radius + 4, 0, Math.PI * 2);
+        c.stroke();
+      }
 
     c.globalCompositeOperation = "source-over";
 
