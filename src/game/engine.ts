@@ -345,6 +345,7 @@ export class GameEngine {
     haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
+    this.lastSplitSpawned = [];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
       if (b.isSuper) continue;
@@ -359,12 +360,14 @@ export class GameEngine {
         alive: true,
         shielded: false,
         isSuper: false,
+        superShield: false,
         trail: [],
       };
       b.vx = -spread;
       b.radius = Math.max(8, b.radius * 0.97);
       b.hue = hue;
       this.balls.push(newBall);
+      this.lastSplitSpawned.push(newBall);
     }
   }
 
@@ -463,6 +466,7 @@ export class GameEngine {
       alive: true,
       shielded: false,
       isSuper: false,
+      superShield: false,
       trail: [],
     });
   }
