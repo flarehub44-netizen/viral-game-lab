@@ -882,6 +882,7 @@ export class GameEngine {
         if (dx * dx + dy * dy < (b.radius + 14) ** 2) {
           p.collected = true;
           this.pickedAnyPowerup = true;
+          this.collectedPowerKinds.add(p.kind);
           sfx.powerup();
           haptic(20);
           if (p.kind === "shield") {
@@ -890,6 +891,30 @@ export class GameEngine {
             this.slowMoUntil = ts + 2200;
           } else if (p.kind === "magnet") {
             this.magnetUntil = ts + 4000;
+          } else if (p.kind === "bomb") {
+            // Limpa todas as barreiras visíveis na tela + bônus por barreira
+            const visible = this.barriers.filter((bar) => bar.y < this.height && bar.y + bar.height > 0 && !bar.passed);
+            const cleared = visible.length;
+            for (const bar of visible) {
+              bar.passed = true;
+              this.spawnParticles((bar.gaps[0]?.start ?? 0.5) * this.width, bar.y + bar.height / 2, bar.hue, 16);
+            }
+            // Remove fisicamente
+            this.barriers = this.barriers.filter((bar) => !visible.includes(bar));
+            const cm = this.comboMultiplier();
+            const bombGain = Math.floor(cleared * 25 * cm);
+            this.score += bombGain;
+            this.shakeUntil = ts + 350;
+            this.shakeIntensity = 12;
+            this.flashUntil = ts + 250;
+            sfx.bomb();
+            this.addFloatText(this.width / 2, this.height * 0.4, `BOMB! +${bombGain}`, 0, 28);
+          } else if (p.kind === "score2x") {
+            this.scoreMultUntil = ts + 8000;
+            this.addFloatText(p.x, p.y - 18, "×2 SCORE", 50, 18);
+          } else if (p.kind === "repel") {
+            this.repelUntil = ts + 4000;
+            this.addFloatText(p.x, p.y - 18, "REPEL", 280, 18);
           }
           break;
         }
