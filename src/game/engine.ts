@@ -1195,22 +1195,39 @@ export class GameEngine {
     }
     if (cursor < 1) segments.push([cursor, 1]);
 
-    // Warning pulse for dangerous barriers approaching the player band.
-    // Active in a window of ~120px before reaching the player line.
     const distToPlayer = top - playerY;
     const inWarnWindow = bar.dangerous && distToPlayer > 0 && distToPlayer < 140;
     let hue = bar.hue;
     let highlightHue = bar.hue;
     if (inWarnWindow) {
-      // Pulse hue toward red and add a 1px halo above/below the bar
       const pulse = 0.5 + 0.5 * Math.sin(ts / 60);
-      hue = 0; // red
+      hue = 0;
       highlightHue = 0;
       c.fillStyle = `hsla(0, 100%, 60%, ${0.18 + pulse * 0.22})`;
       c.fillRect(0, top - 6, W, bar.height + 12);
     }
 
-    // Solid color bar (no shadowBlur, no per-segment gradient — much faster)
+    // Boss: gradiente vermelho→roxo + halo grande
+    if (bar.boss) {
+      const pulse = 0.5 + 0.5 * Math.sin(ts / 80);
+      // Halo expandido
+      c.fillStyle = `hsla(320, 100%, 50%, ${0.12 + pulse * 0.15})`;
+      c.fillRect(0, top - 12, W, bar.height + 24);
+      const grad = c.createLinearGradient(0, top, 0, top + bar.height);
+      grad.addColorStop(0, "hsl(0, 100%, 55%)");
+      grad.addColorStop(1, "hsl(280, 100%, 50%)");
+      c.fillStyle = grad;
+      for (const [s, e] of segments) {
+        c.fillRect(s * W, top, (e - s) * W, bar.height);
+      }
+      c.fillStyle = `hsla(0, 100%, 95%, ${0.7 + pulse * 0.3})`;
+      for (const [s, e] of segments) {
+        c.fillRect(s * W, top, (e - s) * W, 3);
+        c.fillRect(s * W, top + bar.height - 3, (e - s) * W, 3);
+      }
+      return;
+    }
+
     c.fillStyle = `hsl(${hue}, 100%, ${inWarnWindow ? 60 : 55}%)`;
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, bar.height);
@@ -1222,7 +1239,23 @@ export class GameEngine {
   }
 
   private drawPowerup(c: CanvasRenderingContext2D, p: PowerUp, ts: number) {
-    const hue = p.kind === "shield" ? 180 : p.kind === "slowmo" ? 270 : 55;
+    const hueMap: Record<PowerKind, number> = {
+      shield: 180,
+      slowmo: 270,
+      magnet: 55,
+      bomb: 0,
+      score2x: 50,
+      repel: 280,
+    };
+    const letterMap: Record<PowerKind, string> = {
+      shield: "S",
+      slowmo: "T",
+      magnet: "M",
+      bomb: "B",
+      score2x: "×2",
+      repel: "R",
+    };
+    const hue = hueMap[p.kind];
     const r = 14 + Math.sin(ts / 200) * 2;
     c.strokeStyle = `hsl(${hue}, 100%, 70%)`;
     c.lineWidth = 2.5;
@@ -1230,8 +1263,7 @@ export class GameEngine {
     c.arc(p.x, p.y, r, 0, Math.PI * 2);
     c.stroke();
     c.fillStyle = `hsla(${hue}, 100%, 90%, 0.95)`;
-    c.font = "bold 14px Inter, system-ui";
-    const letter = p.kind === "shield" ? "S" : p.kind === "slowmo" ? "T" : "M";
-    c.fillText(letter, p.x, p.y + 1);
+    c.font = "bold 12px Inter, system-ui";
+    c.fillText(letterMap[p.kind], p.x, p.y + 1);
   }
 }
