@@ -170,9 +170,10 @@ export class GameEngine {
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
-      const spread = 180 + Math.random() * 80;
-      const jitterX = (Math.random() - 0.5) * 10;
-      const jitterY = (Math.random() - 0.5) * 10;
+      const direction = i % 2 === 0 ? 1 : -1;
+      const spread = direction * (190 + Math.random() * 90);
+      const jitterX = direction * (b.radius * 1.8 + Math.random() * 10);
+      const jitterY = (Math.random() - 0.5) * 18;
       this.balls.push({
         x: b.x + jitterX,
         y: b.y + jitterY,
@@ -183,8 +184,8 @@ export class GameEngine {
         alive: true,
         trail: [],
       });
-      b.x -= jitterX;
-      b.y -= jitterY;
+      b.x -= jitterX * 0.6;
+      b.y -= jitterY * 0.6;
       b.vx = -spread;
       b.vy += (Math.random() - 0.5) * 50;
       b.radius = Math.max(8, b.radius * 0.97);
@@ -335,6 +336,29 @@ export class GameEngine {
       } else if (b.x > this.width - b.radius) {
         b.x = this.width - b.radius;
         b.vx = -Math.abs(b.vx) * 0.6;
+      }
+    }
+
+    const aliveBalls = this.balls.filter((b) => b.alive);
+    for (let i = 0; i < aliveBalls.length; i++) {
+      for (let j = i + 1; j < aliveBalls.length; j++) {
+        const a = aliveBalls[i];
+        const b = aliveBalls[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const minDist = (a.radius + b.radius) * 1.15;
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= 0 || distSq >= minDist * minDist) continue;
+        const dist = Math.sqrt(distSq);
+        const push = (minDist - dist) * 0.35;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+        a.vx -= nx * 18;
+        b.vx += nx * 18;
       }
     }
 
