@@ -200,7 +200,7 @@ export class GameEngine {
   private nearMisses = 0;
   private pickedAnyPowerup = false;
   private bossesKilled = 0;
-  private mergesUsed = 0;
+  
   private collectedPowerKinds = new Set<PowerKind>();
 
   // Rush event (a cada 30s, 10s ativo, ×3 pontos, +60% velocidade)
