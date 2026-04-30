@@ -1140,8 +1140,20 @@ export class GameEngine {
         c.arc(b.x, b.y, b.radius + 4, 0, Math.PI * 2);
         c.stroke();
       }
+    }
 
     c.globalCompositeOperation = "source-over";
+
+    // Rush overlay: vinheta vermelha pulsante quando rush ativo
+    if (ts < this.rushUntil) {
+      const remaining = (this.rushUntil - ts) / GameEngine.RUSH_DURATION_MS;
+      const pulse = 0.5 + 0.5 * Math.sin(ts / 80);
+      const grad = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7);
+      grad.addColorStop(0, "hsla(0, 100%, 50%, 0)");
+      grad.addColorStop(1, `hsla(0, 100%, 50%, ${0.18 + pulse * 0.12 * remaining})`);
+      c.fillStyle = grad;
+      c.fillRect(0, 0, W, H);
+    }
 
     // Floating texts (above balls)
     for (const f of this.floatTexts) {
