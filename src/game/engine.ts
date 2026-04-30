@@ -710,6 +710,15 @@ export class GameEngine {
         }
       }
 
+      // Repel: ímã reverso — empurra do meio em direção ao centro horizontal
+      if (ts < this.repelUntil) {
+        const centerX = this.width / 2;
+        const distFromEdge = Math.min(b.x, this.width - b.x);
+        if (distFromEdge < this.width * 0.35) {
+          const push = (centerX - b.x) * 1.8;
+          b.vx += push * dt;
+        }
+      }
       // Apply friction to horizontal velocity
       b.vx *= Math.pow(0.5, dt * 2);
       b.x += b.vx * dt;
