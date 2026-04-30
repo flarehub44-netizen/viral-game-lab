@@ -2,3 +2,9 @@ project_id = "pbkdmcjlscjdvkaiypye"
 
 [functions.start-round]
 verify_jwt = true
+
+[functions.end-round]
+verify_jwt = true
+
+[functions.submit-score]
+verify_jwt = false
