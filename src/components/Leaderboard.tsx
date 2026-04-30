@@ -2,13 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Trophy } from "lucide-react";
 
-type Range = "today" | "week" | "all";
-
 interface ScoreRow {
   id: string;
   nickname: string;
   score: number;
-  max_multiplier: number;
   created_at: string;
 }
 
@@ -17,41 +14,45 @@ interface Props {
   highlightNickname: string;
 }
 
+// Simple in-memory cache shared across mounts to avoid re-fetching
+// when the user bounces between Menu / Game Over / Leaderboard.
+const CACHE_TTL_MS = 30_000;
+let cache: { rows: ScoreRow[]; ts: number } | null = null;
+
+export function invalidateLeaderboardCache() {
+  cache = null;
+}
+
 export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
-  const [range, setRange] = useState<Range>("all");
-  const [rows, setRows] = useState<ScoreRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<ScoreRow[]>(cache?.rows ?? []);
+  const [loading, setLoading] = useState(!cache);
 
   useEffect(() => {
     let cancelled = false;
-    const fetch = async () => {
-      setLoading(true);
-      let q = supabase
-        .from("scores")
-        .select("id, nickname, score, max_multiplier, created_at")
-        .order("score", { ascending: false })
-        .limit(100);
-
-      if (range === "today") {
-        const since = new Date();
-        since.setHours(0, 0, 0, 0);
-        q = q.gte("created_at", since.toISOString());
-      } else if (range === "week") {
-        const since = new Date();
-        since.setDate(since.getDate() - 7);
-        q = q.gte("created_at", since.toISOString());
-      }
-
-      const { data, error } = await q;
-      if (cancelled) return;
-      if (!error && data) setRows(data);
+    const now = Date.now();
+    if (cache && now - cache.ts < CACHE_TTL_MS) {
+      setRows(cache.rows);
       setLoading(false);
-    };
-    fetch();
+      return;
+    }
+    setLoading(true);
+    (async () => {
+      const { data, error } = await supabase
+        .from("scores")
+        .select("id, nickname, score, created_at")
+        .order("score", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (!error && data) {
+        cache = { rows: data, ts: Date.now() };
+        setRows(data);
+      }
+      setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, []);
 
   return (
     <div className="relative w-full h-full flex flex-col px-4 py-6 overflow-hidden">
@@ -68,22 +69,6 @@ export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
           Ranking
         </h2>
         <div className="w-9" />
-      </div>
-
-      <div className="flex gap-1 p-1 rounded-lg bg-card/60 border border-border mb-4">
-        {(["today", "week", "all"] as Range[]).map((r) => (
-          <button
-            key={r}
-            onClick={() => setRange(r)}
-            className={`flex-1 py-2 text-xs uppercase tracking-widest rounded-md transition-colors ${
-              range === r
-                ? "bg-primary/20 text-primary border border-primary/50"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {r === "today" ? "Hoje" : r === "week" ? "Semana" : "Sempre"}
-          </button>
-        ))}
       </div>
 
       <div className="flex-1 overflow-y-auto -mx-2 px-2">
@@ -114,9 +99,6 @@ export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-bold truncate">{row.nickname}</div>
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      ×{row.max_multiplier} max
-                    </div>
                   </div>
                   <div className="text-lg font-bold text-glow-cyan tabular-nums">
                     {row.score.toLocaleString()}
