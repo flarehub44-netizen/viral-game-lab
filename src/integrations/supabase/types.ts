@@ -41,171 +41,15 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
-        Row: {
-          created_at: string
-          display_name: string
-          kyc_status: "none" | "pending" | "approved"
-          over_18_confirmed_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string
-          kyc_status?: "none" | "pending" | "approved"
-          over_18_confirmed_at?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          kyc_status?: "none" | "pending" | "approved"
-          over_18_confirmed_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      wallets: {
-        Row: {
-          balance: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          balance?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          balance?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      ledger_entries: {
-        Row: {
-          amount: number
-          balance_after: number
-          created_at: string
-          id: string
-          idempotency_key: string | null
-          kind: string
-          meta: Json
-          user_id: string
-        }
-        Insert: {
-          amount: number
-          balance_after: number
-          created_at?: string
-          id?: string
-          idempotency_key?: string | null
-          kind: string
-          meta?: Json
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          balance_after?: number
-          created_at?: string
-          id?: string
-          idempotency_key?: string | null
-          kind?: string
-          meta?: Json
-          user_id?: string
-        }
-        Relationships: []
-      }
-      game_rounds: {
-        Row: {
-          client_report: Json
-          created_at: string
-          ended_at: string | null
-          id: string
-          idempotency_key: string | null
-          layout_seed: string
-          layout_signature: string
-          max_duration_seconds: number
-          mode: string
-          net_result: number
-          payout: number
-          result_multiplier: number
-          round_status: string
-          stake: number
-          target_multiplier: number
-          target_barrier: number
-          user_id: string
-          visual_result: Json
-        }
-        Insert: {
-          client_report?: Json
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          idempotency_key?: string | null
-          layout_seed: string
-          layout_signature: string
-          max_duration_seconds: number
-          mode?: string
-          net_result: number
-          payout: number
-          result_multiplier: number
-          round_status?: string
-          stake: number
-          target_multiplier?: number
-          target_barrier: number
-          user_id: string
-          visual_result?: Json
-        }
-        Update: {
-          client_report?: Json
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          idempotency_key?: string | null
-          layout_seed?: string
-          layout_signature?: string
-          max_duration_seconds?: number
-          mode?: string
-          net_result?: number
-          payout?: number
-          result_multiplier?: number
-          round_status?: string
-          stake?: number
-          target_multiplier?: number
-          target_barrier?: number
-          user_id?: string
-          visual_result?: Json
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      start_round_atomic: {
-        Args: {
-          p_idempotency_key: string
-          p_layout_seed: string
-          p_layout_signature: string
-          p_max_duration_seconds: number
-          p_net: number
-          p_payout: number
-          p_result_mult: number
-          p_stake: number
-          p_target_barrier: number
-          p_user_id: string
-          p_visual: Json
-        }
-        Returns: string
-      }
+      [_ in never]: never
     }
     Enums: {
-      kyc_status: "none" | "pending" | "approved"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -332,8 +176,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      kyc_status: ["none", "pending", "approved"] as const,
-    },
+    Enums: {},
   },
 } as const
