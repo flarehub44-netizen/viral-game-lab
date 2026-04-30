@@ -156,7 +156,7 @@ export class GameEngine {
   private spriteScale = 1;
 
   private cb: EngineCallbacks;
-  private HUES: number[] = DEFAULT_HUES;
+  private this.HUES: number[] = DEFAULT_HUES;
   private attract = false;
 
   // Mission tracking
@@ -168,7 +168,7 @@ export class GameEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false })!;
     this.cb = cb;
-    if (options.hues && options.hues.length > 0) this.HUES = options.hues;
+    if (options.hues && options.hues.length > 0) this.this.HUES = options.hues;
     this.attract = !!options.attract;
     this.buildSprites();
     this.handleResize();
@@ -183,7 +183,7 @@ export class GameEngine {
     const R = GameEngine.SPRITE_R * scale;
     const size = R * 2;
     this.ballSprites.clear();
-    for (const hue of HUES) {
+    for (const hue of this.HUES) {
       const off = document.createElement("canvas");
       off.width = size;
       off.height = size;
@@ -263,7 +263,7 @@ export class GameEngine {
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
     this.graceUntil = ts + 90;
-    const hue = HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), HUES.length - 1)];
+    const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), this.HUES.length - 1)];
     for (const b of alive) {
       // Push outward symmetrically — wider spread feels more impactful
       const spread = 110 + Math.random() * 40;
@@ -332,7 +332,7 @@ export class GameEngine {
       vx: 0,
       vy: 0,
       radius: 12,
-      hue: HUES[0],
+      hue: this.HUES[0],
       alive: true,
       shielded: false,
       trail: [],
@@ -388,7 +388,7 @@ export class GameEngine {
       gaps.push({ start: Math.max(0, c1 - w / 2), end: c1 + w / 2 });
       gaps.push({ start: c2 - w / 2, end: Math.min(1, c2 + w / 2) });
     }
-    const hue = HUES[Math.floor(Math.random() * HUES.length)];
+    const hue = this.HUES[Math.floor(Math.random() * this.HUES.length)];
     // Total gap width — shrinks with difficulty + multi-gap. Below threshold,
     // we flag as "dangerous" so render layer pulses a warning color.
     const totalGap = gaps.reduce((s, g) => s + (g.end - g.start), 0);
