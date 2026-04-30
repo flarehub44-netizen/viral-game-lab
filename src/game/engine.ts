@@ -995,8 +995,8 @@ export class GameEngine {
       bossesKilled: this.bossesKilled,
       scoreMultActive: now < this.scoreMultUntil ? 2 : 1,
       uniquePowerupsCollected: this.collectedPowerKinds.size,
-      mergesUsed: this.mergesUsed,
-      superBallsActive: this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0),
+      mergesUsed: 0,
+      superBallsActive: 0,
     };
   }
 
