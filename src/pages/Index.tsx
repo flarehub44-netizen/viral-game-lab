@@ -25,7 +25,7 @@ import { loadWallet } from "@/game/economy/walletStore";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
 import { applyRound, type ProgressionProfile, type RoundResult } from "@/game/progression";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseExternal";
 import { toast } from "sonner";
 
 type ProfileRow = {
@@ -266,7 +266,8 @@ const Index = () => {
       try {
         const res = startDemoRound(stake, targetMultiplier);
         if (!res.ok) {
-          if (res.error === "insufficient_balance") toast.error("Saldo insuficiente.");
+          const err = res as { ok: false; error: string };
+          if (err.error === "insufficient_balance") toast.error("Saldo insuficiente.");
           else toast.error("Valor de entrada inválido.");
           return;
         }
