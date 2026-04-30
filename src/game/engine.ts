@@ -661,7 +661,8 @@ export class GameEngine {
     // Attract mode: auto-split occasionally to keep the demo lively, but cap balls
     if (this.attract) {
       this.attractTapTimer += dt;
-      if (this.attractTapTimer > 1.6 && this.balls.length < 6) {
+      const aliveCount = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+      if (this.attractTapTimer > 1.6 && aliveCount < 6) {
         this.attractTapTimer = 0;
         this.tap();
       }
@@ -720,7 +721,7 @@ export class GameEngine {
     }
 
     // Update balls (array contains only alive balls — pruned each frame)
-    const aliveBefore = this.balls.length;
+    const aliveBefore = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     for (const b of this.balls) {
       if (!b.alive) continue;
 
@@ -1041,7 +1042,7 @@ export class GameEngine {
   }
 
   private snapshot(): PublicGameStats {
-    const alive = this.balls.length;
+    const alive = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     let countdown: number | null = null;
     if (this.state === "countdown") {
       const remaining = Math.max(0, this.countdownEndsAt - performance.now());
