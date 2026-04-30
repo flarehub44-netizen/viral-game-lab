@@ -1277,7 +1277,22 @@ export class GameEngine {
     for (const [s, e] of segments) {
       c.fillRect(s * W, top, (e - s) * W, 1.5);
     }
+    // Modo daltônico: adiciona padrão listrado nas barreiras (independente da cor)
+    if (GameEngine.colorblindEnabled) {
+      c.fillStyle = "hsla(0, 0%, 0%, 0.45)";
+      for (const [s, e] of segments) {
+        const x0 = s * W;
+        const w = (e - s) * W;
+        const stripeW = 8;
+        for (let x = 0; x < w; x += stripeW * 2) {
+          c.fillRect(x0 + x, top, stripeW, bar.height);
+        }
+      }
+    }
   }
+
+  /** Set globally — flag lida durante o render para alternar padrões daltônicos. */
+  static colorblindEnabled = false;
 
   private drawPowerup(c: CanvasRenderingContext2D, p: PowerUp, ts: number) {
     const hueMap: Record<PowerKind, number> = {
