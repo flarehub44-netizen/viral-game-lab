@@ -876,6 +876,7 @@ export class GameEngine {
       const remaining = Math.max(0, this.countdownEndsAt - performance.now());
       countdown = Math.ceil(remaining / 1000);
     }
+    const now = performance.now();
     return {
       score: this.score,
       multiplier: alive,
@@ -890,6 +891,13 @@ export class GameEngine {
       bestPerfectStreak: this.bestPerfectStreak,
       nearMisses: this.nearMisses,
       pickedAnyPowerup: this.pickedAnyPowerup,
+      rushActive: now < this.rushUntil,
+      rushRemaining: Math.max(0, (this.rushUntil - now) / 1000),
+      bossWarning: now < this.bossWarningUntil,
+      bossesKilled: this.bossesKilled,
+      scoreMultActive: now < this.scoreMultUntil ? 2 : 1,
+      uniquePowerupsCollected: this.collectedPowerKinds.size,
+      mergesUsed: this.mergesUsed,
     };
   }
 
