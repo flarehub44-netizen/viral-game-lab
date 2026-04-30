@@ -4,11 +4,14 @@ import { StartScreen } from "@/components/StartScreen";
 import { GameOverScreen } from "@/components/GameOverScreen";
 import { Leaderboard, invalidateLeaderboardCache } from "@/components/Leaderboard";
 import { NicknameDialog } from "@/components/NicknameDialog";
-import type { PublicGameStats } from "@/game/engine";
+import { MissionsPanel } from "@/components/MissionsPanel";
+import { AchievementsPanel } from "@/components/AchievementsPanel";
+import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
+import { applyRound, type RoundResult } from "@/game/progression";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Screen = "menu" | "playing" | "over" | "leaderboard";
+type Screen = "menu" | "playing" | "over" | "leaderboard" | "missions" | "achievements";
 
 const NICK_KEY = "ns_nickname";
 const BEST_KEY = "ns_best";
@@ -39,20 +42,37 @@ const Index = () => {
     }
   });
   const [lastStats, setLastStats] = useState<PublicGameStats | null>(null);
+  const [lastSummary, setLastSummary] = useState<RoundSummaryOut | null>(null);
+  const [lastProgression, setLastProgression] = useState<RoundResult | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
 
   const handlePlay = () => {
     setLastStats(null);
+    setLastSummary(null);
+    setLastProgression(null);
     setIsNewBest(false);
     setScreen("playing");
   };
 
-  const handleGameOver = async (stats: PublicGameStats) => {
+  const handleGameOver = async (stats: PublicGameStats, summary: RoundSummaryOut) => {
     setLastStats(stats);
+    setLastSummary(summary);
     const newBest = stats.score > bestScore;
     setIsNewBest(newBest);
+
+    // Apply progression locally
+    const result = applyRound({
+      score: summary.score,
+      durationSeconds: summary.durationSeconds,
+      maxCombo: summary.maxCombo,
+      maxAlive: summary.maxAlive,
+      splits: summary.splits,
+      powerupsCollected: summary.powerupsCollected,
+    });
+    setLastProgression(result);
+
     setScreen("over");
 
     if (newBest && stats.score > 0) {
@@ -61,7 +81,6 @@ const Index = () => {
         localStorage.setItem(BEST_KEY, String(stats.score));
       } catch {}
 
-      // Only persist personal records to keep backend load low
       setSavingScore(true);
       try {
         const { data, error } = await supabase.functions.invoke("submit-score", {
@@ -104,6 +123,8 @@ const Index = () => {
             onPlay={handlePlay}
             onChangeName={() => setShowNickDialog(true)}
             onLeaderboard={() => setScreen("leaderboard")}
+            onMissions={() => setScreen("missions")}
+            onAchievements={() => setScreen("achievements")}
           />
         )}
 
@@ -123,6 +144,8 @@ const Index = () => {
             onMenu={() => setScreen("menu")}
             onLeaderboard={() => setScreen("leaderboard")}
             saving={savingScore}
+            progression={lastProgression}
+            maxCombo={lastSummary?.maxCombo ?? 0}
           />
         )}
 
@@ -132,6 +155,9 @@ const Index = () => {
             highlightNickname={nickname}
           />
         )}
+
+        {screen === "missions" && <MissionsPanel onBack={() => setScreen("menu")} />}
+        {screen === "achievements" && <AchievementsPanel onBack={() => setScreen("menu")} />}
 
         {showNickDialog && (
           <NicknameDialog

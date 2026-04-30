@@ -1,8 +1,6 @@
 import { sfx, haptic, hapticPatterns } from "./audio";
 
-// Neon Split — minimal engine
-// Tap to split balls. Balls fall and must pass through gaps in barriers
-// scrolling up. Score = aliveBalls per barrier passed.
+// Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
 export type GameState = "ready" | "countdown" | "playing" | "paused" | "over";
 
@@ -12,6 +10,19 @@ export interface PublicGameStats {
   state: GameState;
   durationSeconds: number;
   countdown: number | null;
+  combo: number;
+  shieldActive: boolean;
+  ghostCharges: number;
+  multiplierUntilSec: number; // 0 if inactive
+}
+
+export interface RoundSummaryOut {
+  score: number;
+  durationSeconds: number;
+  maxCombo: number;
+  maxAlive: number;
+  splits: number;
+  powerupsCollected: number;
 }
 
 interface Ball {
@@ -30,7 +41,7 @@ interface Ball {
 interface Barrier {
   y: number;
   height: number;
-  gap: { start: number; end: number }; // single gap, normalized [0..1]
+  gaps: { start: number; end: number }[];
   hue: number;
   passed: boolean;
   speed: number;
@@ -46,11 +57,33 @@ interface Particle {
   hue: number;
 }
 
+interface ScorePopup {
+  x: number;
+  y: number;
+  text: string;
+  life: number;
+  maxLife: number;
+  hue: number;
+  size: number;
+}
+
+type PowerupKind = "shield" | "ghost" | "multi" | "xp";
+
+interface Powerup {
+  x: number;
+  y: number;
+  vy: number;
+  kind: PowerupKind;
+  radius: number;
+  alive: boolean;
+  pulse: number;
+}
+
 const HUES = [180, 320, 55, 140, 270, 25];
 
 interface EngineCallbacks {
   onStatsChange: (stats: PublicGameStats) => void;
-  onGameOver: (stats: PublicGameStats) => void;
+  onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
 }
 
 export class GameEngine {
@@ -63,6 +96,8 @@ export class GameEngine {
   private balls: Ball[] = [];
   private barriers: Barrier[] = [];
   private particles: Particle[] = [];
+  private popups: ScorePopup[] = [];
+  private powerups: Powerup[] = [];
 
   private score = 0;
   private state: GameState = "ready";
@@ -74,12 +109,33 @@ export class GameEngine {
 
   private spawnTimer = 0;
   private nextSpawnIn = 0;
+  private powerupTimer = 0;
+  private nextPowerupIn = 7;
 
   private graceUntil = 0;
 
+  // Combo
+  private combo = 0;
+  private maxCombo = 0;
+  // Round stats
+  private maxAlive = 1;
+  private splitsCount = 0;
+  private powerupsCollected = 0;
+
+  // Power-up effects
+  private shieldActive = false;
+  private ghostCharges = 0;
+  private multiplierUntilMs = 0;
+
+  // FX
+  private shakeUntil = 0;
+  private shakeMag = 0;
+  private slowMoUntil = 0;
+  private flashUntil = 0;
+
   private static readonly MAX_BALLS = 128;
   private static readonly TRAIL_LEN = 4;
-  private static readonly MAX_PARTICLES = 40;
+  private static readonly MAX_PARTICLES = 60;
   private static readonly COUNTDOWN_MS = 3000;
 
   private countdownEndsAt = 0;
@@ -148,6 +204,9 @@ export class GameEngine {
     const now = performance.now();
     const delta = now - this.pausedAt;
     this.graceUntil += delta;
+    this.shakeUntil += delta;
+    this.slowMoUntil += delta;
+    this.multiplierUntilMs += delta;
     this.lastTs = now;
     this.state = "playing";
     this.emitStats();
@@ -168,7 +227,9 @@ export class GameEngine {
     if (splitCount <= 0) return;
     sfx.split();
     haptic(hapticPatterns.tap);
+    this.splitsCount += splitCount;
     this.graceUntil = ts + 90;
+    if (alive.length >= 8) this.flashUntil = ts + 90;
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
@@ -198,7 +259,6 @@ export class GameEngine {
   }
 
   handleResize() {
-    // Cap DPR at 1.5 for perf
     const dpr = Math.min(1.5, window.devicePixelRatio || 1);
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = dpr;
@@ -217,11 +277,26 @@ export class GameEngine {
     this.balls = [];
     this.barriers = [];
     this.particles = [];
+    this.popups = [];
+    this.powerups = [];
     this.score = 0;
     this.elapsedMs = 0;
     this.spawnTimer = 0;
+    this.powerupTimer = 0;
+    this.nextPowerupIn = 6 + Math.random() * 4;
     this.graceUntil = 0;
     this.pausedAt = 0;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.maxAlive = 1;
+    this.splitsCount = 0;
+    this.powerupsCollected = 0;
+    this.shieldActive = false;
+    this.ghostCharges = 0;
+    this.multiplierUntilMs = 0;
+    this.shakeUntil = 0;
+    this.slowMoUntil = 0;
+    this.flashUntil = 0;
   }
 
   private spawnInitialBall() {
@@ -241,22 +316,55 @@ export class GameEngine {
 
   private currentDifficulty() {
     const t = this.elapsedMs / 1000;
-    return Math.min(0.85, t / 150); // gentler ramp
+    // Wave: 20s ramp, 5s breath
+    const cycle = 25;
+    const within = t % cycle;
+    const cycleNum = Math.floor(t / cycle);
+    const baseRamp = Math.min(0.85, t / 160);
+    const wavePhase = within < 20 ? within / 20 : 1 - (within - 20) / 5 * 0.35;
+    return Math.min(0.92, baseRamp * 0.6 + wavePhase * 0.35 + cycleNum * 0.02);
   }
 
   private spawnBarrier() {
     const diff = this.currentDifficulty();
-    // Gap shrinks slowly: 38% → 18%
-    const gapWidth = 0.38 - diff * 0.20;
-    const start = Math.random() * (1 - gapWidth);
-    const speed = 90 + diff * 80; // px/s upward
+    const t = this.elapsedMs / 1000;
+    // Decide variant: chance of double-gap rises after 30s
+    const doubleChance = t > 30 ? Math.min(0.25, (t - 30) / 200) : 0;
+    const isDouble = Math.random() < doubleChance;
+    const speed = 90 + diff * 80;
+    const gaps: { start: number; end: number }[] = [];
+    if (isDouble) {
+      const gw = 0.18 - diff * 0.06;
+      const left = 0.05 + Math.random() * 0.25;
+      const right = 0.55 + Math.random() * 0.25;
+      gaps.push({ start: left, end: left + gw });
+      gaps.push({ start: right, end: right + gw });
+    } else {
+      const gapWidth = 0.38 - diff * 0.20;
+      const start = Math.random() * (1 - gapWidth);
+      gaps.push({ start, end: start + gapWidth });
+    }
     this.barriers.push({
       y: this.height + 20,
       height: 18,
-      gap: { start, end: start + gapWidth },
+      gaps,
       hue: HUES[Math.floor(Math.random() * HUES.length)],
       passed: false,
       speed,
+    });
+  }
+
+  private spawnPowerup() {
+    const kinds: PowerupKind[] = ["shield", "ghost", "multi", "xp", "xp"];
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    this.powerups.push({
+      x: 30 + Math.random() * (this.width - 60),
+      y: this.height + 20,
+      vy: -120,
+      kind,
+      radius: 14,
+      alive: true,
+      pulse: 0,
     });
   }
 
@@ -278,10 +386,14 @@ export class GameEngine {
     }
   }
 
+  private addPopup(x: number, y: number, text: string, hue: number, size = 22) {
+    if (this.popups.length > 18) this.popups.shift();
+    this.popups.push({ x, y, text, life: 0.9, maxLife: 0.9, hue, size });
+  }
+
   private loop = (ts: number) => {
     this.rafId = requestAnimationFrame(this.loop);
 
-    // Countdown
     if (this.state === "countdown") {
       this.lastTs = ts;
       if (ts >= this.countdownEndsAt) {
@@ -301,7 +413,9 @@ export class GameEngine {
 
     let dt = (ts - this.lastTs) / 1000;
     this.lastTs = ts;
-    if (dt > 0.05) dt = 0.05; // clamp big frame skips
+    if (dt > 0.05) dt = 0.05;
+    // Slow-mo
+    if (ts < this.slowMoUntil) dt *= 0.4;
     this.elapsedMs += dt * 1000;
 
     this.update(dt, ts);
@@ -315,30 +429,33 @@ export class GameEngine {
     if (this.spawnTimer >= this.nextSpawnIn) {
       this.spawnTimer = 0;
       const diff = this.currentDifficulty();
-      this.nextSpawnIn = 1.5 - diff * 0.7; // 1.5s → 0.8s
+      this.nextSpawnIn = 1.5 - diff * 0.7;
       this.spawnBarrier();
     }
 
-    // Update balls (gravity-light: balls hover near top, scroll happens via barriers moving up)
+    // Spawn power-ups
+    this.powerupTimer += dt;
+    if (this.powerupTimer >= this.nextPowerupIn) {
+      this.powerupTimer = 0;
+      this.nextPowerupIn = 8 + Math.random() * 6;
+      this.spawnPowerup();
+    }
+
+    // Update balls
     const playZoneTop = this.height * 0.25;
     const playZoneBottom = this.height * 0.55;
     for (const b of this.balls) {
       if (!b.alive) continue;
-      // Trail
       b.trail.push({ x: b.x, y: b.y });
       if (b.trail.length > GameEngine.TRAIL_LEN) b.trail.shift();
-      // Save previous position for swept collision
       b.prevX = b.x;
       b.prevY = b.y;
-      // Horizontal motion
       b.x += b.vx * dt;
-      b.vx *= 0.97; // lighter damping so balls keep separation
-      // Keep within play zone vertically (gentle spring)
+      b.vx *= 0.97;
       const targetY = (playZoneTop + playZoneBottom) / 2;
       b.vy += (targetY - b.y) * 2 * dt;
       b.vy *= 0.95;
       b.y += b.vy * dt;
-      // Wall bounce
       if (b.x < b.radius) {
         b.x = b.radius;
         b.vx = Math.abs(b.vx) * 0.6;
@@ -348,6 +465,7 @@ export class GameEngine {
       }
     }
 
+    // Ball-ball separation
     const aliveBalls = this.balls.filter((b) => b.alive);
     for (let i = 0; i < aliveBalls.length; i++) {
       for (let j = i + 1; j < aliveBalls.length; j++) {
@@ -371,13 +489,31 @@ export class GameEngine {
       }
     }
 
-    // Cleanup dead balls (keep array small)
     if (this.balls.length > 16 && this.balls.some((b) => !b.alive)) {
       this.balls = this.balls.filter((b) => b.alive);
     }
 
+    // Update power-ups
+    for (const p of this.powerups) {
+      if (!p.alive) continue;
+      p.y += p.vy * dt;
+      p.pulse += dt;
+      // Collision with any alive ball
+      for (const b of this.balls) {
+        if (!b.alive) continue;
+        const dx = b.x - p.x;
+        const dy = b.y - p.y;
+        if (dx * dx + dy * dy <= (b.radius + p.radius) * (b.radius + p.radius)) {
+          p.alive = false;
+          this.collectPowerup(p, ts);
+          break;
+        }
+      }
+      if (p.y < -30) p.alive = false;
+    }
+    if (this.powerups.length > 8) this.powerups = this.powerups.filter((p) => p.alive);
+
     // Update barriers + collisions
-    const aliveBefore = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     for (let i = this.barriers.length - 1; i >= 0; i--) {
       const bar = this.barriers[i];
       const prevBarY = bar.y;
@@ -389,8 +525,6 @@ export class GameEngine {
 
       for (const b of this.balls) {
         if (!b.alive) continue;
-        // Swept overlap: did the ball band [y-r, y+r] overlap the barrier band
-        // at any time between previous and current frame?
         const ballMinNow = b.y - b.radius;
         const ballMaxNow = b.y + b.radius;
         const ballMinPrev = b.prevY - b.radius;
@@ -401,34 +535,60 @@ export class GameEngine {
         const barMax = Math.max(bottom, prevBottom);
         if (ballMax >= barMin && ballMin <= barMax) {
           if (ts < this.graceUntil) continue;
-          // Check x at the moment of crossing — use midpoint of prev/now for robustness
           const midX = (b.x + b.prevX) * 0.5;
           const nx = midX / this.width;
-          const inGap = nx >= bar.gap.start + 0.005 && nx <= bar.gap.end - 0.005;
+          const inGap = bar.gaps.some((g) => nx >= g.start + 0.005 && nx <= g.end - 0.005);
           if (!inGap) {
+            // Shield first
+            if (this.shieldActive) {
+              this.shieldActive = false;
+              this.spawnParticles(b.x, b.y, 180, 10);
+              this.addPopup(b.x, b.y - 20, "ESCUDO!", 180, 18);
+              continue;
+            }
+            if (this.ghostCharges > 0) {
+              this.ghostCharges--;
+              this.spawnParticles(b.x, b.y, 270, 8);
+              this.addPopup(b.x, b.y - 20, "FANTASMA!", 270, 16);
+              continue;
+            }
             b.alive = false;
             this.spawnParticles(b.x, b.y, b.hue, 12);
             haptic(hapticPatterns.hit);
+            // Break combo
+            if (this.combo > 0) {
+              this.combo = 0;
+            }
+            // Shake
+            this.shakeUntil = ts + 140;
+            this.shakeMag = 5;
           }
         }
       }
 
-      // Score on pass
       if (bar.y + bar.height < this.height * 0.25 - 20 && !bar.passed) {
         bar.passed = true;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
-          this.score += aliveNow;
-          sfx.pass(aliveNow);
+          this.combo += 1;
+          if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+          const multActive = ts < this.multiplierUntilMs;
+          const mult = multActive ? 2 : 1;
+          const gained = aliveNow * mult;
+          this.score += gained;
+          sfx.pass(aliveNow + Math.min(this.combo, 12));
+          // Popup at center top of play zone, near a random alive ball
+          const sample = this.balls.find((b) => b.alive)!;
+          this.addPopup(sample.x, sample.y - 28, `+${gained}${mult > 1 ? " x2" : ""}`, multActive ? 55 : 180, 20);
+          // Slow-mo trigger when only 1 ball survives a tight pass
+          if (aliveNow === 1 && this.combo >= 3) this.slowMoUntil = ts + 160;
         }
       }
 
-      // Remove off-screen
       if (bar.y + bar.height < -40) this.barriers.splice(i, 1);
     }
-    void aliveBefore;
 
-    // Update particles
+    // Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
@@ -442,22 +602,73 @@ export class GameEngine {
       p.vy *= 0.94;
     }
 
-    // Game over check
+    // Popups
+    for (let i = this.popups.length - 1; i >= 0; i--) {
+      const p = this.popups[i];
+      p.life -= dt;
+      p.y -= 35 * dt;
+      if (p.life <= 0) this.popups.splice(i, 1);
+    }
+
+    // Track maxAlive
     const aliveAfter = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+    if (aliveAfter > this.maxAlive) this.maxAlive = aliveAfter;
+
     if (aliveAfter === 0) {
       this.state = "over";
       sfx.gameOver();
-      this.cb.onGameOver(this.snapshot());
+      const summary: RoundSummaryOut = {
+        score: this.score,
+        durationSeconds: Math.floor(this.elapsedMs / 1000),
+        maxCombo: this.maxCombo,
+        maxAlive: this.maxAlive,
+        splits: this.splitsCount,
+        powerupsCollected: this.powerupsCollected,
+      };
+      this.cb.onGameOver(this.snapshot(), summary);
+    }
+  }
+
+  private collectPowerup(p: Powerup, ts: number) {
+    this.powerupsCollected++;
+    sfx.split();
+    haptic(hapticPatterns.tap);
+    if (p.kind === "shield") {
+      this.shieldActive = true;
+      this.addPopup(p.x, p.y - 20, "ESCUDO", 180, 20);
+      this.spawnParticles(p.x, p.y, 180, 14);
+    } else if (p.kind === "ghost") {
+      this.ghostCharges += 1;
+      this.addPopup(p.x, p.y - 20, "FANTASMA", 270, 20);
+      this.spawnParticles(p.x, p.y, 270, 14);
+    } else if (p.kind === "multi") {
+      this.multiplierUntilMs = ts + 6000;
+      this.addPopup(p.x, p.y - 20, "x2 PONTOS!", 55, 22);
+      this.spawnParticles(p.x, p.y, 55, 16);
+    } else if (p.kind === "xp") {
+      const bonus = 10;
+      this.score += bonus;
+      this.addPopup(p.x, p.y - 20, `+${bonus}`, 140, 20);
+      this.spawnParticles(p.x, p.y, 140, 12);
     }
   }
 
   private render(ts: number) {
     const c = this.ctx;
-    // Clear
-    c.fillStyle = "hsl(230, 30%, 6%)";
-    c.fillRect(0, 0, this.width, this.height);
 
-    // Subtle play-zone marker
+    // Shake offset
+    let sx = 0, sy = 0;
+    if (ts < this.shakeUntil) {
+      const k = (this.shakeUntil - ts) / 140;
+      sx = (Math.random() - 0.5) * this.shakeMag * 2 * k;
+      sy = (Math.random() - 0.5) * this.shakeMag * 2 * k;
+    }
+    c.save();
+    c.translate(sx, sy);
+
+    c.fillStyle = "hsl(230, 30%, 6%)";
+    c.fillRect(-10, -10, this.width + 20, this.height + 20);
+
     c.strokeStyle = "hsla(180, 50%, 50%, 0.1)";
     c.lineWidth = 1;
     c.beginPath();
@@ -465,24 +676,62 @@ export class GameEngine {
     c.lineTo(this.width, this.height * 0.25);
     c.stroke();
 
+    // Multiplier zone tint
+    if (ts < this.multiplierUntilMs) {
+      c.fillStyle = "hsla(55, 100%, 60%, 0.04)";
+      c.fillRect(0, 0, this.width, this.height);
+    }
+
     // Barriers
     c.globalCompositeOperation = "source-over";
     for (const bar of this.barriers) {
-      const gx1 = bar.gap.start * this.width;
-      const gx2 = bar.gap.end * this.width;
       c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
-      // Left segment
-      c.fillRect(0, bar.y, gx1, bar.height);
-      // Right segment
-      c.fillRect(gx2, bar.y, this.width - gx2, bar.height);
-      // Glow line
+      // Build segments by sorting gaps
+      const sorted = [...bar.gaps].sort((a, b) => a.start - b.start);
+      let cursor = 0;
+      for (const g of sorted) {
+        const gx1 = g.start * this.width;
+        const gx2 = g.end * this.width;
+        if (gx1 > cursor) c.fillRect(cursor, bar.y, gx1 - cursor, bar.height);
+        cursor = gx2;
+      }
+      if (cursor < this.width) c.fillRect(cursor, bar.y, this.width - cursor, bar.height);
       c.fillStyle = `hsla(${bar.hue}, 100%, 75%, 0.4)`;
-      c.fillRect(0, bar.y - 1, gx1, 2);
-      c.fillRect(gx2, bar.y - 1, this.width - gx2, 2);
+      cursor = 0;
+      for (const g of sorted) {
+        const gx1 = g.start * this.width;
+        const gx2 = g.end * this.width;
+        if (gx1 > cursor) c.fillRect(cursor, bar.y - 1, gx1 - cursor, 2);
+        cursor = gx2;
+      }
+      if (cursor < this.width) c.fillRect(cursor, bar.y - 1, this.width - cursor, 2);
+    }
+
+    // Power-ups
+    c.globalCompositeOperation = "lighter";
+    for (const p of this.powerups) {
+      if (!p.alive) continue;
+      const hue = p.kind === "shield" ? 180 : p.kind === "ghost" ? 270 : p.kind === "multi" ? 55 : 140;
+      const pulse = 1 + Math.sin(p.pulse * 6) * 0.15;
+      const r = p.radius * pulse;
+      const grad = c.createRadialGradient(p.x, p.y, 1, p.x, p.y, r * 2);
+      grad.addColorStop(0, `hsla(${hue}, 100%, 90%, 1)`);
+      grad.addColorStop(0.5, `hsla(${hue}, 100%, 60%, 0.6)`);
+      grad.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(p.x, p.y, r * 2, 0, Math.PI * 2);
+      c.fill();
+      // Letter
+      c.globalCompositeOperation = "source-over";
+      c.fillStyle = "white";
+      c.font = "bold 14px Inter, system-ui, sans-serif";
+      const letter = p.kind === "shield" ? "S" : p.kind === "ghost" ? "G" : p.kind === "multi" ? "×2" : "+";
+      c.fillText(letter, p.x, p.y);
+      c.globalCompositeOperation = "lighter";
     }
 
     // Particles
-    c.globalCompositeOperation = "lighter";
     for (const p of this.particles) {
       const a = p.life / p.maxLife;
       c.fillStyle = `hsla(${p.hue}, 100%, 70%, ${a})`;
@@ -511,9 +760,72 @@ export class GameEngine {
       const sprite = this.ballSprites.get(b.hue) || this.ballSprites.get(HUES[0])!;
       const drawSize = b.radius * 3.5;
       c.drawImage(sprite, b.x - drawSize / 2, b.y - drawSize / 2, drawSize, drawSize);
+      // Shield ring
+      if (this.shieldActive) {
+        c.strokeStyle = `hsla(180, 100%, 70%, ${0.6 + Math.sin(ts / 100) * 0.2})`;
+        c.lineWidth = 2;
+        c.beginPath();
+        c.arc(b.x, b.y, b.radius + 4, 0, Math.PI * 2);
+        c.stroke();
+      }
+      if (this.ghostCharges > 0) {
+        c.strokeStyle = `hsla(270, 100%, 75%, ${0.5 + Math.sin(ts / 120) * 0.2})`;
+        c.lineWidth = 1.5;
+        c.setLineDash([3, 3]);
+        c.beginPath();
+        c.arc(b.x, b.y, b.radius + 7, 0, Math.PI * 2);
+        c.stroke();
+        c.setLineDash([]);
+      }
     }
     c.globalCompositeOperation = "source-over";
-    void ts;
+
+    // Score popups
+    for (const p of this.popups) {
+      const a = Math.min(1, p.life / p.maxLife * 1.5);
+      c.fillStyle = `hsla(${p.hue}, 100%, 75%, ${a})`;
+      c.font = `bold ${p.size}px Inter, system-ui, sans-serif`;
+      c.shadowColor = `hsl(${p.hue}, 100%, 60%)`;
+      c.shadowBlur = 8;
+      c.fillText(p.text, p.x, p.y);
+      c.shadowBlur = 0;
+    }
+
+    // Combo display
+    if (this.combo >= 3 && this.state === "playing") {
+      const hue = Math.min(280, 180 + this.combo * 6);
+      const scale = 1 + Math.sin(ts / 120) * 0.05;
+      c.save();
+      c.translate(this.width / 2, this.height * 0.15);
+      c.scale(scale, scale);
+      c.fillStyle = `hsla(${hue}, 100%, 75%, 0.95)`;
+      c.shadowColor = `hsl(${hue}, 100%, 60%)`;
+      c.shadowBlur = 15;
+      c.font = "bold 36px Inter, system-ui, sans-serif";
+      c.fillText(`COMBO ×${this.combo}`, 0, 0);
+      c.shadowBlur = 0;
+      c.restore();
+    }
+
+    // Multiplier indicator
+    if (ts < this.multiplierUntilMs && this.state === "playing") {
+      const remain = (this.multiplierUntilMs - ts) / 1000;
+      c.fillStyle = "hsla(55, 100%, 70%, 0.9)";
+      c.font = "bold 14px Inter, system-ui, sans-serif";
+      c.shadowColor = "hsl(55, 100%, 60%)";
+      c.shadowBlur = 8;
+      c.fillText(`×2 PONTOS  ${remain.toFixed(1)}s`, this.width / 2, this.height - 24);
+      c.shadowBlur = 0;
+    }
+
+    c.restore();
+
+    // Flash overlay (no shake)
+    if (ts < this.flashUntil) {
+      const a = (this.flashUntil - ts) / 90 * 0.25;
+      c.fillStyle = `rgba(255,255,255,${a})`;
+      c.fillRect(0, 0, this.width, this.height);
+    }
   }
 
   private snapshot(): PublicGameStats {
@@ -531,6 +843,10 @@ export class GameEngine {
       state: this.state,
       durationSeconds: Math.floor(this.elapsedMs / 1000),
       countdown,
+      combo: this.combo,
+      shieldActive: this.shieldActive,
+      ghostCharges: this.ghostCharges,
+      multiplierUntilSec: Math.max(0, (this.multiplierUntilMs - now) / 1000),
     };
   }
 

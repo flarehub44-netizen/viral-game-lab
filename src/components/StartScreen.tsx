@@ -1,4 +1,5 @@
-import { Trophy, Play } from "lucide-react";
+import { Trophy, Play, Target, Award } from "lucide-react";
+import { levelFromXp, loadProgression } from "@/game/progression";
 
 interface Props {
   bestScore: number;
@@ -6,6 +7,8 @@ interface Props {
   onPlay: () => void;
   onChangeName: () => void;
   onLeaderboard: () => void;
+  onMissions: () => void;
+  onAchievements: () => void;
 }
 
 export const StartScreen = ({
@@ -14,16 +17,45 @@ export const StartScreen = ({
   onPlay,
   onChangeName,
   onLeaderboard,
+  onMissions,
+  onAchievements,
 }: Props) => {
+  const prog = loadProgression();
+  const lvl = levelFromXp(prog.xp);
+  const missionsLeft = prog.missions.list.filter((m) => !m.done).length;
+
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-between p-8 bg-gradient-to-b from-background via-background to-card">
-      <div />
+    <div className="absolute inset-0 flex flex-col items-center justify-between p-6 bg-gradient-to-b from-background via-background to-card">
+      {/* Top: Level + XP */}
+      <div className="w-full max-w-xs">
+        <div className="rounded-xl border border-border bg-card/40 p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-[11px] font-black text-background">
+                {lvl.level}
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Nível
+              </div>
+            </div>
+            <div className="text-[10px] tabular-nums text-muted-foreground">
+              {lvl.intoLevel} / {lvl.needed} XP
+            </div>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-primary to-secondary transition-all"
+              style={{ width: `${lvl.progress * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-col items-center text-center">
         <h1 className="text-6xl font-black tracking-tight text-glow-cyan mb-2">
           NEON
         </h1>
-        <h1 className="text-6xl font-black tracking-tight text-glow-magenta mb-8">
+        <h1 className="text-6xl font-black tracking-tight text-glow-magenta mb-6">
           SPLIT
         </h1>
         <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
@@ -34,7 +66,7 @@ export const StartScreen = ({
         </p>
 
         {bestScore > 0 && (
-          <div className="mt-8 px-4 py-2 rounded-lg bg-card/40 backdrop-blur border border-border">
+          <div className="mt-6 px-4 py-2 rounded-lg bg-card/40 backdrop-blur border border-border">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               Recorde
             </div>
@@ -53,6 +85,28 @@ export const StartScreen = ({
           <Play size={20} fill="currentColor" />
           Jogar
         </button>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={onMissions}
+            className="relative py-3 text-xs font-bold uppercase tracking-widest rounded-xl border border-border bg-card/40 hover:bg-card/60 text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
+          >
+            <Target size={14} />
+            Missões
+            {missionsLeft > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent text-accent-foreground text-[10px] font-black flex items-center justify-center">
+                {missionsLeft}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={onAchievements}
+            className="py-3 text-xs font-bold uppercase tracking-widest rounded-xl border border-border bg-card/40 hover:bg-card/60 text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
+          >
+            <Award size={14} />
+            Conquistas
+          </button>
+        </div>
 
         <button
           onClick={onLeaderboard}

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { GameEngine, type PublicGameStats } from "@/game/engine";
+import { GameEngine, type PublicGameStats, type RoundSummaryOut } from "@/game/engine";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
-import { Volume2, VolumeX, Menu } from "lucide-react";
+import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 
 interface Props {
-  onGameOver: (stats: PublicGameStats) => void;
+  onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
   onExit: () => void;
 }
 
@@ -16,6 +16,10 @@ const initialStats: PublicGameStats = {
   state: "ready",
   durationSeconds: 0,
   countdown: null,
+  combo: 0,
+  shieldActive: false,
+  ghostCharges: 0,
+  multiplierUntilSec: 0,
 };
 
 export const GameCanvas = ({ onGameOver, onExit }: Props) => {
@@ -32,7 +36,7 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
     const canvas = canvasRef.current!;
     const engine = new GameEngine(canvas, {
       onStatsChange: (s) => setStats(s),
-      onGameOver: (s) => onGameOver(s),
+      onGameOver: (s, summary) => onGameOver(s, summary),
     });
     engineRef.current = engine;
 
@@ -150,6 +154,19 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         </div>
 
         <div className="pointer-events-auto flex items-start gap-2">
+          <div className="flex items-center gap-1">
+            {stats.shieldActive && (
+              <div className="p-1.5 rounded-md bg-primary/20 border border-primary text-primary animate-pulse">
+                <Shield size={14} />
+              </div>
+            )}
+            {stats.ghostCharges > 0 && (
+              <div className="p-1.5 rounded-md bg-secondary/20 border border-secondary text-secondary animate-pulse flex items-center gap-1">
+                <Ghost size={14} />
+                {stats.ghostCharges > 1 && <span className="text-[10px] font-bold">{stats.ghostCharges}</span>}
+              </div>
+            )}
+          </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-glow-magenta tabular-nums leading-none">
               ×{stats.alive}
