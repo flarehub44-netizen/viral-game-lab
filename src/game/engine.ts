@@ -223,6 +223,7 @@ export class GameEngine {
 
   // Tap duplo → merge
   private lastTapTs = 0;
+  private lastSplitSpawned: Ball[] = [];
   private static readonly DOUBLE_TAP_MS = 250;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks, options: EngineOptions = {}) {
