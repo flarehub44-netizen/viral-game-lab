@@ -815,28 +815,44 @@ export class GameEngine {
       if (bar.y + bar.height < this.height * 0.4 - 30 && !bar.passed) {
         bar.passed = true;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
+        const superCount = this.balls.reduce((n, b) => n + (b.alive && b.isSuper ? 1 : 0), 0);
         if (aliveNow > 0) {
           const perfect = aliveNow === aliveBefore;
           if (perfect) {
             this.combo += 1;
             if (this.combo > this.bestPerfectStreak) this.bestPerfectStreak = this.combo;
-            // Refill combo bar — fully on perfect, partial on plain pass
             this.comboBar = Math.min(1, this.comboBar + 0.35);
           } else {
             this.comboBar = Math.min(1, this.comboBar + 0.12);
           }
           const comboMult = this.comboMultiplier();
-          // Quadratic-ish reward: more balls = exponentially more pts
-          const base = aliveNow + Math.floor(aliveNow * aliveNow * 0.25);
-          const gained = Math.max(1, Math.floor(base * comboMult));
-          this.score += gained;
-          sfx.pass(aliveNow);
+          const scoreMult = ts < this.scoreMultUntil ? 2 : 1;
+          const rushMult = ts < this.rushUntil ? 3 : 1;
+          if (bar.boss) {
+            // Boss reward: aliveBalls × 50 × comboMult × score2x × rush
+            const bossGain = Math.floor(aliveNow * 50 * comboMult * scoreMult * rushMult);
+            this.score += bossGain;
+            this.bossesKilled += 1;
+            sfx.bossKill();
+            this.flashUntil = ts + 300;
+            this.shakeUntil = ts + 200;
+            this.shakeIntensity = 5;
+            this.spawnParticles(this.width / 2, this.height * 0.4, 0, 60);
+            this.addFloatText(this.width / 2, this.height * 0.35, `BOSS! +${bossGain.toLocaleString()}`, 0, 30);
+          } else {
+            // Pontos normais. Super balls valem 5x cada.
+            const effectiveBalls = aliveNow + superCount * 4; // super conta como 5x (1 + 4)
+            const base = effectiveBalls + Math.floor(effectiveBalls * effectiveBalls * 0.25);
+            const gained = Math.max(1, Math.floor(base * comboMult * scoreMult * rushMult));
+            this.score += gained;
+            sfx.pass(aliveNow);
 
-          // Floating "+points" text near barrier
-          const cx = this.width / 2;
-          const cy = this.height * 0.4 - 10;
-          const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
-          this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
+            // Floating "+points" text near barrier
+            const cx = this.width / 2;
+            const cy = this.height * 0.4 - 10;
+            const hue = aliveNow >= 16 ? 320 : aliveNow >= 8 ? 55 : 180;
+            this.addFloatText(cx, cy, `+${gained}`, hue, 22 + Math.min(18, aliveNow));
+          }
 
           if (perfect && aliveNow >= 4) {
             sfx.perfect();
