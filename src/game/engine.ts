@@ -327,6 +327,9 @@ export class GameEngine {
       // Trail
       b.trail.push({ x: b.x, y: b.y });
       if (b.trail.length > GameEngine.TRAIL_LEN) b.trail.shift();
+      // Save previous position for swept collision
+      b.prevX = b.x;
+      b.prevY = b.y;
       // Horizontal motion
       b.x += b.vx * dt;
       b.vx *= 0.97; // lighter damping so balls keep separation
