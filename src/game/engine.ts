@@ -339,6 +339,29 @@ export class GameEngine {
       }
     }
 
+    const aliveBalls = this.balls.filter((b) => b.alive);
+    for (let i = 0; i < aliveBalls.length; i++) {
+      for (let j = i + 1; j < aliveBalls.length; j++) {
+        const a = aliveBalls[i];
+        const b = aliveBalls[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const minDist = (a.radius + b.radius) * 1.15;
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= 0 || distSq >= minDist * minDist) continue;
+        const dist = Math.sqrt(distSq);
+        const push = (minDist - dist) * 0.35;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+        a.vx -= nx * 18;
+        b.vx += nx * 18;
+      }
+    }
+
     // Cleanup dead balls (keep array small)
     if (this.balls.length > 16 && this.balls.some((b) => !b.alive)) {
       this.balls = this.balls.filter((b) => b.alive);
