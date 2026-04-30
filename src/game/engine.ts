@@ -1130,14 +1130,37 @@ export class GameEngine {
     for (const b of this.balls) {
       if (!b.alive) continue;
       const sprite = this.ballSprites.get(b.hue) ?? this.ballSprites.values().next().value!;
-      // Trail (simpler: fewer ops)
+      // Trail (estilo varia por skin)
+      const ts2 = ts;
       for (let i = 0; i < b.trail.length; i++) {
         const t = b.trail[i];
         const tr = b.radius * (0.55 + i * 0.05);
         const drawSize = tr * 4;
-        c.globalAlpha = t.a * 0.35;
-        c.drawImage(sprite, t.x - drawSize / 2, t.y - drawSize / 2, drawSize, drawSize);
+        if (this.trailStyle === "pixel") {
+          c.globalAlpha = t.a * 0.6;
+          const s = Math.max(2, b.radius * 0.5);
+          c.fillStyle = `hsl(${b.hue}, 100%, 65%)`;
+          c.fillRect(Math.floor(t.x - s / 2), Math.floor(t.y - s / 2), s, s);
+        } else if (this.trailStyle === "fire") {
+          c.globalAlpha = t.a * 0.45;
+          const fireHue = 25 + i * 10; // cyan→amarelo
+          c.fillStyle = `hsl(${fireHue}, 100%, 60%)`;
+          c.beginPath();
+          c.arc(t.x, t.y, tr * 1.1, 0, Math.PI * 2);
+          c.fill();
+        } else if (this.trailStyle === "sparkle") {
+          c.globalAlpha = t.a * 0.6;
+          const sparkleSize = tr * 1.5;
+          c.fillStyle = `hsl(${b.hue}, 100%, 80%)`;
+          // pequena estrela: 4 pequenos retângulos
+          c.fillRect(t.x - sparkleSize / 2, t.y - 1, sparkleSize, 2);
+          c.fillRect(t.x - 1, t.y - sparkleSize / 2, 2, sparkleSize);
+        } else {
+          c.globalAlpha = t.a * 0.35;
+          c.drawImage(sprite, t.x - drawSize / 2, t.y - drawSize / 2, drawSize, drawSize);
+        }
       }
+      void ts2;
       c.globalAlpha = 1;
       const drawSize = b.radius * 4; // sprite is glow-padded — render at 4x radius
       c.drawImage(sprite, b.x - drawSize / 2, b.y - drawSize / 2, drawSize, drawSize);
