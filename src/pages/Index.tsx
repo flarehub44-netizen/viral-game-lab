@@ -40,6 +40,7 @@ const Index = () => {
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
+  const [newlyCompletedMissions, setNewlyCompletedMissions] = useState<Mission[]>([]);
 
   // Persist nickname
   useEffect(() => {
@@ -72,6 +73,21 @@ const Index = () => {
         localStorage.setItem(BEST_KEY, String(stats.score));
       } catch {}
     }
+
+    // Lifetime score (desbloqueia skins)
+    addLifetimeScore(stats.score);
+
+    // Atualiza missões diárias
+    const completed = applyRunToMissions({
+      score: stats.score,
+      maxMultiplier: stats.maxMultiplier,
+      durationSeconds: stats.durationSeconds,
+      bestPerfectStreak: stats.bestPerfectStreak,
+      nearMisses: stats.nearMisses,
+      pickedAnyPowerup: stats.pickedAnyPowerup,
+    });
+    setNewlyCompletedMissions(completed);
+
     setScreen("over");
 
     // Submit to leaderboard if score is meaningful
