@@ -407,7 +407,6 @@ export class GameEngine {
     this.bossPending = false;
     this.scoreMultUntil = 0;
     this.repelUntil = 0;
-    this.lastTapTs = 0;
   }
 
   private spawnInitialBall() {
@@ -420,8 +419,6 @@ export class GameEngine {
       hue: this.HUES[0],
       alive: true,
       shielded: false,
-      isSuper: false,
-      superShield: false,
       trail: [],
     });
   }
