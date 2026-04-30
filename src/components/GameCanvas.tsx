@@ -48,11 +48,38 @@ function comboBarHue(mult: number): number {
   return 200;
 }
 
-export const GameCanvas = ({ onGameOver, onExit }: Props) => {
+const TIPS = [
+  "Toque rápido = mais bolinhas, mais pontos",
+  "Tap duplo (250ms) funde 2 bolinhas em SUPER (×5)",
+  "Combo perfeito mantém o multiplicador subindo",
+  "Near-miss vale pontos extras — passe raspando!",
+  "RUSH a cada 30s: 3× pontos por 10s",
+  "BOSS a cada 60s: gap minúsculo, prêmio gigante",
+  "Bomb limpa todas as barreiras visíveis",
+  "Repel afasta as bolinhas das paredes",
+];
+
+function trailStyleForSkin(id: string): "normal" | "sparkle" | "fire" | "pixel" {
+  switch (id) {
+    case "solar":
+      return "fire";
+    case "rainbow":
+      return "sparkle";
+    case "void":
+      return "pixel";
+    default:
+      return "normal";
+  }
+}
+
+export const GameCanvas = ({ onGameOver, onExit, dailyMode = false }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [stats, setStats] = useState<PublicGameStats>(initialStats);
   const [muted, setMutedState] = useState(isMuted());
+  const [fps, setFps] = useState(0);
+  const showFps = useMemo(() => getSettings().showFps, []);
+  const tip = useMemo(() => TIPS[Math.floor(Math.random() * TIPS.length)], []);
 
   const [showTutorial, setShowTutorial] = useState(() => {
     try {
@@ -77,7 +104,11 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         onStatsChange: (s) => setStats(s),
         onGameOver: (s) => onGameOver(s),
       },
-      { hues: skin.hues },
+      {
+        hues: skin.hues,
+        dailyMod: dailyMode ? getDailyMod() : undefined,
+        trailStyle: trailStyleForSkin(skin.id),
+      },
     );
     engineRef.current = engine;
 
@@ -101,8 +132,26 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
       } catch {}
     }, 4000);
 
+    let fpsRaf = 0;
+    if (showFps) {
+      let frames = 0;
+      let lastFpsTs = performance.now();
+      const tick = () => {
+        frames++;
+        const now = performance.now();
+        if (now - lastFpsTs >= 500) {
+          setFps(Math.round((frames * 1000) / (now - lastFpsTs)));
+          frames = 0;
+          lastFpsTs = now;
+        }
+        fpsRaf = requestAnimationFrame(tick);
+      };
+      fpsRaf = requestAnimationFrame(tick);
+    }
+
     return () => {
       clearTimeout(t);
+      if (fpsRaf) cancelAnimationFrame(fpsRaf);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
