@@ -494,7 +494,7 @@ export class GameEngine {
       this.attractTapTimer += dt;
       if (this.attractTapTimer > 1.6 && this.balls.length < 6) {
         this.attractTapTimer = 0;
-        this.tapInternal();
+        this.tap();
       }
     }
 
