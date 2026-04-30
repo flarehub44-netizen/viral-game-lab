@@ -246,6 +246,33 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
         </div>
       )}
 
+      {/* Rush event banner */}
+      {stats.rushActive && (
+        <div className="absolute top-16 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="px-4 py-1 rounded-full bg-destructive/30 border border-destructive text-destructive text-xs font-black uppercase tracking-widest animate-pulse">
+            🔥 RUSH ×3 · {stats.rushRemaining.toFixed(1)}s
+          </div>
+        </div>
+      )}
+
+      {/* Boss warning */}
+      {stats.bossWarning && !stats.rushActive && (
+        <div className="absolute top-16 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="px-4 py-1 rounded-full bg-red-500/30 border border-red-500 text-red-300 text-xs font-black uppercase tracking-widest animate-pulse">
+            ⚠ BOSS APPROACHING
+          </div>
+        </div>
+      )}
+
+      {/* Score×2 indicator */}
+      {stats.scoreMultActive > 1 && (
+        <div className="absolute top-24 right-3 pointer-events-none">
+          <div className="px-2 py-0.5 rounded-md bg-yellow-500/30 border border-yellow-400 text-yellow-200 text-[10px] font-black uppercase tracking-wider animate-pulse">
+            ×2 SCORE
+          </div>
+        </div>
+      )}
+
       {/* Countdown overlay */}
       {isCountdown && stats.countdown != null && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
