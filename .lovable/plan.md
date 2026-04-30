@@ -1,160 +1,55 @@
-# Roadmap Neon Split v2
 
-Vou implementar tudo em **5 fases independentes**. Cada fase já entrega valor sozinha, então você pode pausar entre uma e outra. Recomendo começar pelas Fases 1-3 (alto impacto, baixo risco) e avaliar antes de Squads/Replay (Fase 5, exige bastante backend).
+# Corrigir a mecânica de Fusão (Super Ball)
 
----
+## Problema atual
 
-## Fase 1 — Gameplay novo (mais variedade e tensão)
+A fusão tem 3 bugs que cancelam o benefício prometido:
 
-**1.1 Power-ups novos** (`src/game/engine.ts`)
-- `bomb`: limpa todas as barreiras visíveis na tela + screen shake + pontos por barreira destruída
-- `score2x`: multiplicador de pontos 2x por 8s (visual: HUD pulsando dourado)
-- `repel` (ímã reverso): empurra bolinhas pro centro, longe das paredes laterais por 4s
-- Adiciona ao spawn pool com pesos balanceados (bomb mais raro)
+1. **Tap duplo dispara split + merge**: o 1º toque multiplica as bolinhas, então o merge funde só 2 das muitas que acabaram de aparecer — saldo é sempre **mais bolinhas**, nunca menos.
+2. **Fórmula quadrática anula o "5x"**: a super conta como 5 no `effectiveBalls`, mas como o score base é `n²`, fundir reduz o potencial de pontos a longo prazo (menos bolinhas para splits futuros = score menor).
+3. **Visual genérico**: só muda matiz pra dourado. Sem aura, sem trilha, sem contador no HUD — o jogador não percebe que a super existe.
 
-**1.2 Boss barriers** a cada 60s
-- Barreira 3x mais alta com gap único de ~10% da largura
-- Aviso visual 2s antes ("⚠ BOSS")
-- Recompensa: `aliveBalls × 50 × comboMult`
-- Cor pulsante vermelha → roxa
+## Correções
 
-**1.3 Rush event** a cada 30s (10s de duração)
-- Velocidade de barreiras +60%, pontos 3x
-- Overlay com vinheta vermelha + label "RUSH ×3"
-- Respeita `slowMo` (não acumula buff)
+### 1. Cancelar split quando vira merge (`src/game/engine.ts` ~ linha 327)
 
-**1.4 Combo decay visível**
-- Barra fica vermelha + classe `animate-pulse` quando `comboBar < 0.25`
-- Tick sonoro a cada 200ms nos últimos 1.5s
+Detectar tap duplo **antes** de aplicar o split: se o intervalo entre toques for < 250ms, fazer rollback do split do 1º toque (restaurar bolinhas adicionadas) e então fundir. Alternativa mais simples: usar **delay de 250ms** no split — só executa se nenhum 2º toque chegar. Trade-off: adiciona latência ao tap simples. 
 
-**1.5 Tap duplo = merge**
-- Detecta 2 taps em <250ms
-- Funde 2 bolinhas mais próximas em 1 "super ball" (raio +50%, hue dourado)
-- Super ball vale 5x pontos ao passar barreira
-- Trade-off: menos bolinhas = menos chance de sobrevivência mas mais pontos
+**Solução escolhida**: manter split imediato, mas no merge **remover também as bolinhas criadas pelo split anterior** (guardar `lastSplitSpawned: Ball[]` no `onTap` e desfazer no `mergeNearest`).
 
----
+### 2. Reescrever bônus da Super Ball
 
-## Fase 2 — Progressão persistente
+Em vez de mexer na fórmula quadrática, dar à super ball **3 benefícios diretos**:
 
-**2.1 Sistema de XP/nível** (`src/game/progression.ts` novo)
-- XP = score / 10 por run
-- Curva: nível N requer `N² × 100` XP
-- Cada nível desbloqueia um "track" de dificuldade (Easy/Normal/Hard/Insane) selecionável no menu
-- Tracks afetam: spawn rate, gap width, boss frequency
-- HUD na StartScreen: barra de XP + nível atual
+- **+10 pts flat por barreira passada** (independente da fórmula)
+- **Imune a 1 colisão** (escudo único — absorve 1 hit e perde o status super)
+- **Aumenta combo bar em +50%** ao passar barreiras (combo cresce mais rápido)
 
-**2.2 Conquistas** (`src/game/achievements.ts` novo)
-- 15-20 conquistas iniciais: "Primeiro ×32", "100 perfeitos seguidos", "1 min sem morrer", "Coletou os 3 power-ups numa run", "Boss destruído", "10 dias seguidos completando missões", etc.
-- Verificadas no `applyRunToMissions` e em momentos-chave do engine
-- Toast ao desbloquear + badge na tela de Game Over
-- Tela dedicada `/achievements` (botão no menu)
+Isso torna a super um **trade tático real**: troca quantidade por sobrevivência + bônus garantido.
 
-**2.3 Modo diário com seed fixa**
-- Botão "Daily Challenge" no menu
-- Seed = data atual (`YYYY-MM-DD`) → todos os jogadores enfrentam mesma sequência de barreiras/power-ups
-- Salva run no Supabase com flag `is_daily=true` e `daily_seed`
-- Ranking diário separado na Leaderboard (aba "Hoje" / "All-time")
+### 3. Melhorar visual e feedback
 
----
+- **Aura dourada pulsante** ao redor da super ball (gradient radial animado)
+- **Trilha dourada** dedicada (sobrescreve a trilha do skin)
+- **Contador no HUD**: badge "⭐ x2" no canto superior quando há super balls ativas
+- **Texto explicativo** no `floatText` do merge: "SUPER! +10/barreira • escudo"
+- **SFX diferenciado** ao passar barreira com super ativa (já existe `sfx.merge`, adicionar `sfx.superPass`)
 
-## Fase 3 — Polimento e acessibilidade
+### 4. Ajustar HUD/dicas
 
-**3.1 Countdown com dicas rotativas**
-- Array de 10-15 dicas: "Toque rápido = mais pontos", "Near-miss vale bônus", "Combo perfeito × multiplica", etc.
-- Mostra abaixo do número regressivo
+- Atualizar a dica do countdown que menciona toque duplo, esclarecendo o benefício real ("Toque duplo = funde 2 bolas em uma Super (escudo + bônus)")
+- No `GameCanvas.tsx`, adicionar o badge contador de supers ativas
 
-**3.2 Trail customizável por skin**
-- Tipos: `glow` (atual), `stars`, `fire`, `pixels`, `ribbon`
-- Adiciona campo `trail` em `Skin`
-- Renderização específica por tipo no engine
+## Arquivos afetados
 
-**3.3 Vibração diferenciada**
-- Curta (10ms) no near-miss
-- Média (40ms) no hit
-- Padrão `[80, 40, 80]` no game over
-- Padrão `[20, 20, 20]` ao desbloquear conquista
-
-**3.4 Modo daltônico**
-- Toggle nas settings
-- Adiciona padrões geométricos nas barreiras (listras/pontos) além da cor
-- Power-ups com ícones SVG distintos (não só letra)
-
-**3.5 Settings menu** (`src/components/SettingsScreen.tsx` novo)
-- Volume música/SFX separados (sliders)
-- Toggle haptic (on/medium/off)
-- Toggle FPS counter
-- Toggle daltônico
-- Botão "Resetar progresso" (com confirm)
-
----
-
-## Fase 4 — Backend para diário e conquistas
-
-**4.1 Tabela `daily_scores`** (migration)
-```sql
-create table public.daily_scores (
-  id uuid primary key default gen_random_uuid(),
-  nickname text not null,
-  score int not null,
-  daily_seed text not null,
-  duration_seconds int not null,
-  created_at timestamptz default now()
-);
-create index on public.daily_scores (daily_seed, score desc);
-```
-RLS: SELECT público, INSERT só via edge function.
-
-**4.2 Edge function `submit-daily`**
-- Valida seed = hoje
-- Limita 1 submissão por nickname/dia (mantém maior score)
-
-**4.3 Tabela `achievements_unlocked`** (opcional, para sincronizar entre devices)
-- Por enquanto fica em localStorage; sincroniza só se usuário fizer login (Fase 5)
-
----
-
-## Fase 5 — Social/Competitivo (opcional, alto custo)
-
-**5.1 Auth real** (email/Google) — necessário pra tudo abaixo
-
-**5.2 Ghost run em desafios**
-- Quando entra em link `?challenge=`, busca o run do desafiante via realtime
-- Mostra barra lateral com score do ghost subindo
-
-**5.3 Replay do top 1 diário**
-- Engine grava "tap events" durante a run (timestamp + seed da run)
-- Modo "Watch" reproduz determinísticamente
-- Armazena em tabela `replays` (texto comprimido)
-
-**5.4 Squads/Clans**
-- Tabelas `squads`, `squad_members`
-- Ranking semanal coletivo (soma top 10 runs da semana)
-- Convite por código
-
----
+- `src/game/engine.ts` — lógica do merge, bônus da super, rollback do split, render da aura
+- `src/game/audio.ts` — novo SFX `superPass`
+- `src/components/GameCanvas.tsx` — badge HUD de super balls ativas
+- (opcional) `src/game/engine.ts` lista de tips do countdown
 
 ## Detalhes técnicos
 
-- **Compatibilidade**: nada quebra runs antigas — XP começa em 0 com lifetime score atual convertido
-- **Performance**: power-ups novos reusam pool de partículas, boss barrier é só um Barrier com flag `boss=true`
-- **Estado do engine**: rush e boss timers vivem no engine; React só lê via `PublicGameStats`
-- **localStorage keys novos**: `ns_xp`, `ns_level`, `ns_track`, `ns_achievements`, `ns_settings`
-- **Code splitting**: Settings/Achievements como rotas separadas com lazy load
-- **Testes manuais**: cada fase fecha com round de QA visual no preview
-
----
-
-## Tempo estimado relativo
-
-| Fase | Esforço | Impacto retenção |
-|------|---------|------------------|
-| 1 — Gameplay | Médio | Alto |
-| 2 — Progressão | Médio | Muito alto |
-| 3 — Polimento | Baixo | Médio |
-| 4 — Backend diário | Baixo | Médio |
-| 5 — Social | Alto | Alto (mas niche) |
-
-**Recomendação**: aprovar Fases 1-4 agora. Fase 5 depois de ver tração real.
-
-Pode aprovar tudo, ou me dizer "só fase 1" / "1 e 2" etc. que ajusto o escopo.
+- Adicionar campo `superShield: boolean` em `Ball` (true ao virar super; vira false ao absorver hit, e nesse caso `isSuper` também volta a false mas a bolinha sobrevive)
+- No bloco de score (linha 838+), iterar supers vivas e adicionar `superCount * 10 * comboMult * scoreMult * rushMult` ao gained
+- Remover a linha `effectiveBalls = aliveNow + superCount * 4` — voltar para `effectiveBalls = aliveNow` e somar bônus flat separado
+- No `onTap`, armazenar `this.lastSpawnedFromSplit: Ball[]` antes de retornar; em `mergeNearest`, marcar essas como `alive = false` antes de fundir

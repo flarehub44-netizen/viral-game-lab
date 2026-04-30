@@ -37,6 +37,7 @@ const initialStats: PublicGameStats = {
   scoreMultActive: 1,
   uniquePowerupsCollected: 0,
   mergesUsed: 0,
+  superBallsActive: 0,
 };
 
 /** Pick a hue for the combo bar based on current multiplier tier. */
@@ -50,7 +51,7 @@ function comboBarHue(mult: number): number {
 
 const TIPS = [
   "Toque rápido = mais bolinhas, mais pontos",
-  "Tap duplo (250ms) funde 2 bolinhas em SUPER (×5)",
+  "Tap duplo funde 2 bolinhas em SUPER: escudo + bônus",
   "Combo perfeito mantém o multiplicador subindo",
   "Near-miss vale pontos extras — passe raspando!",
   "RUSH a cada 30s: 3× pontos por 10s",
@@ -325,6 +326,15 @@ export const GameCanvas = ({ onGameOver, onExit, dailyMode = false }: Props) => 
         <div className="absolute top-24 right-3 pointer-events-none">
           <div className="px-2 py-0.5 rounded-md bg-yellow-500/30 border border-yellow-400 text-yellow-200 text-[10px] font-black uppercase tracking-wider animate-pulse">
             ×2 SCORE
+          </div>
+        </div>
+      )}
+
+      {/* Super balls active badge */}
+      {stats.superBallsActive > 0 && (
+        <div className="absolute top-32 right-3 pointer-events-none">
+          <div className="px-2 py-0.5 rounded-md bg-yellow-300/25 border border-yellow-300 text-yellow-100 text-[10px] font-black uppercase tracking-wider">
+            ⭐ SUPER ×{stats.superBallsActive} · +10/barr
           </div>
         </div>
       )}
