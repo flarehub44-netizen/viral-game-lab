@@ -573,6 +573,8 @@ export class GameEngine {
             (g) => nx >= g.start + 0.005 && nx <= g.end - 0.005,
           );
           if (!inGap) {
+            // Attract mode: never die, never lose combo
+            if (this.attract) continue;
             // Tap grace: brief invuln right after splitting
             if (ts < this.graceUntil) continue;
             if (b.shielded) {
