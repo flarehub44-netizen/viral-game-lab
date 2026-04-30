@@ -232,13 +232,17 @@ export const GameCanvas = ({ onGameOver, onExit }: Props) => {
             Combo ×{stats.comboMultiplier}
           </div>
           {showComboBar && (
-            <div className="mt-1 w-32 h-1.5 rounded-full bg-card/40 border border-border overflow-hidden">
+            <div className={`mt-1 w-32 h-1.5 rounded-full bg-card/40 border border-border overflow-hidden ${stats.comboBar < 0.25 ? "animate-pulse" : ""}`}>
               <div
                 className="h-full rounded-full transition-[width] duration-100"
                 style={{
                   width: `${stats.comboBar * 100}%`,
-                  background: `linear-gradient(90deg, hsl(${barHue}, 100%, 60%), hsl(${barHue}, 100%, 80%))`,
-                  boxShadow: `0 0 8px hsl(${barHue}, 100%, 60%)`,
+                  background: stats.comboBar < 0.25
+                    ? "linear-gradient(90deg, hsl(0, 100%, 55%), hsl(15, 100%, 70%))"
+                    : `linear-gradient(90deg, hsl(${barHue}, 100%, 60%), hsl(${barHue}, 100%, 80%))`,
+                  boxShadow: stats.comboBar < 0.25
+                    ? "0 0 10px hsl(0, 100%, 55%)"
+                    : `0 0 8px hsl(${barHue}, 100%, 60%)`,
                 }}
               />
             </div>
