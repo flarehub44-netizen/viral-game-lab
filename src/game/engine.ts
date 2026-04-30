@@ -146,6 +146,7 @@ export class GameEngine {
   // when many balls collide on the same frame (was the cause of "tap freezes").
   private hitsThisFrame = 0;
   private hapticThisFrame = 0;
+  private static readonly MAX_BALLS = 64;
 
   // Countdown before play
   private countdownEndsAt = 0; // performance.now() ms
@@ -268,17 +269,20 @@ export class GameEngine {
   /** User tapped — split all alive balls in two */
   tap() {
     if (this.state !== "playing") return;
-    // balls array only contains alive balls (dead are pruned each frame)
-    const alive = this.balls;
+    // Snapshot first: never iterate the same array we're pushing into.
+    // `for...of` over a growing array can keep consuming newly added balls and freeze.
+    const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
-    if (alive.length >= 128) return; // safety cap (lower = stable on long runs)
+    if (alive.length >= GameEngine.MAX_BALLS) return;
+    const splitCount = Math.min(alive.length, GameEngine.MAX_BALLS - alive.length);
     sfx.split();
     haptic(8); // light tactile pulse to give the tap "weight"
     const ts = performance.now();
     // Brief grace window so a tap doesn't insta-kill mid-barrier
     this.graceUntil = ts + 90;
-    const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length * 2)), this.HUES.length - 1)];
-    for (const b of alive) {
+    const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
+    for (let i = 0; i < splitCount; i++) {
+      const b = alive[i];
       // Push outward symmetrically — wider spread feels more impactful
       const spread = 110 + Math.random() * 40;
       const newBall: Ball = {
