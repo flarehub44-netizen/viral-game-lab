@@ -79,7 +79,7 @@ function mapMultiplierToLayout(mult: number): { targetBarrier: number; maxDurati
  */
 export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
   | { ok: true; round: ActiveServerRound; wallet: PersistedWallet }
-  | { ok: false } & DemoRoundError {
+  | ({ ok: false } & DemoRoundError) {
   if (!validateStakeAmount(stake)) {
     return { ok: false, error: "invalid_stake" };
   }
