@@ -51,7 +51,7 @@ function comboBarHue(mult: number): number {
 
 const TIPS = [
   "Toque rápido = mais bolinhas, mais pontos",
-  "Tap duplo funde 2 bolinhas em SUPER: escudo + bônus",
+  "Tap rápido = mais bolinhas, mais pontos",
   "Combo perfeito mantém o multiplicador subindo",
   "Near-miss vale pontos extras — passe raspando!",
   "RUSH a cada 30s: 3× pontos por 10s",
