@@ -1,55 +1,100 @@
+## Objetivo
 
-# Corrigir a mecânica de Fusão (Super Ball)
+Deixar o jogo **leve** (rodar suave em qualquer celular) e capaz de **aguentar 500+ pessoas simultâneas** sem travar nem estourar custo do backend. Hoje o jogo tem muitas mecânicas empilhadas e cada partida grava no banco — isso pesa no aparelho e no servidor.
 
-## Problema atual
+## Diagnóstico atual
 
-A fusão tem 3 bugs que cancelam o benefício prometido:
+**No celular do jogador (peso do jogo):**
+- Engine com ~1275 linhas, sistemas paralelos (combo, rush, boss, power-ups, near-miss, repel, score2x, missões, conquistas, XP, skins, daily challenge)
+- Até 64 bolinhas simultâneas, cada uma com trail de ~10 pontos
+- Partículas, float texts, shake, flash, vinheta de rush, aura, pulso de combo bar
+- HUD em React re-renderizando 10×/s com 20+ campos
+- DPR até 2x (renderiza 4× mais pixels em retina)
+- 9 telas diferentes (menu, game, over, leaderboard, achievements, settings, daily, etc.)
 
-1. **Tap duplo dispara split + merge**: o 1º toque multiplica as bolinhas, então o merge funde só 2 das muitas que acabaram de aparecer — saldo é sempre **mais bolinhas**, nunca menos.
-2. **Fórmula quadrática anula o "5x"**: a super conta como 5 no `effectiveBalls`, mas como o score base é `n²`, fundir reduz o potencial de pontos a longo prazo (menos bolinhas para splits futuros = score menor).
-3. **Visual genérico**: só muda matiz pra dourado. Sem aura, sem trilha, sem contador no HUD — o jogador não percebe que a super existe.
+**No backend (escala 500+ usuários):**
+- Cada game over chama uma edge function que faz `INSERT` no banco
+- 500 jogadores × 1 partida/min = ~8 inserts/s contínuos (ok), mas em pico vira gargalo
+- Daily challenge tem tabela própria + edge function própria, dobrando a carga
+- Leaderboard é lido toda vez que alguém abre — sem cache
 
-## Correções
+## Plano
 
-### 1. Cancelar split quando vira merge (`src/game/engine.ts` ~ linha 327)
+### 1. Simplificar o jogo (cliente leve)
 
-Detectar tap duplo **antes** de aplicar o split: se o intervalo entre toques for < 250ms, fazer rollback do split do 1º toque (restaurar bolinhas adicionadas) e então fundir. Alternativa mais simples: usar **delay de 250ms** no split — só executa se nenhum 2º toque chegar. Trade-off: adiciona latência ao tap simples. 
+Reduzir engine ao núcleo:
+- **Mecânica única:** tap divide bolinhas, passa pelos buracos das barreiras, ganha pontos
+- Remover: combo/multiplicador, rush event, boss barriers, power-ups, near-miss, score2x, repel, magnet, slowmo, bomb, shield, skins, XP/níveis, conquistas, missões, daily challenge, configurações avançadas, tutorial dinâmico
+- **Cap de bolinhas:** 32 (era 64)
+- **Trail:** 4 pontos (era ~10)
+- **Partículas:** 40 max (era 200+)
+- **DPR:** cap em 1.5 (era 2) — economiza ~30% de pixels em retina
+- **HUD:** só score + bolinhas vivas + mute + menu
+- **Telas:** menu → jogo → game over → ranking (4 no total)
+- **Stats emitidos pra React:** 5 campos (era 20+)
 
-**Solução escolhida**: manter split imediato, mas no merge **remover também as bolinhas criadas pelo split anterior** (guardar `lastSplitSpawned: Ball[]` no `onTap` e desfazer no `mergeNearest`).
+### 2. Reduzir carga no backend (escala)
 
-### 2. Reescrever bônus da Super Ball
+- **Não gravar toda partida.** Só envia score se for novo recorde **pessoal** do jogador (validado no cliente via localStorage). Reduz inserts em ~95%.
+- **Leaderboard com cache de 30s** no cliente: armazena resposta em memória + timestamp, só refaz fetch se passou 30s ou se acabou de jogar
+- **Top 50 em vez de top 100** no leaderboard (resposta menor, query mais rápida)
+- **Índice no banco:** `CREATE INDEX ON scores (score DESC)` pra ordenação ficar O(log n)
+- Remover edge function `submit-daily-score` e tabela de daily (não usada mais)
 
-Em vez de mexer na fórmula quadrática, dar à super ball **3 benefícios diretos**:
+### 3. Backend: instância correta
 
-- **+10 pts flat por barreira passada** (independente da fórmula)
-- **Imune a 1 colisão** (escudo único — absorve 1 hit e perde o status super)
-- **Aumenta combo bar em +50%** ao passar barreiras (combo cresce mais rápido)
+A instância padrão do Lovable Cloud aguenta o tráfego previsto **se** o ponto 2 for aplicado (só salva recorde pessoal + cache no cliente). Se o uso passar disso, dá pra subir a instância em **Backend → Configurações avançadas → Aumentar instância** (sem precisar de mudança de código).
 
-Isso torna a super um **trade tático real**: troca quantidade por sobrevivência + bônus garantido.
+## Telas finais
 
-### 3. Melhorar visual e feedback
-
-- **Aura dourada pulsante** ao redor da super ball (gradient radial animado)
-- **Trilha dourada** dedicada (sobrescreve a trilha do skin)
-- **Contador no HUD**: badge "⭐ x2" no canto superior quando há super balls ativas
-- **Texto explicativo** no `floatText` do merge: "SUPER! +10/barreira • escudo"
-- **SFX diferenciado** ao passar barreira com super ativa (já existe `sfx.merge`, adicionar `sfx.superPass`)
-
-### 4. Ajustar HUD/dicas
-
-- Atualizar a dica do countdown que menciona toque duplo, esclarecendo o benefício real ("Toque duplo = funde 2 bolas em uma Super (escudo + bônus)")
-- No `GameCanvas.tsx`, adicionar o badge contador de supers ativas
+```
+┌─ Menu ─────────────┐    ┌─ Jogo ──────┐    ┌─ Game Over ─┐
+│  NEON SPLIT        │    │  Score: 42  │    │ Você fez:42 │
+│  Recorde: 1234     │ →  │  Bolinhas:3 │ →  │ Recorde:1234│
+│  Apelido: Player1  │    │  [canvas]   │    │ [De novo]   │
+│  [JOGAR]           │    │             │    │ [Menu]      │
+│  [RANKING]         │    │             │    │ [Ranking]   │
+└────────────────────┘    └─────────────┘    └─────────────┘
+```
 
 ## Arquivos afetados
 
-- `src/game/engine.ts` — lógica do merge, bônus da super, rollback do split, render da aura
-- `src/game/audio.ts` — novo SFX `superPass`
-- `src/components/GameCanvas.tsx` — badge HUD de super balls ativas
-- (opcional) `src/game/engine.ts` lista de tips do countdown
+**Reescritos enxutos:**
+- `src/game/engine.ts` (~1275 → ~280 linhas)
+- `src/game/audio.ts` (mantém só tap/split/pass/gameOver)
+- `src/components/GameCanvas.tsx` (HUD mínimo)
+- `src/components/StartScreen.tsx`
+- `src/components/GameOverScreen.tsx`
+- `src/components/Leaderboard.tsx` (com cache)
+- `src/pages/Index.tsx` (4 telas)
+- `supabase/functions/submit-score/index.ts` (mantém, simples)
 
-## Detalhes técnicos
+**Deletados:**
+- `src/components/AchievementsScreen.tsx`
+- `src/components/DailyChallengeScreen.tsx`
+- `src/components/SettingsScreen.tsx`
+- `src/game/achievements.ts`
+- `src/game/daily.ts`
+- `src/game/missions.ts`
+- `src/game/progression.ts`
+- `src/game/settings.ts`
+- `src/game/skins.ts`
+- `src/lib/shareCard.ts`
+- `supabase/functions/submit-daily-score/index.ts`
 
-- Adicionar campo `superShield: boolean` em `Ball` (true ao virar super; vira false ao absorver hit, e nesse caso `isSuper` também volta a false mas a bolinha sobrevive)
-- No bloco de score (linha 838+), iterar supers vivas e adicionar `superCount * 10 * comboMult * scoreMult * rushMult` ao gained
-- Remover a linha `effectiveBalls = aliveNow + superCount * 4` — voltar para `effectiveBalls = aliveNow` e somar bônus flat separado
-- No `onTap`, armazenar `this.lastSpawnedFromSplit: Ball[]` antes de retornar; em `mergeNearest`, marcar essas como `alive = false` antes de fundir
+**Migração SQL:**
+- Adicionar índice em `scores(score DESC)`
+- Dropar tabela `daily_scores` (se existir)
+
+## Resultado esperado
+
+- Jogo carrega em <1s, roda 60fps até em celular básico
+- Bundle JS ~40% menor
+- Backend faz ~20× menos escritas (só recordes pessoais)
+- Leaderboard com cache evita N consultas repetidas
+- Suporta tranquilamente 500+ jogadores simultâneos na instância padrão
+
+## Confirmação antes de implementar
+
+1. Confirma que pode **remover** todas as mecânicas extras (combo, rush, boss, power-ups, conquistas, missões, daily, XP, skins)?
+2. Mantém o **ranking online global** (com cache + só recorde pessoal)?
