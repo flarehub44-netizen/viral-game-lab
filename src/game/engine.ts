@@ -55,10 +55,6 @@ interface Ball {
   hue: number;
   alive: boolean;
   shielded: boolean;
-  /** Super ball (criada via merge) — +10pt flat por barreira + escudo de 1 hit */
-  isSuper: boolean;
-  /** Escudo único da super: ao ser atingida, sobrevive mas perde status super */
-  superShield: boolean;
   trail: { x: number; y: number; a: number }[];
 }
 
