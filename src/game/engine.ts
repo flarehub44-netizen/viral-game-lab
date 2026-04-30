@@ -22,6 +22,12 @@ export interface PublicGameStats {
   comboBar: number;
   /** Countdown number to display (3,2,1) when state === "countdown", else null */
   countdown: number | null;
+  /** Maior streak de passes perfeitos atingido na run */
+  bestPerfectStreak: number;
+  /** Quantos near-misses na run */
+  nearMisses: number;
+  /** Coletou ao menos um power-up nesta run */
+  pickedAnyPowerup: boolean;
 }
 
 interface Ball {
@@ -80,11 +86,18 @@ interface FloatText {
   vy: number;
 }
 
-const HUES = [180, 320, 55, 140, 270, 25];
+const DEFAULT_HUES = [180, 320, 55, 140, 270, 25];
 
 interface EngineCallbacks {
   onStatsChange: (stats: PublicGameStats) => void;
   onGameOver: (stats: PublicGameStats) => void;
+}
+
+export interface EngineOptions {
+  /** Paletas de hue customizadas (skin selecionada) */
+  hues?: number[];
+  /** Modo "attract": loop demo sem colisão / sem game over (usado no menu) */
+  attract?: boolean;
 }
 
 export class GameEngine {
