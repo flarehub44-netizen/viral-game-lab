@@ -858,7 +858,7 @@ export class GameEngine {
             sfx.perfect();
             this.flashUntil = ts + 140;
             if (this.combo >= 3 && this.combo % 3 === 0) {
-              this.addFloatText(cx, cy - 30, `COMBO ×${comboMult}`, 320, 20);
+              this.addFloatText(this.width / 2, this.height * 0.35, `COMBO ×${comboMult}`, 320, 20);
             }
           }
         }
