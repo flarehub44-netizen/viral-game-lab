@@ -78,6 +78,33 @@ export const sfx = {
     setTimeout(() => tone(784, 0.1, "sine", 0.1, 1046), 70);
   },
   click: () => tone(660, 0.04, "square", 0.05),
+  bomb: () => {
+    tone(120, 0.35, "sawtooth", 0.18, 40);
+    setTimeout(() => tone(80, 0.5, "sawtooth", 0.14, 30), 80);
+  },
+  rush: () => {
+    tone(440, 0.15, "square", 0.1, 880);
+    setTimeout(() => tone(660, 0.18, "square", 0.1, 1320), 100);
+  },
+  boss: () => {
+    tone(80, 0.6, "sawtooth", 0.18, 60);
+    setTimeout(() => tone(110, 0.4, "sawtooth", 0.14, 80), 200);
+  },
+  bossKill: () => {
+    tone(880, 0.1, "triangle", 0.12, 1760);
+    setTimeout(() => tone(1320, 0.15, "triangle", 0.12, 2640), 80);
+    setTimeout(() => tone(1760, 0.25, "triangle", 0.1, 3520), 180);
+  },
+  merge: () => {
+    tone(523, 0.1, "triangle", 0.1, 1046);
+    setTimeout(() => tone(1046, 0.12, "triangle", 0.08, 2093), 60);
+  },
+  comboTick: () => tone(880, 0.03, "square", 0.04),
+  achievement: () => {
+    tone(784, 0.1, "triangle", 0.1, 1046);
+    setTimeout(() => tone(1046, 0.1, "triangle", 0.1, 1318), 80);
+    setTimeout(() => tone(1318, 0.18, "triangle", 0.1, 1568), 160);
+  },
 };
 
 export function unlockAudio() {
