@@ -610,6 +610,7 @@ export class GameEngine {
               const cm = this.comboMultiplier();
               const bonus = 5 * cm;
               this.score += bonus;
+              this.nearMisses += 1;
               this.addFloatText(b.x, b.y - 18, "NEAR!", 180, 16);
               haptic(15);
               this.flashUntil = Math.max(this.flashUntil, ts + 80);
@@ -627,6 +628,7 @@ export class GameEngine {
           const perfect = aliveNow === aliveBefore;
           if (perfect) {
             this.combo += 1;
+            if (this.combo > this.bestPerfectStreak) this.bestPerfectStreak = this.combo;
             // Refill combo bar — fully on perfect, partial on plain pass
             this.comboBar = Math.min(1, this.comboBar + 0.35);
           } else {
@@ -672,6 +674,7 @@ export class GameEngine {
         const dy = b.y - p.y;
         if (dx * dx + dy * dy < (b.radius + 14) ** 2) {
           p.collected = true;
+          this.pickedAnyPowerup = true;
           sfx.powerup();
           haptic(20);
           if (p.kind === "shield") {
