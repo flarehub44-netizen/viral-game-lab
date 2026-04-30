@@ -752,6 +752,9 @@ export class GameEngine {
       comboMultiplier: this.comboMultiplier(),
       comboBar: this.comboBar,
       countdown,
+      bestPerfectStreak: this.bestPerfectStreak,
+      nearMisses: this.nearMisses,
+      pickedAnyPowerup: this.pickedAnyPowerup,
     };
   }
 
