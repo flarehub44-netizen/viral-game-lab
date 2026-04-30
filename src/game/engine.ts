@@ -497,10 +497,12 @@ export class GameEngine {
 
   private spawnBarrier() {
     const diff = this.currentDifficulty();
-    const speed = 90 + diff * 160; // px/s upward
+    const speedBase = 90 + diff * 160;
+    const speed = this.dailyMod ? speedBase * this.dailyMod.speedMultiplier : speedBase;
     const height = 14 + Math.random() * 8;
     // Gap count decreases over time, gap width shrinks
-    const baseGapWidth = 0.22 - diff * 0.1;
+    const gapMod = this.dailyMod?.gapMultiplier ?? 1;
+    const baseGapWidth = (0.22 - diff * 0.1) * gapMod;
     const gapCount = Math.random() < 0.55 + diff * 0.15 ? 1 : 2;
     const gaps: { start: number; end: number }[] = [];
     if (gapCount === 1) {
