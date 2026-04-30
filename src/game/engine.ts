@@ -322,11 +322,11 @@ export class GameEngine {
       if (b.trail.length > GameEngine.TRAIL_LEN) b.trail.shift();
       // Horizontal motion
       b.x += b.vx * dt;
-      b.vx *= 0.92; // damping
-      // Keep within play zone vertically (light spring)
+      b.vx *= 0.97; // lighter damping so balls keep separation
+      // Keep within play zone vertically (gentle spring)
       const targetY = (playZoneTop + playZoneBottom) / 2;
-      b.vy += (targetY - b.y) * 4 * dt;
-      b.vy *= 0.9;
+      b.vy += (targetY - b.y) * 2 * dt;
+      b.vy *= 0.95;
       b.y += b.vy * dt;
       // Wall bounce
       if (b.x < b.radius) {
