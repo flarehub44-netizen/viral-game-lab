@@ -170,18 +170,23 @@ export class GameEngine {
     const hue = HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), HUES.length - 1)];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
-      const spread = 110 + Math.random() * 30;
+      const spread = 180 + Math.random() * 80;
+      const jitterX = (Math.random() - 0.5) * 10;
+      const jitterY = (Math.random() - 0.5) * 10;
       this.balls.push({
-        x: b.x,
-        y: b.y,
+        x: b.x + jitterX,
+        y: b.y + jitterY,
         vx: spread,
-        vy: b.vy,
+        vy: b.vy + (Math.random() - 0.5) * 50,
         radius: Math.max(8, b.radius * 0.97),
         hue,
         alive: true,
         trail: [],
       });
+      b.x -= jitterX;
+      b.y -= jitterY;
       b.vx = -spread;
+      b.vy += (Math.random() - 0.5) * 50;
       b.radius = Math.max(8, b.radius * 0.97);
       b.hue = hue;
     }
@@ -317,11 +322,11 @@ export class GameEngine {
       if (b.trail.length > GameEngine.TRAIL_LEN) b.trail.shift();
       // Horizontal motion
       b.x += b.vx * dt;
-      b.vx *= 0.92; // damping
-      // Keep within play zone vertically (light spring)
+      b.vx *= 0.97; // lighter damping so balls keep separation
+      // Keep within play zone vertically (gentle spring)
       const targetY = (playZoneTop + playZoneBottom) / 2;
-      b.vy += (targetY - b.y) * 4 * dt;
-      b.vy *= 0.9;
+      b.vy += (targetY - b.y) * 2 * dt;
+      b.vy *= 0.95;
       b.y += b.vy * dt;
       // Wall bounce
       if (b.x < b.radius) {
