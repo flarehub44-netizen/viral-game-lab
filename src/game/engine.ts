@@ -53,6 +53,8 @@ interface Ball {
   hue: number;
   alive: boolean;
   shielded: boolean;
+  /** Super ball (criada via merge) — vale 5x pontos */
+  isSuper: boolean;
   trail: { x: number; y: number; a: number }[];
 }
 
@@ -68,9 +70,11 @@ interface Barrier {
   dangerous: boolean;
   /** Has the player's near-miss check already fired for this barrier? */
   nearMissChecked: boolean;
+  /** Boss barrier — gigante, gap único, recompensa enorme */
+  boss: boolean;
 }
 
-type PowerKind = "shield" | "slowmo" | "magnet";
+export type PowerKind = "shield" | "slowmo" | "magnet" | "bomb" | "score2x" | "repel";
 interface PowerUp {
   x: number;
   y: number;
