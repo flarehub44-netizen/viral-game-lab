@@ -321,18 +321,11 @@ export class GameEngine {
     this.rafId = null;
   }
 
-  /** User tapped — split all alive balls. Tap duplo (2 toques < 250ms) = merge. */
+  /** User tapped — split all alive balls. */
   tap() {
     if (this.state !== "playing") return;
     const ts = performance.now();
-    if (ts - this.lastTapTs < GameEngine.DOUBLE_TAP_MS) {
-      this.lastTapTs = 0;
-      this.mergeNearest();
-      return;
-    }
-    this.lastTapTs = ts;
     // Snapshot first: never iterate the same array we're pushing into.
-    // Todas as bolinhas vivas dividem (super balls preservam status/escudo).
     const alive = this.balls.filter((b) => b.alive);
     if (alive.length === 0) return;
     if (alive.length >= GameEngine.MAX_BALLS) return;
@@ -342,69 +335,25 @@ export class GameEngine {
     haptic(hapticPatterns.tap);
     this.graceUntil = ts + 90;
     const hue = this.HUES[Math.min(Math.floor(Math.log2(alive.length + splitCount)), this.HUES.length - 1)];
-    this.lastSplitSpawned = [];
     for (let i = 0; i < splitCount; i++) {
       const b = alive[i];
       const spread = 110 + Math.random() * 40;
-      // Super balls geram filhotes normais (o "pai" mantém o status super).
       const newBall: Ball = {
         x: b.x,
         y: b.y,
         vx: spread,
         vy: b.vy,
         radius: Math.max(8, b.radius * 0.97),
-        hue: b.isSuper ? hue : hue,
+        hue,
         alive: true,
         shielded: false,
-        isSuper: false,
-        superShield: false,
         trail: [],
       };
       b.vx = -spread;
-      // Não encolhe super balls (preserva visual dourado / hitbox de escudo).
-      if (!b.isSuper) {
-        b.radius = Math.max(8, b.radius * 0.97);
-        b.hue = hue;
-      }
+      b.radius = Math.max(8, b.radius * 0.97);
+      b.hue = hue;
       this.balls.push(newBall);
-      this.lastSplitSpawned.push(newBall);
     }
-  }
-
-  /** Funde as 2 bolinhas vivas mais próximas em 1 super ball (escudo + bônus). */
-  private mergeNearest() {
-    // Reverte o split do 1º toque: bolinhas recém-criadas viram inativas.
-    if (this.lastSplitSpawned.length > 0) {
-      for (const sp of this.lastSplitSpawned) sp.alive = false;
-      this.lastSplitSpawned = [];
-    }
-    const alive = this.balls.filter((b) => b.alive && !b.isSuper);
-    if (alive.length < 2) return;
-    let bestI = 0, bestJ = 1, bestD = Infinity;
-    for (let i = 0; i < alive.length; i++) {
-      for (let j = i + 1; j < alive.length; j++) {
-        const dx = alive[i].x - alive[j].x;
-        const dy = alive[i].y - alive[j].y;
-        const d = dx * dx + dy * dy;
-        if (d < bestD) { bestD = d; bestI = i; bestJ = j; }
-      }
-    }
-    const a = alive[bestI];
-    const b = alive[bestJ];
-    a.x = (a.x + b.x) / 2;
-    a.y = (a.y + b.y) / 2;
-    a.vx = (a.vx + b.vx) / 2;
-    a.vy = (a.vy + b.vy) / 2;
-    a.radius = Math.min(28, a.radius * 1.5);
-    a.hue = 50; // dourado
-    a.isSuper = true;
-    a.superShield = true;
-    b.alive = false;
-    this.mergesUsed++;
-    sfx.merge();
-    haptic(hapticPatterns.merge);
-    this.spawnParticles(a.x, a.y, 50, 28);
-    this.addFloatText(a.x, a.y - 24, "SUPER! +10/barr • escudo", 50, 18);
   }
 
   handleResize() {
