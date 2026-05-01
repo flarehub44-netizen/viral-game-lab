@@ -172,6 +172,7 @@ const Index = () => {
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
+  const [goalPopup, setGoalPopup] = useState<{ multiplier: number; barriers: number } | null>(null);
   const settledRoundsRef = useRef<Set<string>>(new Set());
 
   const bestKey = useMemo(() => {
