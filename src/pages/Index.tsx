@@ -10,6 +10,7 @@ import { WithdrawScreen } from "@/components/economy/WithdrawScreen";
 import { RoundSetupScreen } from "@/components/economy/RoundSetupScreen";
 import { RulesScreen } from "@/components/economy/RulesScreen";
 import { GameOverScreen } from "@/components/GameOverScreen";
+import { GoalReachedPopup } from "@/components/GoalReachedPopup";
 import { Leaderboard, invalidateLeaderboardCache } from "@/components/Leaderboard";
 import { NicknameDialog } from "@/components/NicknameDialog";
 import { MissionsPanel } from "@/components/MissionsPanel";
