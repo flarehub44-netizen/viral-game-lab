@@ -791,6 +791,24 @@ export type Database = {
         Args: { p_cpf: string; p_phone: string }
         Returns: undefined
       }
+      settle_round_atomic: {
+        Args: {
+          p_alive: number
+          p_barriers_passed: number
+          p_client_report: Json
+          p_forced_by_timeout: boolean
+          p_round_id: string
+          p_user_id: string
+        }
+        Returns: {
+          net_result: number
+          payout: number
+          reached_target: boolean
+          result_multiplier: number
+          round_id: string
+          round_status: string
+        }[]
+      }
       start_round_atomic: {
         Args: {
           p_idempotency_key: string

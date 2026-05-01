@@ -22,7 +22,7 @@ import type {
   ServerEconomyPayload,
   StartRoundResponse,
 } from "@/game/economy/serverRound";
-import { startDemoRound } from "@/game/economy/demoRound";
+import { startDemoRound, settleDemoRound } from "@/game/economy/demoRound";
 import { loadDemoHistory } from "@/game/economy/demoHistory";
 import { loadWallet } from "@/game/economy/walletStore";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
@@ -459,16 +459,7 @@ const Index = () => {
     setLastSummary(summary);
 
     const settled = activeRoundRef.current;
-    if (settled) {
-      setServerEconomy({
-        stake: settled.stake_amount,
-        resultMultiplier: settled.result_multiplier,
-        payout: settled.payout_amount,
-        netResult: settled.net_result,
-      });
-    } else {
-      setServerEconomy(null);
-    }
+    const barriersPassed = summary.barriersPassed ?? 0;
 
     setActiveRound(null);
     setActiveLayout(null);
@@ -476,6 +467,35 @@ const Index = () => {
 
     const newBest = stats.score > bestScore;
     setIsNewBest(newBest);
+
+    let finalEconomy: ServerEconomyPayload | null = null;
+
+    if (settled) {
+      if (isDemo) {
+        const settledDemo = settleDemoRound(settled, barriersPassed);
+        finalEconomy = {
+          stake: settled.stake_amount,
+          resultMultiplier: settled.result_multiplier,
+          payout: settledDemo.payout,
+          netResult: settledDemo.netResult,
+          reachedTarget: settledDemo.reachedTarget,
+          barriersPassed,
+          targetBarrier: settled.target_barrier ?? 0,
+        };
+      } else {
+        // Pré-popular com "perdeu" enquanto aguarda servidor
+        finalEconomy = {
+          stake: settled.stake_amount,
+          resultMultiplier: settled.result_multiplier,
+          payout: 0,
+          netResult: -settled.stake_amount,
+          reachedTarget: false,
+          barriersPassed,
+          targetBarrier: settled.target_barrier ?? 0,
+        };
+      }
+    }
+    setServerEconomy(finalEconomy);
 
     const result = applyRound(
       {
@@ -511,7 +531,7 @@ const Index = () => {
             alive: stats.alive,
             layout_seed: settled.layout_seed,
             layout_signature: settled.layout_signature,
-            barriers_passed: summary.barriersPassed ?? 0,
+            barriers_passed: barriersPassed,
           },
         });
         if (error || !data?.ok) {
@@ -524,6 +544,17 @@ const Index = () => {
           }
         } else if (data.round_status === "rejected") {
           toast.error("Rodada cancelada: falha na verificação de integridade.");
+        } else {
+          // Atualiza com o resultado real do servidor
+          setServerEconomy({
+            stake: settled.stake_amount,
+            resultMultiplier: data.result_multiplier,
+            payout: data.payout_amount,
+            netResult: data.net_result,
+            reachedTarget: Boolean(data.reached_target),
+            barriersPassed,
+            targetBarrier: settled.target_barrier ?? 0,
+          });
         }
       }
       await refreshEconomy();
@@ -713,13 +744,13 @@ const Index = () => {
             allowScriptTerminate={!isDemo}
             qaMode={isDemo ? "demo" : "live"}
             mode={isDemo ? "demo" : "live"}
-            targetBarrier={isDemo ? undefined : activeRound.target_barrier}
+            targetBarrier={activeRound.target_barrier}
             layoutPlan={isDemo ? null : activeLayout}
             onGameOver={handleGameOver}
             onExit={exitPlaying}
             stakeCredits={activeRound.stake_amount}
-            targetMultiplier={isDemo ? undefined : activeRound.target_multiplier}
-            resultMultiplier={isDemo ? undefined : activeRound.result_multiplier}
+            targetMultiplier={activeRound.target_multiplier}
+            resultMultiplier={activeRound.result_multiplier}
           />
         )}
 

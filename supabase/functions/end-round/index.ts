@@ -163,33 +163,38 @@ Deno.serve(async (req) => {
     return json(400, { error: "layout_mismatch_signature" });
   }
 
-  const targetStatus: RoundStatus = timedOut ? "expired" : "closed";
-  const { data: updated, error: updErr } = await admin
-    .from("game_rounds")
-    .update({
-      round_status: targetStatus,
-      ended_at: new Date().toISOString(),
-      client_report: {
-        alive: hasAlive ? alive : null,
-        barriers_passed: Number(body.barriers_passed ?? 0),
-        hard_timeout_seconds: hardTimeout,
-        elapsed_seconds: elapsedSec,
-      },
-    })
-    .eq("id", roundId)
-    .eq("round_status", "open")
-    .select("id,round_status,result_multiplier,payout,net_result")
-    .maybeSingle();
+  const barriersPassed = Math.max(0, Math.floor(Number(body.barriers_passed ?? 0)));
 
-  if (updErr || !updated) return json(409, { error: "round_update_conflict" });
+  const { data: settleRows, error: settleErr } = await admin.rpc("settle_round_atomic", {
+    p_user_id: user.id,
+    p_round_id: roundId,
+    p_barriers_passed: barriersPassed,
+    p_alive: hasAlive ? alive : 0,
+    p_forced_by_timeout: timedOut,
+    p_client_report: {
+      alive: hasAlive ? alive : null,
+      barriers_passed: barriersPassed,
+      hard_timeout_seconds: hardTimeout,
+      elapsed_seconds: elapsedSec,
+    },
+  });
+
+  if (settleErr) {
+    console.error("settle_round_atomic:", settleErr);
+    return json(500, { error: "settle_failed" });
+  }
+
+  const settled = Array.isArray(settleRows) ? settleRows[0] : settleRows;
+  if (!settled) return json(409, { error: "round_update_conflict" });
 
   return json(200, {
     ok: true,
-    round_id: updated.id,
-    round_status: updated.round_status,
-    result_multiplier: Number(updated.result_multiplier),
-    payout_amount: Number(updated.payout),
-    net_result: Number(updated.net_result),
+    round_id: settled.round_id,
+    round_status: String(settled.round_status),
+    result_multiplier: Number(settled.result_multiplier),
+    payout_amount: Number(settled.payout),
+    net_result: Number(settled.net_result),
+    reached_target: Boolean(settled.reached_target),
     forced_by_timeout: timedOut,
   });
 });

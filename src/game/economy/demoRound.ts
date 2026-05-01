@@ -74,8 +74,9 @@ function mapMultiplierToLayout(mult: number): { targetBarrier: number; maxDurati
 }
 
 /**
- * Liquida a rodada demo no mesmo instante do servidor: saldo final = saldo − entrada + pagamento.
- * Persiste carteira e retorna payload compatível com `ActiveServerRound`.
+ * Inicia uma rodada demo: debita APENAS a entrada da carteira.
+ * O pagamento é creditado depois, em `settleDemoRound`, somente se o jogador
+ * atingir a meta de barreiras (skill puro).
  */
 export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
   | { ok: true; round: ActiveServerRound; wallet: PersistedWallet }
@@ -98,7 +99,6 @@ export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
 
   const balanceBefore = wallet.balance;
   const afterStake = Math.round((balanceBefore - econ.stakeRounded) * 100) / 100;
-  const balanceAfter = Math.round((afterStake + econ.payout) * 100) / 100;
 
   wallet = appendTransaction(wallet, {
     kind: "bet_lock",
@@ -107,31 +107,14 @@ export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
     balanceAfter: afterStake,
     note: `demo:${roundId}`,
   });
-  wallet = appendTransaction(wallet, {
-    kind: "payout",
-    amount: econ.payout,
-    balanceBefore: afterStake,
-    balanceAfter,
-    note: `demo:${roundId}`,
-  });
 
   wallet = {
     ...wallet,
-    balance: balanceAfter,
+    balance: afterStake,
     totalWagered: wallet.totalWagered + econ.stakeRounded,
-    totalPaidOut: wallet.totalPaidOut + econ.payout,
   };
 
   saveWallet(wallet);
-
-  pushDemoHistoryRow({
-    id: roundId,
-    created_at: new Date().toISOString(),
-    stake: econ.stakeRounded,
-    result_multiplier: econ.resultMultiplier,
-    payout: econ.payout,
-    net_result: econ.netResult,
-  });
 
   const round: ActiveServerRound = {
     ok: true,
@@ -139,8 +122,8 @@ export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
     stake_amount: econ.stakeRounded,
     target_multiplier: target,
     result_multiplier: econ.resultMultiplier,
-    payout_amount: econ.payout,
-    net_result: econ.netResult,
+    payout_amount: econ.payout, // pagamento POTENCIAL caso atinja meta
+    net_result: econ.netResult, // resultado POTENCIAL caso atinja meta
     visual_result: econ.visual,
     layout_seed: `demo:${roundId}`,
     layout_signature: `demo_sig_${roundId}`,
@@ -151,4 +134,62 @@ export function startDemoRound(stake: number, targetMultiplier = TARGET_MULT):
   };
 
   return { ok: true, round, wallet };
+}
+
+/**
+ * Liquida a rodada demo: credita o pagamento APENAS se o jogador atingiu a meta de barreiras.
+ * Caso contrário, mantém saldo (entrada já foi debitada em startDemoRound).
+ */
+export function settleDemoRound(
+  round: ActiveServerRound,
+  barriersPassed: number,
+): {
+  payout: number;
+  netResult: number;
+  reachedTarget: boolean;
+  wallet: PersistedWallet;
+} {
+  const targetBarrier = round.target_barrier ?? 0;
+  const reachedTarget =
+    targetBarrier > 0 && barriersPassed >= targetBarrier;
+
+  let wallet = loadWallet();
+  let payout = 0;
+
+  if (reachedTarget) {
+    payout = Math.round(round.stake_amount * round.result_multiplier * 100) / 100;
+    if (payout > MAX_ROUND_PAYOUT) payout = MAX_ROUND_PAYOUT;
+
+    const balanceBefore = wallet.balance;
+    const balanceAfter = Math.round((balanceBefore + payout) * 100) / 100;
+
+    wallet = appendTransaction(wallet, {
+      kind: "payout",
+      amount: payout,
+      balanceBefore,
+      balanceAfter,
+      note: `demo:${round.round_id}`,
+    });
+
+    wallet = {
+      ...wallet,
+      balance: balanceAfter,
+      totalPaidOut: wallet.totalPaidOut + payout,
+    };
+
+    saveWallet(wallet);
+  }
+
+  const netResult = Math.round((payout - round.stake_amount) * 100) / 100;
+
+  pushDemoHistoryRow({
+    id: round.round_id,
+    created_at: new Date().toISOString(),
+    stake: round.stake_amount,
+    result_multiplier: round.result_multiplier,
+    payout,
+    net_result: netResult,
+  });
+
+  return { payout, netResult, reachedTarget, wallet };
 }

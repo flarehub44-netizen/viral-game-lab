@@ -70,9 +70,12 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </h2>
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
-              ? "Escolha sua entrada e inicie a rodada. O resultado é definido no servidor ao confirmar, pela tabela de pagamento. Não há resgate antecipado durante a partida."
-              : "Escolha sua entrada. O multiplicador é sorteado neste aparelho com a mesma tabela do modo conta (demo local). Sem cashout durante a partida."}
+              ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar — caso contrário, perde a entrada. Sem cashout durante a partida."
+              : "Escolha sua entrada (créditos demo). Você precisa atingir a meta de barreiras para receber o pagamento. Se não conseguir, perde a entrada."}
           </p>
+          <div className="mt-3 mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 text-center leading-snug">
+            ⚠️ Skill puro: o multiplicador só vira pagamento <strong>se você passar a meta de barreiras</strong>. Errou antes da meta = perde a entrada.
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2">
