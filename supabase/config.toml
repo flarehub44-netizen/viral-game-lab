@@ -21,6 +21,9 @@ verify_jwt = false
 [functions.reconcile-pix-deposit]
 verify_jwt = true
 
+[functions.reconcile-pending-deposits]
+verify_jwt = false
+
 [functions.lgpd-export]
 verify_jwt = true
 
