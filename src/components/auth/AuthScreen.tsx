@@ -170,8 +170,7 @@ export const AuthScreen = ({ onPlayDemo }: AuthScreenProps) => {
         )}
 
         <p className="text-[10px] text-center text-muted-foreground leading-relaxed px-2">
-          Jogue com responsabilidade. Proibido para menores de 18 anos. O resultado da rodada é definido no
-          servidor ao iniciar a partida.
+          Jogue com responsabilidade. Proibido para menores de 18 anos.
         </p>
       </div>
     </div>
