@@ -19,11 +19,7 @@ export const AgeGateScreen = ({ onConfirmed }: Props) => {
     }
     setBusy(true);
     try {
-      const ts = new Date().toISOString();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ over_18_confirmed_at: ts })
-        .eq("user_id", user.id);
+      const { error } = await supabase.rpc("confirm_age_18");
       if (error) throw error;
       toast.success("Perfil atualizado.");
       onConfirmed();
