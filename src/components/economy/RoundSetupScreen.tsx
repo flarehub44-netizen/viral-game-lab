@@ -97,18 +97,18 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         </div>
 
         {/* Seletor de base/meta — habilitado no Demo, somente leitura no Live */}
-        <div>
+        <div key={isDemo ? "meta-demo" : "meta-live"}>
           <div className="flex flex-wrap justify-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
               <Target size={12} />
               {isDemo ? `Base ×${meta}` : `Meta ${meta}x`}
             </span>
-            {!isDemo && (
+            {!isDemo ? (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-[11px] font-bold">
                 <InfinityIcon size={12} />
                 Sem cashout na rodada
               </span>
-            )}
+            ) : null}
           </div>
 
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
@@ -117,7 +117,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="flex flex-wrap gap-2 justify-center">
             {metaOptions.map((amount) => (
               <button
-                key={amount}
+                key={`meta-${amount}`}
                 type="button"
                 disabled={!canEditMeta}
                 onClick={() => setMeta(amount)}
@@ -131,11 +131,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               </button>
             ))}
           </div>
-          {!canEditMeta && (
+          {!canEditMeta ? (
             <p className="text-[10px] text-center text-muted-foreground mt-2">
               No modo conta, a meta é fixa em 20x (definida no servidor).
             </p>
-          )}
+          ) : null}
         </div>
 
         <div>
