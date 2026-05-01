@@ -654,7 +654,7 @@ const Index = () => {
 
   if (!isOnline && !isDemo) {
     return (
-      <main className="fixed inset-0 w-full h-full overflow-hidden bg-background">
+      <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
         <div className="relative w-full h-full neon-app-column">
           <AuthScreen onPlayDemo={enterDemo} />
         </div>
@@ -672,7 +672,7 @@ const Index = () => {
 
   if (isOnline && profile && !profile.over_18_confirmed_at) {
     return (
-      <main className="fixed inset-0 w-full h-full overflow-hidden bg-background">
+      <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
         <div className="relative w-full h-full neon-app-column">
           <AgeGateScreen onConfirmed={() => void reloadProfile()} />
         </div>
@@ -684,7 +684,7 @@ const Index = () => {
 
   return (
     <main
-      className="fixed inset-0 w-full h-full overflow-hidden bg-background"
+      className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop"
       style={{ touchAction: "manipulation" }}
     >
       <div className="relative w-full h-full neon-app-column">
