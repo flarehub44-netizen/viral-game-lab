@@ -253,6 +253,17 @@ export const WalletScreen = ({
                         Ref: {row.provider_ref}
                       </div>
                     )}
+                    {row.kind === "dep" && row.status === "pending" && onReconcilePending && (
+                      <button
+                        type="button"
+                        onClick={() => void handleManualReconcile(row.id)}
+                        disabled={reconcilingId === row.id}
+                        className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-300 hover:text-amber-200 disabled:opacity-50"
+                      >
+                        <RefreshCw size={11} className={reconcilingId === row.id ? "animate-spin" : ""} />
+                        {reconcilingId === row.id ? "Verificando…" : "Atualizar status"}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
