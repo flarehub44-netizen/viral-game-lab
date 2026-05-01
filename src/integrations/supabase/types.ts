@@ -199,6 +199,90 @@ export type Database = {
         }
         Relationships: []
       }
+      pix_deposits: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          idempotency_key: string | null
+          provider_ref: string | null
+          qr_code: string
+          status: string
+          user_id: string
+          webhook_payload: Json
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          idempotency_key?: string | null
+          provider_ref?: string | null
+          qr_code?: string
+          status?: string
+          user_id: string
+          webhook_payload?: Json
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string | null
+          provider_ref?: string | null
+          qr_code?: string
+          status?: string
+          user_id?: string
+          webhook_payload?: Json
+        }
+        Relationships: []
+      }
+      pix_withdrawals: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          pix_key: string
+          pix_key_type: string
+          processed_at: string | null
+          provider_ref: string | null
+          status: string
+          user_id: string
+          webhook_payload: Json
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          pix_key: string
+          pix_key_type: string
+          processed_at?: string | null
+          provider_ref?: string | null
+          status?: string
+          user_id: string
+          webhook_payload?: Json
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          pix_key?: string
+          pix_key_type?: string
+          processed_at?: string | null
+          provider_ref?: string | null
+          status?: string
+          user_id?: string
+          webhook_payload?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf: string | null
@@ -312,16 +396,86 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events: {
+        Row: {
+          event_type: string
+          id: number
+          payload: Json
+          processed_at: string
+          provider: string
+          provider_event_id: string
+          source_ip: string | null
+          status: string
+        }
+        Insert: {
+          event_type: string
+          id?: number
+          payload?: Json
+          processed_at?: string
+          provider: string
+          provider_event_id: string
+          source_ip?: string | null
+          status: string
+        }
+        Update: {
+          event_type?: string
+          id?: number
+          payload?: Json
+          processed_at?: string
+          provider?: string
+          provider_event_id?: string
+          source_ip?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      apply_syncpay_cashout_webhook: {
+        Args: { p_payload?: Json; p_reference_id: string; p_status: string }
+        Returns: string
+      }
+      cancel_pix_deposit_pending: {
+        Args: { p_deposit_id: string }
+        Returns: undefined
+      }
       close_stale_open_rounds: {
         Args: { p_grace_seconds?: number }
         Returns: number
       }
       confirm_age_18: { Args: never; Returns: string }
+      confirm_pix_deposit: {
+        Args: {
+          p_amount: number
+          p_provider_ref: string
+          p_webhook_payload?: Json
+        }
+        Returns: string
+      }
+      create_pix_deposit_pending: {
+        Args: {
+          p_amount: number
+          p_expires_at: string
+          p_idempotency_key?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      finalize_pix_deposit_pending: {
+        Args: {
+          p_deposit_id: string
+          p_provider_ref: string
+          p_qr_code: string
+        }
+        Returns: undefined
+      }
+      finalize_pix_withdrawal: {
+        Args: { p_provider_ref: string; p_withdrawal_id: string }
+        Returns: undefined
+      }
       get_user_pix_identity: {
         Args: { p_user_id: string }
         Returns: {
@@ -356,6 +510,32 @@ export type Database = {
           p_signal: string
           p_user_id: string
         }
+        Returns: undefined
+      }
+      register_webhook_event: {
+        Args: {
+          p_event_type: string
+          p_payload: Json
+          p_provider: string
+          p_provider_event_id: string
+          p_source_ip: string
+          p_status: string
+        }
+        Returns: boolean
+      }
+      request_pix_withdrawal: {
+        Args: {
+          p_amount: number
+          p_idempotency_key?: string
+          p_pix_key: string
+          p_pix_key_type: string
+          p_provider_ref?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      reverse_pix_withdrawal: {
+        Args: { p_withdrawal_id: string }
         Returns: undefined
       }
       set_profile_display_name: {
