@@ -715,6 +715,16 @@ export class GameEngine {
       );
     }
 
+    // DEMO: encerrar a rodada quando a meta de 20 barreiras for atingida.
+    if (
+      this.mode === "demo" &&
+      this.state === "playing" &&
+      this.barriersPassedCount >= 20
+    ) {
+      this.forceTerminateRound(ts);
+      aliveAfter = 0;
+    }
+
     if (
       shouldTerminateScriptRound({
         script: this.script,
