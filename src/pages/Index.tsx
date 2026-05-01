@@ -77,10 +77,12 @@ const PLAY_MODE_KEY = "ns_play_mode";
 const DEMO_NICK_KEY = "ns_demo_nickname";
 
 function readGuestDemoFlag(): boolean {
+  // Demo é a experiência padrão para visitantes não autenticados.
+  // Só é desativado se o usuário escolheu explicitamente sair para Auth (flag "auth").
   try {
-    return sessionStorage.getItem(PLAY_MODE_KEY) === "demo";
+    return sessionStorage.getItem(PLAY_MODE_KEY) !== "auth";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -115,7 +117,7 @@ const Index = () => {
 
   const leaveDemoToAuth = useCallback(() => {
     try {
-      sessionStorage.removeItem(PLAY_MODE_KEY);
+      sessionStorage.setItem(PLAY_MODE_KEY, "auth");
     } catch {
       /* ignore */
     }

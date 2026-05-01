@@ -1,64 +1,81 @@
-# Auditoria Completa — Gravity Bet / Neon Split
-
 ## Objetivo
-Verificar se todas as páginas e fluxos estão **funcionais** e **seguros** o bastante para receber usuários reais (com dinheiro real via Pix). Entregar um relatório executável e priorizado.
 
-## Escopo
+1. Tornar o **modo demo** a experiência inicial padrão (sem precisar passar pela tela de login para ver o lobby).
+2. Mostrar de forma **nítida e grande, no topo da tela de jogo**, quanto o usuário está ganhando em **R$** em tempo real.
+3. A cada barreira passada (cada "fase"), exibir um **popup animado** mostrando o ganho atualizado em R$.
 
-### Páginas / rotas a auditar
-- `/` (Index) — fluxo demo + online: AuthScreen, AgeGate, Lobby, RoundSetup, Wallet, Deposit, Withdraw, KYC, Rules, GameCanvas, GameOver, Leaderboard, Nickname.
-- `/admin/*` — Overview, Sandbox, Users, Flags, Fraud (verificar gating de acesso por role).
-- `/404` (NotFound).
+---
 
-### Backend
-- 12 Edge Functions: `start-round`, `end-round`, `submit-score`, `create-pix-deposit`, `request-pix-withdrawal`, `pix-webhook`, `lgpd-export`, `lgpd-delete-request`, `record-consent`, `admin-action`, `close-stale-rounds`, `process-lgpd-deletions`.
-- 24 migrations / RLS / RPCs / triggers do projeto externo (`pbkdmcjlscjdvkaiypye`).
+## Mudanças
 
-## Método
+### 1. Demo como tela principal (`src/pages/Index.tsx`)
 
-### 1. Auditoria estática (sem rodar nada)
-- Ler cada página e mapear: estados, chamadas de rede, validação de input, tratamento de erro, loading/empty states.
-- Ler cada Edge Function e checar: CORS, JWT (`getClaims`), validação Zod, rate limit (`guard_request_rate`), idempotência, uso de `service_role` vs anon, logs de fraude.
-- Ler RLS de todas as tabelas: `wallets`, `ledger_entries`, `game_rounds`, `pix_deposits`, `pix_withdrawals`, `profiles`, `scores`, `user_roles`, `fraud_signals`, `data_access_audit`, `lgpd_deletion_requests`, `api_request_logs`.
-- Diff contra o status documentado em `docs/ops/TOP10_IMPLEMENTATION_STATUS.md` e `AUDITORIA_PRODUCAO_2026-04-30.md` para identificar regressões ou gaps ainda abertos.
+Atualmente quando o visitante chega em `/` sem sessão, ele vê `AuthScreen` e precisa clicar em "Jogar demo" para entrar no lobby.
 
-### 2. Auditoria dinâmica
-- Rodar `npm run lint`, `npm run typecheck:strict`, `npm run test`.
-- Rodar `npm audit --omit=dev` para CVEs.
-- Consultar logs reais do Supabase externo via `supabase--analytics_query` e `supabase--edge_function_logs` para erros recentes em produção.
-- Browser test do fluxo crítico no preview: signup → age gate → lobby → start round demo → game over → leaderboard. Tentar acessar `/admin` como usuário comum (deve bloquear).
+- Alterar o estado inicial `guestDemoActive` para começar como `true` quando não há sessão (ou seja, default = demo ativo).
+- Manter `sessionStorage` apenas como override (se o usuário fez logout deliberadamente, etc.).
+- Mover o acesso ao `AuthScreen` (login/cadastro) para dentro do `LobbyScreen` em demo, via o botão **"Entrar / Criar conta"** já existente (`onSignIn={leaveDemoToAuth}`).
+- Usuários autenticados continuam indo direto para o lobby online normalmente — sem alteração no fluxo logado.
 
-### 3. Checklist por categoria (cada item: GO ✅ / WARNING ⚠️ / NO-GO 🔴 com evidência)
-1. **Funcionalidade das páginas** — todas renderizam, navegação funciona, estados de erro/loading/empty cobertos.
-2. **Autenticação & autorização** — login, signup, reset, OAuth, age gate, RLS, role-based admin gating, separação demo/online.
-3. **Segurança financeira** — server-first, idempotência, atomicidade, MAX_PAYOUT, race conditions (single OPEN round), reconciliação.
-4. **Anti-exploit** — layout signature, replay, time validation, state machine, rate limit, antifraude, anti-bot.
-5. **Pix (dinheiro real)** — depósito, webhook (HMAC + IP allowlist), saque, idempotência, validação de titularidade CPF, limites, estados.
-6. **Validação de input** — Zod no servidor, sanitização no cliente, limites de tamanho, XSS em nickname/display_name.
-7. **Segredos e config** — nenhum secret no repo, `.env` correto, JWT verify_jwt apropriado por função.
-8. **LGPD** — export, delete request, audit log, criptografia de CPF, consentimento.
-9. **Observabilidade** — logs, views de monitor, alertas, runbooks.
-10. **Qualidade de código** — lint, typecheck strict, testes verdes, CVEs.
-11. **UX/Acessibilidade** — mobile-first 320-480px, estados de erro amigáveis, feedback de ações destrutivas.
-12. **Admin** — RBAC, audit trail de ações administrativas, proteção contra escalation.
+Resultado: ao abrir o app, o visitante já cai no **Lobby Demo** com saldo fictício R$ 150 e pode jogar imediatamente. O CTA para criar conta fica visível no lobby.
 
-### 4. Entregáveis
-- `/mnt/documents/AUDITORIA_COMPLETA_2026-05-01.md` — relatório completo com:
-  - Veredito final (GO / GO-com-restrições / NO-GO)
-  - Resumo executivo (contagem GO/WARN/NO-GO)
-  - Bloqueadores críticos com evidência (arquivo:linha)
-  - Warnings priorizados
-  - Checklist página-por-página
-  - Diff vs auditoria anterior (o que foi resolvido, o que regrediu, o que continua aberto)
-  - Top 10 ações prioritárias antes de aceitar dinheiro real
-- `/mnt/documents/auditoria_anexos/` — saídas brutas de lint, typecheck, npm audit, test, e logs relevantes.
+### 2. HUD principal de ganho em R$ (`src/components/GameCanvas.tsx`)
 
-## Restrições
-- **Read-only**: não vou alterar código, schema nem rodar nenhuma ação destrutiva. Só leitura, testes e geração de relatório.
-- Não vou disparar pagamentos reais nem testes de carga em produção.
-- O Supabase deste app é **externo** (project ref `pbkdmcjlscjdvkaiypye`), então alguns checks (linter, scan) sobre o Lovable Cloud do sandbox não se aplicam — vou usar `supabase--analytics_query` / `supabase--edge_function_logs` que apontam para o externo, e leitura direta dos arquivos de migration para validar schema/RLS.
+Hoje o topo mostra apenas Score (esquerda) e ×N bolinhas (direita). A informação "Entrada R$ X" aparece em fonte minúscula (text-[9px]).
 
-## Estimativa
-~15–25 minutos de execução (leitura + testes + browser smoke + geração do relatório).
+Adicionar um **bloco central no topo** (entre o botão de menu e o contador de bolinhas), grande e nítido:
 
-Aprova que eu siga?
+```text
+┌──────────────────────────────┐
+│        GANHO ATUAL           │
+│      R$ 12,50                │   ← grande, verde neon
+│     ×2.50  · Barreira 7      │   ← linha auxiliar
+└──────────────────────────────┘
+```
+
+- Calcular `liveWinnings = stakeCredits * (stats.currentMultiplier ?? 0)` em tempo real.
+- Cor: verde neon (`hsl(140 90% 58%)`) quando ganho > entrada, cinza quando < entrada, branco neutro quando = 0.
+- Tipografia: `text-3xl font-black tabular-nums` com `text-shadow` neon.
+- Tamanho compacto em mobile (max-width 420px): empilhar verticalmente; o bloco "Bolinhas" continua à direita mas com peso visual menor.
+- O bloco antigo `Entrada R$ X` fica como sub-label discreto.
+- Esconder/desativar o `ClimbHUD` redundante no canto direito (ou reduzir, já que a info principal vai para o topo central).
+
+### 3. Popup "+R$ X,XX" a cada barreira passada
+
+Hoje o engine já mostra um popup `+gained` (pontos de score) toda vez que uma barreira é cruzada (linha ~665 de `engine.ts`). Vamos somar a isso um popup de ganho em R$.
+
+Abordagem **sem mexer no engine** (mantém engine puro, sem economia):
+
+- Em `GameCanvas.tsx`, manter um `useRef` do último `barriersPassed`.
+- Em cada update de `stats` (callback `onStatsChange` já chamado a cada 100ms), comparar `stats.barriersPassed` com o ref:
+  - Se aumentou, calcular novo ganho `R$ = stake × stats.currentMultiplier` e empurrar um item em um array de overlay React (`floatingWins`).
+  - Cada item tem `id`, `value`, `delta` (R$ ganhos vs barreira anterior), `createdAt`.
+  - Renderizar como camada absoluta sobre o canvas, com animação CSS `float-up` (já existe no projeto, ver `src/index.css`) — sobe e desaparece em ~1.2s.
+  - Auto-purge de itens com idade > 1500ms.
+- Texto do popup: `+R$ 1,25` (delta) em fonte grande verde, com sub-linha `Total R$ 12,50`.
+
+### 4. Tela de Game Over (`src/components/GameOverScreen.tsx`)
+
+Verificar que o ganho final em R$ continua claro (já é mostrado via `serverEconomy.payout`), apenas garantir consistência visual com o novo HUD (mesma cor verde neon e tipografia).
+
+---
+
+## Detalhes técnicos
+
+- **Sem mudanças no engine** (`src/game/engine.ts`) nem na economia/migrations. Tudo é camada de apresentação em `GameCanvas.tsx` e `Index.tsx`.
+- **Sem mudanças no backend** — o cálculo `stake × currentMultiplier` já vem do engine; apenas formatamos como R$.
+- **Edge case do payout final**: o engine usa `multiplierForBarrier(...)` que interpola até o `finalMultiplier` na barreira-alvo. O ganho exibido durante o jogo bate com o `payout` final do servidor quando a última barreira é atingida. Em rodadas que terminam antes do alvo (script-terminate), o último valor exibido será o real.
+- **Cap visual**: respeitar `MAX_ROUND_PAYOUT = 400` — se `liveWinnings > 400`, mostrar `R$ 400,00` (com indicador "máx").
+- **Acessibilidade**: o bloco principal recebe `aria-live="polite"` para que leitores de tela anunciem mudanças significativas (a cada barreira, não a cada frame).
+- **Performance**: array `floatingWins` limitado a 6 itens simultâneos; itens antigos são removidos por TTL.
+
+---
+
+## Arquivos modificados
+
+- `src/pages/Index.tsx` — demo como default; lobby vira tela inicial.
+- `src/components/GameCanvas.tsx` — novo bloco "Ganho atual" + sistema de popups R$ por barreira.
+- `src/components/ClimbHUD.tsx` — simplificar/reduzir (ou remover bloco "Pag." duplicado).
+- (opcional) `src/components/GameOverScreen.tsx` — alinhamento visual.
+
+Sem alterações em: engine, migrations, edge functions, RLS.
