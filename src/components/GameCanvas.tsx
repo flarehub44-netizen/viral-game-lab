@@ -316,11 +316,11 @@ export const GameCanvas = ({
           >
             <div className="rounded-xl border border-[hsl(140_90%_45%/0.45)] bg-[hsl(140_45%_8%/0.78)] backdrop-blur px-3 py-1.5 min-w-[120px] text-center shadow-[0_0_18px_hsl(140_90%_45%/0.25)]">
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                Ganho atual
+                {isPreview ? "Potencial" : "Ganho atual"}
               </div>
               <div
                 className={`text-2xl font-black tabular-nums leading-tight ${winColorClass}`}
-                style={{ textShadow: rawWinnings > stake ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
+                style={{ textShadow: !isPreview && rawWinnings > stake ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
               >
                 R$ {formatBRL(liveWinnings)}
               </div>
@@ -329,10 +329,9 @@ export const GameCanvas = ({
                 {isCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
             </div>
-            {(stats.barriersPassed ?? 0) > 0 && (
+            {passedNow > 0 && (
               <div className="mt-1 text-[9px] uppercase tracking-widest text-muted-foreground">
-                Fase {stats.barriersPassed}
-                {targetBarrier ? ` / ${targetBarrier}` : ""}
+                Fase {phaseDisplay}
               </div>
             )}
           </div>
