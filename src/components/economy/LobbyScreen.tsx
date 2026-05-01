@@ -100,7 +100,7 @@ export const LobbyScreen = ({
           {playMode === "demo" ? (
             <>
               <span className="font-black uppercase tracking-wide text-glow-cyan">Demo</span> — créditos
-              fictícios neste aparelho. Não há saque nem vínculo com a conta online.
+              fictícios nessa tela. Não há saque nem vínculo com a conta online.
             </>
           ) : (
             <>
