@@ -744,13 +744,13 @@ const Index = () => {
             allowScriptTerminate={!isDemo}
             qaMode={isDemo ? "demo" : "live"}
             mode={isDemo ? "demo" : "live"}
-            targetBarrier={isDemo ? undefined : activeRound.target_barrier}
+            targetBarrier={activeRound.target_barrier}
             layoutPlan={isDemo ? null : activeLayout}
             onGameOver={handleGameOver}
             onExit={exitPlaying}
             stakeCredits={activeRound.stake_amount}
-            targetMultiplier={isDemo ? undefined : activeRound.target_multiplier}
-            resultMultiplier={isDemo ? undefined : activeRound.result_multiplier}
+            targetMultiplier={activeRound.target_multiplier}
+            resultMultiplier={activeRound.result_multiplier}
           />
         )}
 
