@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          cpf: string | null
+          created_at: string
+          display_name: string
+          kyc_status: Database["public"]["Enums"]["kyc_status"]
+          over_18_confirmed_at: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string
+          display_name?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          over_18_confirmed_at?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string
+          display_name?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          over_18_confirmed_at?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scores: {
         Row: {
           created_at: string
@@ -41,15 +74,78 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       confirm_age_18: { Args: never; Returns: string }
+      get_user_pix_identity: {
+        Args: { p_user_id: string }
+        Returns: {
+          cpf: string
+          phone: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_valid_cpf_digits: { Args: { p_digits: string }; Returns: boolean }
+      set_profile_display_name: {
+        Args: { p_display_name: string }
+        Returns: undefined
+      }
+      set_profile_pix_identity: {
+        Args: { p_cpf: string; p_phone: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      kyc_status: "none" | "pending" | "approved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -176,6 +272,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      kyc_status: ["none", "pending", "approved"],
+    },
   },
 } as const
