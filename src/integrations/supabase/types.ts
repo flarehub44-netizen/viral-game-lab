@@ -14,6 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_request_logs: {
+        Row: {
+          action: string
+          created_at: string
+          device_fingerprint: string | null
+          id: number
+          ip: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          device_fingerprint?: string | null
+          id?: number
+          ip?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          device_fingerprint?: string | null
+          id?: number
+          ip?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      feature_flags: {
+        Row: {
+          enabled: boolean
+          key: string
+          rollout_percent: number
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          rollout_percent?: number
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          rollout_percent?: number
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fraud_signals: {
+        Row: {
+          created_at: string
+          id: number
+          payload: Json
+          round_id: string | null
+          score: number
+          signal: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          payload?: Json
+          round_id?: string | null
+          score?: number
+          signal: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          payload?: Json
+          round_id?: string | null
+          score?: number
+          signal?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_signals_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "game_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_rounds: {
+        Row: {
+          client_report: Json
+          created_at: string
+          ended_at: string | null
+          id: string
+          idempotency_key: string | null
+          layout_seed: string
+          layout_signature: string
+          max_duration_seconds: number
+          mode: string
+          net_result: number
+          payout: number
+          result_multiplier: number
+          round_status: string
+          stake: number
+          target_barrier: number
+          target_multiplier: number
+          user_id: string
+          visual_result: Json
+        }
+        Insert: {
+          client_report?: Json
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          layout_seed: string
+          layout_signature: string
+          max_duration_seconds: number
+          mode?: string
+          net_result: number
+          payout: number
+          result_multiplier: number
+          round_status?: string
+          stake: number
+          target_barrier: number
+          target_multiplier?: number
+          user_id: string
+          visual_result?: Json
+        }
+        Update: {
+          client_report?: Json
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          layout_seed?: string
+          layout_signature?: string
+          max_duration_seconds?: number
+          mode?: string
+          net_result?: number
+          payout?: number
+          result_multiplier?: number
+          round_status?: string
+          stake?: number
+          target_barrier?: number
+          target_multiplier?: number
+          user_id?: string
+          visual_result?: Json
+        }
+        Relationships: []
+      }
+      ledger_entries: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          kind: string
+          meta: Json
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          kind: string
+          meta?: Json
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          kind?: string
+          meta?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf: string | null
@@ -54,7 +239,9 @@ export type Database = {
           id: string
           max_multiplier: number
           nickname: string
+          round_id: string | null
           score: number
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -62,7 +249,9 @@ export type Database = {
           id?: string
           max_multiplier: number
           nickname: string
+          round_id?: string | null
           score: number
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -70,9 +259,19 @@ export type Database = {
           id?: string
           max_multiplier?: number
           nickname?: string
+          round_id?: string | null
           score?: number
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scores_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "game_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -118,6 +317,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      close_stale_open_rounds: {
+        Args: { p_grace_seconds?: number }
+        Returns: number
+      }
       confirm_age_18: { Args: never; Returns: string }
       get_user_pix_identity: {
         Args: { p_user_id: string }
@@ -125,6 +328,17 @@ export type Database = {
           cpf: string
           phone: string
         }[]
+      }
+      guard_request_rate: {
+        Args: {
+          p_action: string
+          p_device_fingerprint: string
+          p_ip: string
+          p_limit?: number
+          p_user_id: string
+          p_window_seconds?: number
+        }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -134,6 +348,16 @@ export type Database = {
         Returns: boolean
       }
       is_valid_cpf_digits: { Args: { p_digits: string }; Returns: boolean }
+      log_fraud_signal: {
+        Args: {
+          p_payload?: Json
+          p_round_id: string
+          p_score?: number
+          p_signal: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       set_profile_display_name: {
         Args: { p_display_name: string }
         Returns: undefined
@@ -141,6 +365,22 @@ export type Database = {
       set_profile_pix_identity: {
         Args: { p_cpf: string; p_phone: string }
         Returns: undefined
+      }
+      start_round_atomic: {
+        Args: {
+          p_idempotency_key: string
+          p_layout_seed: string
+          p_layout_signature: string
+          p_max_duration_seconds: number
+          p_net: number
+          p_payout: number
+          p_result_mult: number
+          p_stake: number
+          p_target_barrier: number
+          p_user_id: string
+          p_visual: Json
+        }
+        Returns: string
       }
     }
     Enums: {
