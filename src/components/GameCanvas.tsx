@@ -303,8 +303,39 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Centro: Meta de barreiras × multiplicador (skill puro: pagamento só se atingir meta) */}
-        {stake > 0 && (
+        {/* Centro: HUD principal — DEMO mostra ganho atual proporcional, LIVE mostra meta */}
+        {stake > 0 && isDemoMode && (
+          <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
+            <div
+              className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
+                demoCurrentWin > 0
+                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
+                  : "border-border bg-card/70"
+              }`}
+            >
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
+                Ganho atual
+              </div>
+              <div
+                className={`text-2xl font-black tabular-nums leading-tight ${
+                  demoCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                }`}
+                style={{ textShadow: demoCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
+              >
+                R$ {formatBRL(demoCurrentWin)}
+              </div>
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
+                {demoAtCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+              </div>
+            </div>
+            <div className="mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold text-muted-foreground">
+              Demo · cada barreira vale ×0,05
+            </div>
+          </div>
+        )}
+
+        {stake > 0 && !isDemoMode && (
           <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
             <div
               className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
@@ -322,11 +353,11 @@ export const GameCanvas = ({
                 }`}
                 style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
               >
-                {reachedGoal ? `+R$ ${formatBRL(potentialPayout)}` : `R$ ${formatBRL(potentialPayout)}`}
+                {reachedGoal ? `+R$ ${formatBRL(livePotentialPayout)}` : `R$ ${formatBRL(livePotentialPayout)}`}
               </div>
               <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                ×{roundMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
-                {isCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+                ×{liveRoundMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
+                {liveIsCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
             </div>
             {goalBarriers > 0 && (
