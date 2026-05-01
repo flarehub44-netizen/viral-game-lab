@@ -86,31 +86,47 @@ export const GameCanvas = ({
   const stake = stakeCredits ?? 0;
   const passedNow = stats.barriersPassed ?? 0;
 
-  // Meta de barreiras a atingir para receber o pagamento (skill puro).
-  // DEMO: usa o targetBarrier passado pelo activeRound (mesma lógica do LIVE).
+  const isDemoMode = mode === "demo";
+
+  // ---- LIVE: meta de barreiras ----
   const goalBarriers = targetBarrier ?? 0;
-  const reachedGoal = goalBarriers > 0 && passedNow >= goalBarriers;
+  const reachedGoal = !isDemoMode && goalBarriers > 0 && passedNow >= goalBarriers;
   const remainingBarriers = Math.max(0, goalBarriers - passedNow);
 
-  // Multiplicador-alvo da rodada (já sorteado pelo servidor / demoRound)
-  const roundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
+  // Multiplicador-alvo da rodada (LIVE: já sorteado pelo servidor)
+  const liveRoundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
 
-  // Pagamento garantido SE atingir meta. Antes disso, é só uma promessa.
-  const potentialPayout = Math.min(stake * roundMultiplier, MAX_ROUND_PAYOUT);
-  const isCapped = stake * roundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
+  // Pagamento garantido SE atingir meta (LIVE).
+  const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
+  const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
-  // Popup ao passar cada barreira: mostra quantas faltam para meta (ou GANHOU!)
+  // ---- DEMO: ganho proporcional em tempo real (skill puro, sem meta) ----
+  // Multiplicador = min(barriers × 0.05, 5.0) — espelha demoRound.ts
+  const DEMO_PER_BARRIER = 0.05;
+  const DEMO_CAP = 5.0;
+  const demoCurrentMultiplier = isDemoMode
+    ? Math.min(passedNow * DEMO_PER_BARRIER, DEMO_CAP)
+    : 0;
+  const demoCurrentWin = isDemoMode
+    ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
+    : 0;
+  const demoAtCap = isDemoMode && demoCurrentMultiplier >= DEMO_CAP;
+
+  // Popup ao passar cada barreira
   useEffect(() => {
     const passed = stats.barriersPassed ?? 0;
     if (passed > lastBarriersRef.current && stake > 0) {
       lastBarriersRef.current = passed;
       lastWinningsRef.current = passed;
       winIdRef.current += 1;
-      const justReached = goalBarriers > 0 && passed === goalBarriers;
+      const total = isDemoMode
+        ? Math.min(stake * Math.min(passed * DEMO_PER_BARRIER, DEMO_CAP), MAX_ROUND_PAYOUT)
+        : livePotentialPayout;
+      const justReached = !isDemoMode && goalBarriers > 0 && passed === goalBarriers;
       const item: FloatingWin = {
         id: winIdRef.current,
-        delta: justReached ? potentialPayout : 0,
-        total: potentialPayout,
+        delta: justReached ? livePotentialPayout : 0,
+        total,
         barrier: passed,
         createdAt: performance.now(),
       };
@@ -119,7 +135,7 @@ export const GameCanvas = ({
       lastBarriersRef.current = 0;
       lastWinningsRef.current = 0;
     }
-  }, [stats.barriersPassed, potentialPayout, stake, goalBarriers]);
+  }, [stats.barriersPassed, livePotentialPayout, stake, goalBarriers, isDemoMode]);
 
   // Auto-purga popups antigos
   useEffect(() => {
