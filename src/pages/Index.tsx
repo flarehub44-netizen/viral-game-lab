@@ -388,10 +388,11 @@ const Index = () => {
     if (isDemo) {
       setStartingRound(true);
       try {
-        const res = startDemoRound(stake);
+        const res = startDemoRound(stake, targetMultiplier);
         if (!res.ok) {
           const err = res as { ok: false; error: string };
           if (err.error === "insufficient_balance") toast.error("Saldo insuficiente.");
+          else if (err.error === "invalid_base") toast.error("Multiplicador base inválido.");
           else toast.error("Valor de entrada inválido.");
           return;
         }
