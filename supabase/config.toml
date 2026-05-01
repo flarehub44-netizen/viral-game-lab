@@ -18,6 +18,9 @@ verify_jwt = true
 [functions.pix-webhook]
 verify_jwt = false
 
+[functions.reconcile-pix-deposit]
+verify_jwt = true
+
 [functions.lgpd-export]
 verify_jwt = true
 

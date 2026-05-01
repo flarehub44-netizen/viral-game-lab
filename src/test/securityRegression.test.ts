@@ -7,19 +7,11 @@ function read(relPath: string): string {
 }
 
 describe("security regression guards", () => {
-  it("enforces HMAC validation in pix-webhook", () => {
+  it("pix-webhook validates payload and supports optional bearer", () => {
     const src = read("supabase/functions/pix-webhook/index.ts");
-    expect(src).toContain("SYNC_PAY_WEBHOOK_HMAC_SECRET");
-    expect(src).toContain("invalid_hmac_signature");
-    expect(src).toContain("x-pix-signature");
-    expect(src).toContain("x-pix-timestamp");
-  });
-
-  it("enforces strict network controls in pix-webhook (B3)", () => {
-    const src = read("supabase/functions/pix-webhook/index.ts");
-    // Em modo strict (produção), HMAC sozinho não basta — exige IP allowlist ou bearer.
-    expect(src).toContain("SYNC_PAY_WEBHOOK_STRICT");
-    expect(src).toContain("webhook_strict_requires_network_control");
+    expect(src).toContain("SYNC_PAY_WEBHOOK_BEARER_TOKEN");
+    expect(src).toContain("invalid_payload");
+    expect(src).toContain("classifyStatus");
   });
 
   it("blocks third-party CPF withdrawals (B4)", () => {

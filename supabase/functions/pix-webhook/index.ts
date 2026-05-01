@@ -27,8 +27,20 @@ type Outcome = "paid" | "failed" | "ignored";
 
 function classifyStatus(raw: string): Outcome {
   const s = raw.trim().toUpperCase();
-  if (s === "PAID_OUT" || s === "PAID" || s === "COMPLETED" || s === "APPROVED") return "paid";
-  if (s === "FAILED" || s === "REFUNDED" || s === "REVERSED" || s === "EXPIRED" || s === "CANCELLED" || s === "CANCELED") return "failed";
+  // SyncPay status values per docs: pending, completed, failed, refunded, med
+  // (legacy: PAID_OUT, PAID, APPROVED)
+  if (s === "COMPLETED" || s === "PAID_OUT" || s === "PAID" || s === "APPROVED") return "paid";
+  if (
+    s === "FAILED" ||
+    s === "REFUNDED" ||
+    s === "REVERSED" ||
+    s === "EXPIRED" ||
+    s === "CANCELLED" ||
+    s === "CANCELED" ||
+    s === "MED"
+  ) {
+    return "failed";
+  }
   return "ignored";
 }
 
@@ -49,36 +61,54 @@ Deno.serve(async (req) => {
   }
 
   const clientIp = extractClientIp(req);
+  const headerEvent = req.headers.get("event") ?? req.headers.get("Event") ?? "";
 
   const rawPayload = await req.text();
   let body: Record<string, unknown>;
   try {
     body = rawPayload ? (JSON.parse(rawPayload) as Record<string, unknown>) : {};
   } catch {
+    console.error("pix-webhook: invalid_json", { rawPayload: rawPayload.slice(0, 500) });
     return json(400, { error: "invalid_json" });
   }
 
-  // Aceita variações: payload direto da SyncPay, ou aninhado em data/payment.
-  const dataObj = (body.data ?? body.payment ?? body) as Record<string, unknown>;
+  console.log("pix-webhook: received", {
+    headerEvent,
+    keys: Object.keys(body),
+    clientIp,
+  });
+
+  // Aceita variações: payload direto da SyncPay, ou aninhado em data/payment/transaction.
+  const dataObj = (body.data ?? body.payment ?? body.transaction ?? body) as Record<string, unknown>;
 
   const providerRef = String(
     pickFirst(
       dataObj.identifier,
-      dataObj.id,
       dataObj.reference_id,
+      dataObj.id,
       body.identifier,
-      body.id,
       body.reference_id,
+      body.id,
     ) ?? "",
   );
 
   const amount =
     Math.round(
-      Number(pickFirst(dataObj.amount, body.amount, dataObj.value, body.value)) * 100,
+      Number(
+        pickFirst(
+          dataObj.amount,
+          body.amount,
+          dataObj.value,
+          body.value,
+          (dataObj as Record<string, unknown>).final_amount,
+        ),
+      ) * 100,
     ) / 100;
 
   const rawStatus = String(pickFirst(dataObj.status, body.status, dataObj.state, body.state) ?? "");
-  const eventType = String(pickFirst(body.event, body.event_type, dataObj.event) ?? "cashin.update");
+  const eventType = String(
+    pickFirst(headerEvent, body.event, body.event_type, dataObj.event) ?? "cashin.update",
+  );
 
   if (!providerRef || !rawStatus) {
     console.warn("pix-webhook: invalid payload", { hasRef: !!providerRef, hasStatus: !!rawStatus });

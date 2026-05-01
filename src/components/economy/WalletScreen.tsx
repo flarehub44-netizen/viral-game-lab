@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { RoundHistoryRow } from "@/game/economy/serverRound";
 
 export type PixDepositRow = {
@@ -28,6 +29,7 @@ interface Props {
   onWithdraw?: () => void;
   pixDeposits?: PixDepositRow[];
   pixWithdrawals?: PixWithdrawalRow[];
+  onReconcilePending?: (depositId?: string) => Promise<void> | void;
 }
 
 function pixStatusLabel(kind: "dep" | "wd", status: string): string {
@@ -68,9 +70,32 @@ export const WalletScreen = ({
   onWithdraw,
   pixDeposits = [],
   pixWithdrawals = [],
+  onReconcilePending,
 }: Props) => {
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+  const autoReconciledRef = useRef(false);
+  const hasPending = pixDeposits.some((d) => d.status === "pending");
+
+  useEffect(() => {
+    if (variant !== "online") return;
+    if (autoReconciledRef.current) return;
+    if (!hasPending || !onReconcilePending) return;
+    autoReconciledRef.current = true;
+    void onReconcilePending();
+  }, [variant, hasPending, onReconcilePending]);
+
+  const handleManualReconcile = async (id: string) => {
+    if (!onReconcilePending) return;
+    setReconcilingId(id);
+    try {
+      await onReconcilePending(id);
+    } finally {
+      setReconcilingId(null);
+    }
+  };
 
   type PixLine = {
     kind: "dep" | "wd";
@@ -227,6 +252,17 @@ export const WalletScreen = ({
                       <div className="text-[9px] font-mono text-muted-foreground truncate">
                         Ref: {row.provider_ref}
                       </div>
+                    )}
+                    {row.kind === "dep" && row.status === "pending" && onReconcilePending && (
+                      <button
+                        type="button"
+                        onClick={() => void handleManualReconcile(row.id)}
+                        disabled={reconcilingId === row.id}
+                        className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-300 hover:text-amber-200 disabled:opacity-50"
+                      >
+                        <RefreshCw size={11} className={reconcilingId === row.id ? "animate-spin" : ""} />
+                        {reconcilingId === row.id ? "Verificando…" : "Atualizar status"}
+                      </button>
                     )}
                   </li>
                 ))}

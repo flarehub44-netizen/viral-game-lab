@@ -718,6 +718,20 @@ const Index = () => {
             onWithdraw={isDemo ? undefined : openWithdrawFlow}
             pixDeposits={isDemo ? [] : pixDeposits}
             pixWithdrawals={isDemo ? [] : pixWithdrawals}
+            onReconcilePending={
+              isDemo
+                ? undefined
+                : async (depositId?: string) => {
+                    try {
+                      await supabase.functions.invoke("reconcile-pix-deposit", {
+                        body: depositId ? { deposit_id: depositId } : {},
+                      });
+                    } catch (e) {
+                      console.error("reconcile-pix-deposit invoke:", e);
+                    }
+                    await refreshEconomy();
+                  }
+            }
           />
         )}
 
