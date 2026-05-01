@@ -513,7 +513,7 @@ const Index = () => {
           },
         });
         if (error || !data?.ok) {
-          const errCode = (data as Record<string, unknown> | null)?.error as string | undefined;
+          const errCode = (data as unknown as { error?: string } | null)?.error;
           console.error("end-round failed:", error ?? data);
           if (errCode === "layout_mismatch_seed" || errCode === "layout_mismatch_signature") {
             toast.error("Rodada cancelada: falha na verificação de integridade.");
