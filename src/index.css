@@ -90,13 +90,25 @@
 @layer components {
   /**
    * Coluna principal do app — mobile-first.
-   * Mantém largura de "telefone" (~420px) em qualquer breakpoint para preservar
-   * a proporção desenhada para mobile. Em telas largas o app fica centralizado
-   * com áreas vazias laterais (estilo "phone frame"), evitando esticar tipografia
-   * e botões.
+   * Mantém largura de "telefone" (~440px) em qualquer breakpoint para preservar
+   * a proporção desenhada para mobile. Em telas largas (md+) vira um phone-frame
+   * centralizado com borda e sombra neon.
    */
   .neon-app-column {
     @apply w-full max-w-[440px] mx-auto px-3 sm:px-4;
+  }
+
+  /** Phone frame visível apenas em desktop (md+). */
+  .neon-app-frame {
+    @apply md:border md:border-primary/20 md:rounded-3xl md:shadow-[0_0_60px_-10px_hsl(var(--primary)/0.35)];
+  }
+
+  /** Fundo decorativo das áreas laterais em desktop. */
+  .neon-app-backdrop {
+    background:
+      radial-gradient(circle at 15% 30%, hsl(var(--primary) / 0.08), transparent 45%),
+      radial-gradient(circle at 85% 70%, hsl(var(--secondary) / 0.08), transparent 45%),
+      var(--gradient-bg);
   }
 }
 
