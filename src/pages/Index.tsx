@@ -117,7 +117,7 @@ const Index = () => {
 
   const leaveDemoToAuth = useCallback(() => {
     try {
-      sessionStorage.removeItem(PLAY_MODE_KEY);
+      sessionStorage.setItem(PLAY_MODE_KEY, "auth");
     } catch {
       /* ignore */
     }
