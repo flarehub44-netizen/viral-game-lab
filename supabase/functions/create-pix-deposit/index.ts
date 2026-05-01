@@ -89,14 +89,18 @@ Deno.serve(async (req) => {
   const idempotencyKey =
     typeof body.idempotency_key === "string" ? body.idempotency_key.trim().slice(0, 64) : null;
 
-  // get_user_pix_identity returns decrypted CPF (falls back to plaintext before backfill)
-  const { data: identityRows, error: profErr } = await admin.rpc("get_user_pix_identity", {
-    p_user_id: user.id,
-  });
-  const prof = Array.isArray(identityRows) ? identityRows[0] : null;
+  // Lê o perfil completo via service role (bypassa RLS) para validar idade,
+  // CPF, telefone e status da conta. O RPC `get_user_pix_identity` retorna
+  // apenas (cpf, phone) — `over_18_confirmed_at` ficava sempre undefined e
+  // todo usuário recebia `age_required`.
+  const { data: prof, error: profErr } = await admin
+    .from("profiles")
+    .select("display_name, cpf, phone, over_18_confirmed_at, deleted_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (profErr || !prof) {
-    console.error("get_user_pix_identity:", profErr);
+    console.error("profiles select:", profErr);
     return json(500, { error: "profile_load_failed" });
   }
 
