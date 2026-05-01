@@ -137,16 +137,23 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              {PRESETS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setAmountStr(String(v))}
-                  className="px-3 py-2 rounded-lg border border-border bg-card/50 text-xs font-bold tabular-nums hover:bg-card/80"
-                >
-                  R$ {v}
-                </button>
-              ))}
+              {PRESETS.map((v) => {
+                const selected = amountNum === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAmountStr(String(v))}
+                    className={`px-3 py-2 rounded-lg border text-xs font-bold tabular-nums transition ${
+                      selected
+                        ? "border-[hsl(140_85%_48%)] bg-[hsl(140_85%_48%)]/15 text-[hsl(140_90%_70%)]"
+                        : "border-border bg-card/50 hover:bg-card/80"
+                    }`}
+                  >
+                    R$ {v}
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"
@@ -154,8 +161,11 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
               onClick={() => void generate()}
               className="w-full py-3.5 rounded-2xl bg-[hsl(140_85%_48%)] hover:bg-[hsl(140_85%_42%)] text-background font-black uppercase tracking-widest text-sm disabled:opacity-50"
             >
-              {busy ? "Gerando…" : "Gerar PIX"}
+              {busy
+                ? "Gerando…"
+                : `Gerar PIX de R$ ${Number.isFinite(amountNum) ? amountNum.toFixed(2).replace(".", ",") : "—"}`}
             </button>
+
           </>
         ) : (
           <>

@@ -1,22 +1,25 @@
 ## Problema
 
-O Edge Function `create-pix-deposit` está retornando 502 com `syncpay_cashin_failed`. O log mostra que a SyncPay respondeu HTTP 404 com uma página HTML do Next.js (painel "Sync Pay"), não com JSON da API.
+Você selecionou R$ 10 mas o PIX foi gerado com R$ 25. Olhando `src/components/economy/DepositScreen.tsx`:
 
-Causa raiz: a base URL configurada em `supabase/functions/_shared/syncpay.ts` é `https://app.syncpayments.com.br`, que serve o **painel web** (front-end Next.js) e não a **API REST**. Por isso `/api/partner/v1/auth-token` cai num 404 do Next renderizado como HTML.
+- O valor inicial do campo é fixo em `"25"` (linha 17: `useState("25")`).
+- Os botões de preset (R$ 10 / 25 / 50 / 100) **não têm destaque visual** quando clicados — não dá para distinguir o que está selecionado.
+- O botão "Gerar PIX" não mostra o valor que vai ser enviado.
 
-A integração que está funcionando no outro projeto chama os mesmos paths (`/api/partner/v1/auth-token`, `/api/partner/v1/cash-in`) mas no host correto da API.
+Resultado: provavelmente o clique em "R$ 10" não foi efetivado (toque fora do alvo, ou clicou em "Gerar PIX" antes do React aplicar) e o valor padrão "25" passou para a SyncPay sem feedback visual.
 
 ## Correção
 
-1. Atualizar o `DEFAULT_BASE_URL` em `supabase/functions/_shared/syncpay.ts` de `https://app.syncpayments.com.br` para `https://api.syncpayments.com.br` (host de API, separado do painel).
+Em `src/components/economy/DepositScreen.tsx`:
 
-2. A função já lê `SYNC_PAY_BASE_URL` do env como override; vamos manter esse fallback para que, se a SyncPay mudar de domínio no futuro, dê para corrigir só pelo segredo sem redeploy de código.
+1. **Destacar o preset selecionado** — quando `amountNum === v`, o botão fica em verde com borda forte. Assim você vê de relance qual valor está ativo.
+2. **Mostrar o valor no botão final** — trocar "Gerar PIX" por "Gerar PIX de R$ 10,00" (atualiza em tempo real conforme o input/preset). Confirmação visual antes do envio.
 
-3. Após o deploy da função (automático), refazer um depósito PIX para validar. Se voltar a falhar com outra mensagem (ex.: 401 `invalid_credentials`), aí o problema passa a ser nos UUIDs em `SYNC_PAY_CLIENT_ID`/`SYNC_PAY_CLIENT_SECRET` e te peço para conferir no painel.
+Sem mudanças de banco, sem mudança no Edge Function, sem novo secret. Só UX no front.
 
 ## Detalhes técnicos
 
-- Arquivo afetado: `supabase/functions/_shared/syncpay.ts` (1 linha — constante `DEFAULT_BASE_URL`).
-- Sem mudança de banco, sem novos secrets.
-- Sem mudança no fluxo do front-end ou no webhook.
-- Caso o host correto seja outro (a SyncPay tem documentação privada), a próxima tentativa retornará outro código HTTP (não mais o HTML do painel) e ajustamos para o domínio definitivo. Você também pode definir `SYNC_PAY_BASE_URL` como segredo para forçar a URL exata sem alterar código.
+- Arquivo: `src/components/economy/DepositScreen.tsx` (linhas 139–158).
+- Comparação `amountNum === v` (já calculado no escopo) marca o preset ativo.
+- Texto do botão: `` `Gerar PIX de R$ ${amountNum.toFixed(2).replace(".", ",")}` ``.
+- Mantém o comportamento atual: clicar em preset chama `setAmountStr(String(v))`; "Gerar PIX" envia `amountNum` para `create-pix-deposit`.
