@@ -710,16 +710,16 @@ const Index = () => {
           <GameCanvas
             roundId={activeRound.round_id}
             visualScript={isDemo ? null : activeRound.visual_result}
-            allowScriptTerminate={false}
+            allowScriptTerminate={!isDemo}
             qaMode={isDemo ? "demo" : "live"}
             mode={isDemo ? "demo" : "live"}
-            targetBarrier={activeRound.target_barrier}
+            targetBarrier={isDemo ? undefined : activeRound.target_barrier}
             layoutPlan={isDemo ? null : activeLayout}
             onGameOver={handleGameOver}
             onExit={exitPlaying}
-            stakeCredits={activeRound.stake_amount}
-            targetMultiplier={activeRound.target_multiplier}
-            resultMultiplier={activeRound.result_multiplier}
+            stakeCredits={isDemo ? 0 : activeRound.stake_amount}
+            targetMultiplier={isDemo ? undefined : activeRound.target_multiplier}
+            resultMultiplier={isDemo ? undefined : activeRound.result_multiplier}
           />
         )}
 
@@ -738,8 +738,6 @@ const Index = () => {
             economySource={economySourceUi}
             onChangeStake={handleRetry}
             onOpenHistory={() => setScreen("wallet")}
-            climbZone={lastStats.currentZone}
-            climbMultiplier={lastStats.currentMultiplier}
             barriersPassed={lastSummary?.barriersPassed}
           />
         )}
