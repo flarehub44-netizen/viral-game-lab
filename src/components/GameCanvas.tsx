@@ -100,29 +100,27 @@ export const GameCanvas = ({
   const potentialPayout = Math.min(stake * roundMultiplier, MAX_ROUND_PAYOUT);
   const isCapped = stake * roundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
-  // Detecta barreira passada e empurra popup +R$
+  // Popup ao passar cada barreira: mostra quantas faltam para meta (ou GANHOU!)
   useEffect(() => {
     const passed = stats.barriersPassed ?? 0;
     if (passed > lastBarriersRef.current && stake > 0) {
-      const prevWin = lastWinningsRef.current;
-      const delta = Math.max(0, liveWinnings - prevWin);
       lastBarriersRef.current = passed;
-      lastWinningsRef.current = liveWinnings;
+      lastWinningsRef.current = passed;
       winIdRef.current += 1;
+      const justReached = goalBarriers > 0 && passed === goalBarriers;
       const item: FloatingWin = {
         id: winIdRef.current,
-        delta,
-        total: liveWinnings,
+        delta: justReached ? potentialPayout : 0,
+        total: potentialPayout,
         barrier: passed,
         createdAt: performance.now(),
       };
       setFloatingWins((prev) => [...prev.slice(-(MAX_FLOATING_WINS - 1)), item]);
     } else if (passed === 0 && lastBarriersRef.current !== 0) {
-      // Reset entre rodadas
       lastBarriersRef.current = 0;
       lastWinningsRef.current = 0;
     }
-  }, [stats.barriersPassed, liveWinnings, stake]);
+  }, [stats.barriersPassed, potentialPayout, stake, goalBarriers]);
 
   // Auto-purga popups antigos
   useEffect(() => {
