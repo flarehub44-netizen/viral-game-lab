@@ -88,9 +88,15 @@
 }
 
 @layer components {
-  /** Coluna principal do app: mobile-first, escala no desktop sem redesenhar telas. */
+  /**
+   * Coluna principal do app — mobile-first.
+   * Mantém largura de "telefone" (~420px) em qualquer breakpoint para preservar
+   * a proporção desenhada para mobile. Em telas largas o app fica centralizado
+   * com áreas vazias laterais (estilo "phone frame"), evitando esticar tipografia
+   * e botões.
+   */
   .neon-app-column {
-    @apply w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto;
+    @apply w-full max-w-[440px] mx-auto px-3 sm:px-4;
   }
 }
 
