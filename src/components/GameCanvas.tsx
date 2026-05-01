@@ -85,7 +85,6 @@ export const GameCanvas = ({
 
   const stake = stakeCredits ?? 0;
   const passedNow = stats.barriersPassed ?? 0;
-  const isDemoMode = mode === "demo";
 
   // Meta de barreiras a atingir para receber o pagamento (skill puro).
   // DEMO: usa o targetBarrier passado pelo activeRound (mesma lógica do LIVE).
