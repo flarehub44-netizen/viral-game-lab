@@ -8,15 +8,20 @@ import { MAX_ROUND_PAYOUT, MIN_STAKE, MAX_STAKE } from "./constants";
 import { pushDemoHistoryRow } from "./demoHistory";
 import type { ActiveServerRound } from "./serverRound";
 
-/** DEMO: cap do multiplicador final por jogo. */
-export const DEMO_MULTIPLIER_CAP = 5.0;
-/** DEMO: cada barreira passada vale este multiplicador. */
-export const DEMO_MULTIPLIER_PER_BARRIER = 0.05;
+/** DEMO: fator linear por barreira aplicado sobre a base escolhida. */
+export const DEMO_MULTIPLIER_PER_BARRIER_FACTOR = 0.05;
+/** DEMO: bases de multiplicador disponíveis ao jogador. */
+export const DEMO_BASE_OPTIONS = [2, 5, 10, 20] as const;
+export type DemoBase = (typeof DEMO_BASE_OPTIONS)[number];
+/** DEMO: base padrão se nada for selecionado. */
+export const DEMO_DEFAULT_BASE: DemoBase = 5;
+/** DEMO: número de barreiras necessárias para atingir a meta da base escolhida. */
+export const DEMO_GOAL_BARRIERS = 20;
 /** DEMO: duração máxima da rodada (sem limite real, mas o engine precisa de algo). */
 const DEMO_MAX_DURATION_SECONDS = 180;
 
 export interface DemoRoundError {
-  error: "insufficient_balance" | "invalid_stake";
+  error: "insufficient_balance" | "invalid_stake" | "invalid_base";
 }
 
 export function validateStakeAmount(stake: number): boolean {
@@ -25,27 +30,38 @@ export function validateStakeAmount(stake: number): boolean {
   return r >= MIN_STAKE && r <= MAX_STAKE;
 }
 
+export function isValidDemoBase(base: number): base is DemoBase {
+  return (DEMO_BASE_OPTIONS as readonly number[]).includes(base);
+}
+
 /**
- * Calcula o multiplicador final do DEMO a partir do número de barreiras passadas.
- * Fórmula linear: `min(barriers × 0.05, 5.0)`.
+ * Calcula o multiplicador atual do DEMO a partir do número de barreiras passadas
+ * e da base escolhida pelo jogador.
+ *
+ * Fórmula linear (sem teto próprio): `0.05 × base × barreiras`.
+ * Atinge exatamente ×base em 20 barreiras (meta). Continua crescendo depois.
  */
-export function demoMultiplierFor(barriersPassed: number): number {
+export function demoMultiplierFor(barriersPassed: number, base: number): number {
   if (!Number.isFinite(barriersPassed) || barriersPassed <= 0) return 0;
-  const raw = barriersPassed * DEMO_MULTIPLIER_PER_BARRIER;
-  const capped = Math.min(raw, DEMO_MULTIPLIER_CAP);
-  return Math.round(capped * 100) / 100;
+  if (!Number.isFinite(base) || base <= 0) return 0;
+  const raw = DEMO_MULTIPLIER_PER_BARRIER_FACTOR * base * barriersPassed;
+  return Math.round(raw * 100) / 100;
 }
 
 /**
  * Inicia uma rodada demo: debita APENAS a entrada da carteira.
- * Não há sorteio prévio nem meta — o multiplicador final depende somente
- * do número de barreiras que o jogador conseguir passar.
+ * O `base` escolhido (×2, ×5, ×10, ×20) define a velocidade do ganho linear:
+ * cada barreira vale `entrada × 0,05 × base`. Sem meta obrigatória — o jogador
+ * recebe o ganho proporcional ao número de barreiras passadas.
  */
-export function startDemoRound(stake: number):
-  | { ok: true; round: ActiveServerRound; wallet: PersistedWallet }
+export function startDemoRound(stake: number, base: number = DEMO_DEFAULT_BASE):
+  | { ok: true; round: ActiveServerRound; wallet: PersistedWallet; base: DemoBase }
   | ({ ok: false } & DemoRoundError) {
   if (!validateStakeAmount(stake)) {
     return { ok: false, error: "invalid_stake" };
+  }
+  if (!isValidDemoBase(base)) {
+    return { ok: false, error: "invalid_base" };
   }
 
   let wallet = loadWallet();
@@ -78,7 +94,7 @@ export function startDemoRound(stake: number):
     ok: true,
     round_id: roundId,
     stake_amount: stakeRounded,
-    target_multiplier: 0, // sem meta no demo
+    target_multiplier: base, // base escolhida (referência da meta)
     result_multiplier: 0, // será definido em settle
     payout_amount: 0,
     net_result: -stakeRounded,
@@ -91,21 +107,20 @@ export function startDemoRound(stake: number):
     },
     layout_seed: `demo:${roundId}`,
     layout_signature: `demo_sig_${roundId}`,
-    target_barrier: 0, // sem meta
+    target_barrier: 0, // sem meta obrigatória
     max_duration_seconds: DEMO_MAX_DURATION_SECONDS,
     round_status: "open",
     idempotency_key: `demo_${roundId}`,
   };
 
-  return { ok: true, round, wallet };
+  return { ok: true, round, wallet, base };
 }
 
 /**
  * Liquida a rodada demo:
- * - Multiplicador final = `min(barriers × 0.05, 5.0)`.
- * - Pagamento = `stake × multiplicador` (capado em MAX_ROUND_PAYOUT).
+ * - Multiplicador final = `0,05 × base × barreiras` (sem teto próprio).
+ * - Pagamento = `stake × multiplicador` (capado em MAX_ROUND_PAYOUT por segurança).
  * - Sempre credita o pagamento (mesmo se 0).
- * - Não há "meta": o ganho é proporcional à habilidade.
  */
 export function settleDemoRound(
   round: ActiveServerRound,
@@ -116,7 +131,8 @@ export function settleDemoRound(
   multiplier: number;
   wallet: PersistedWallet;
 } {
-  const multiplier = demoMultiplierFor(barriersPassed);
+  const base = round.target_multiplier > 0 ? round.target_multiplier : DEMO_DEFAULT_BASE;
+  const multiplier = demoMultiplierFor(barriersPassed, base);
   let payout = Math.round(round.stake_amount * multiplier * 100) / 100;
   if (payout > MAX_ROUND_PAYOUT) payout = MAX_ROUND_PAYOUT;
 

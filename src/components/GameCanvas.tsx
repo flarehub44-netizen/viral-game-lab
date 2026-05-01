@@ -100,17 +100,22 @@ export const GameCanvas = ({
   const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
   const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
-  // ---- DEMO: ganho proporcional em tempo real (skill puro, sem meta) ----
-  // Multiplicador = min(barriers × 0.05, 5.0) — espelha demoRound.ts
-  const DEMO_PER_BARRIER = 0.05;
-  const DEMO_CAP = 5.0;
+  // ---- DEMO: ganho proporcional em tempo real ----
+  // Multiplicador atual = 0.05 × base × barreiras (sem teto próprio; só MAX_ROUND_PAYOUT)
+  // A "meta" da base é atingida em 20 barreiras; depois disso continua crescendo.
+  const DEMO_PER_BARRIER_FACTOR = 0.05;
+  const DEMO_GOAL_BARRIERS = 20;
+  const demoBase = isDemoMode ? (targetMultiplier ?? resultMultiplier ?? 5) : 0;
   const demoCurrentMultiplier = isDemoMode
-    ? Math.min(passedNow * DEMO_PER_BARRIER, DEMO_CAP)
+    ? DEMO_PER_BARRIER_FACTOR * demoBase * passedNow
     : 0;
   const demoCurrentWin = isDemoMode
     ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
     : 0;
-  const demoAtCap = isDemoMode && demoCurrentMultiplier >= DEMO_CAP;
+  const demoReachedGoal = isDemoMode && passedNow >= DEMO_GOAL_BARRIERS;
+  const demoAtPayoutCap =
+    isDemoMode && stake > 0 && stake * demoCurrentMultiplier >= MAX_ROUND_PAYOUT;
+  const demoPerBarrierValue = isDemoMode ? stake * DEMO_PER_BARRIER_FACTOR * demoBase : 0;
 
   // Popup ao passar cada barreira
   useEffect(() => {
@@ -120,7 +125,7 @@ export const GameCanvas = ({
       lastWinningsRef.current = passed;
       winIdRef.current += 1;
       const total = isDemoMode
-        ? Math.min(stake * Math.min(passed * DEMO_PER_BARRIER, DEMO_CAP), MAX_ROUND_PAYOUT)
+        ? Math.min(stake * DEMO_PER_BARRIER_FACTOR * demoBase * passed, MAX_ROUND_PAYOUT)
         : livePotentialPayout;
       const justReached = !isDemoMode && goalBarriers > 0 && passed === goalBarriers;
       const item: FloatingWin = {
@@ -326,27 +331,30 @@ export const GameCanvas = ({
               </div>
               <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
                 ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
-                {demoAtCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+                {demoReachedGoal && !demoAtPayoutCap && (
+                  <span className="ml-1 text-[hsl(140_90%_62%)] font-bold">META ✓</span>
+                )}
+                {demoAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
-              {/* Barra de progresso até o multiplicador-base ×5,00 */}
+              {/* Barra de progresso até a meta da base (20 barreiras) */}
               <div className="mt-1 flex items-center gap-1.5">
                 <div className="flex-1 h-1.5 rounded-full bg-card/80 border border-border overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-[width] duration-200 ease-out ${
-                      demoAtCap
-                        ? "bg-[hsl(30_100%_60%)] shadow-[0_0_8px_hsl(30_100%_55%/0.7)]"
-                        : "bg-[hsl(140_90%_55%)] shadow-[0_0_6px_hsl(140_90%_50%/0.55)]"
+                      demoReachedGoal
+                        ? "bg-[hsl(140_90%_55%)] shadow-[0_0_8px_hsl(140_90%_50%/0.7)]"
+                        : "bg-[hsl(190_90%_55%)] shadow-[0_0_6px_hsl(190_90%_50%/0.55)]"
                     }`}
-                    style={{ width: `${Math.min(demoCurrentMultiplier / DEMO_CAP, 1) * 100}%` }}
+                    style={{ width: `${Math.min(passedNow / DEMO_GOAL_BARRIERS, 1) * 100}%` }}
                   />
                 </div>
                 <span className="text-[8px] font-bold tracking-wide text-secondary tabular-nums">
-                  base ×5,00
+                  base ×{demoBase},00
                 </span>
               </div>
             </div>
             <div className="mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold text-muted-foreground">
-              Base ×5,00 · ×0,05 por barreira
+              Base ×{demoBase},00 · R$ {formatBRL(demoPerBarrierValue)} por barreira
             </div>
           </div>
         )}

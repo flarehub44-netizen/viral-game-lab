@@ -1,6 +1,7 @@
 import { ArrowLeft, Infinity as InfinityIcon, Target, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
+import { DEMO_BASE_OPTIONS, DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
 
 interface Props {
   balance: number;
@@ -20,24 +21,35 @@ function pseudoOnlinePlayers(): number {
 
 export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource }: Props) => {
   const [bet, setBet] = useState<number>(0);
-  const [meta, setMeta] = useState<number>(DEFAULT_META_MULTIPLIER);
+  const isDemo = economySource === "demo";
+  const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
   const online = pseudoOnlinePlayers();
-  const canEditMeta = economySource === "demo";
-  const metaOptions = [5, 10, 15, 20];
+  // Live: meta server-side é fixa em 20x. Demo: jogador escolhe a base (2/5/10/20).
+  const canEditMeta = isDemo;
+  const liveMetaOptions = [5, 10, 15, 20];
+  const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
+  const metaOptions = isDemo ? demoMetaOptions : liveMetaOptions;
 
   const stats = useMemo(() => {
     if (bet <= 0) {
       return {
         metaGain: 0,
-        perPlatform: 0,
+        perBarrier: 0,
         platForMeta: 0,
       };
     }
+    if (isDemo) {
+      // Demo: ganho = entrada × 0,05 × base × barreiras
+      // Atinge a meta (×base) em DEMO_GOAL_BARRIERS barreiras.
+      const perBarrier = bet * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta;
+      const metaGain = bet * meta;
+      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS };
+    }
     const metaGain = bet * meta;
-    const perPlatform = Math.max(1, Math.round(bet * 0.5));
-    const platForMeta = Math.ceil(metaGain / perPlatform);
-    return { metaGain, perPlatform, platForMeta };
-  }, [bet, meta]);
+    const perBarrier = Math.max(1, Math.round(bet * 0.5));
+    const platForMeta = Math.ceil(metaGain / perBarrier);
+    return { metaGain, perBarrier, platForMeta };
+  }, [bet, meta, isDemo]);
 
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -71,7 +83,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
               ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar — caso contrário, perde a entrada. Sem cashout durante a partida."
-              : "Modo treino: escolha sua entrada (créditos demo). Cada barreira passada vale ×0,05 do que apostou (até ×5,00). Sem meta — você ganha o que conseguir."}
+              : "Modo treino: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base. A meta da base é atingida em 20 barreiras — depois disso o ganho continua crescendo."}
           </p>
           {economySource === "server" ? (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 text-center leading-snug">
@@ -79,53 +91,52 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
             </div>
           ) : (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Multiplicador <strong>base ×5,00</strong> — cada barreira vale ×0,05 da entrada. Quanto mais passar, mais perto do teto.
+              🎯 Escolha sua <strong>base ×{meta},00</strong> — você atinge a meta em 20 barreiras e pode continuar lucrando depois.
             </div>
           )}
         </div>
 
-        {economySource === "server" && (
-          <>
-            <div className="flex flex-wrap justify-center gap-2">
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
-                <Target size={12} />
-                Meta {meta}x
-              </span>
+        {/* Seletor de base/meta — habilitado no Demo, somente leitura no Live */}
+        <div>
+          <div className="flex flex-wrap justify-center gap-2 mb-3">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
+              <Target size={12} />
+              {isDemo ? `Base ×${meta}` : `Meta ${meta}x`}
+            </span>
+            {!isDemo && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-[11px] font-bold">
                 <InfinityIcon size={12} />
                 Sem cashout na rodada
               </span>
-            </div>
+            )}
+          </div>
 
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
-                Meta da rodada
-              </div>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {metaOptions.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    disabled={!canEditMeta}
-                    onClick={() => setMeta(amount)}
-                    className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
-                      meta === amount
-                        ? "border-secondary bg-secondary/20 text-secondary"
-                        : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
-                    } ${!canEditMeta ? "opacity-50 cursor-not-allowed" : ""}`}
-                  >
-                    {amount}x
-                  </button>
-                ))}
-              </div>
-              {!canEditMeta && (
-                <p className="text-[10px] text-center text-muted-foreground mt-2">
-                  No modo conta, a meta é fixa em 20x (definida no servidor).
-                </p>
-              )}
-            </div>
-          </>
-        )}
+          <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
+            {isDemo ? "Base do multiplicador" : "Meta da rodada"}
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {metaOptions.map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                disabled={!canEditMeta}
+                onClick={() => setMeta(amount)}
+                className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
+                  meta === amount
+                    ? "border-secondary bg-secondary/20 text-secondary"
+                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                } ${!canEditMeta ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {amount}x
+              </button>
+            ))}
+          </div>
+          {!canEditMeta && (
+            <p className="text-[10px] text-center text-muted-foreground mt-2">
+              No modo conta, a meta é fixa em 20x (definida no servidor).
+            </p>
+          )}
+        </div>
 
         <div>
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
@@ -168,7 +179,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
                 / barreira (aprox.)
               </div>
-              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perPlatform)}</div>
+              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perBarrier)}</div>
             </div>
             <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
@@ -183,15 +194,17 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
                 Por barreira
               </div>
-              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(bet * 0.05)}</div>
-              <div className="text-[9px] text-muted-foreground tabular-nums mt-0.5">×0,05</div>
+              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perBarrier)}</div>
+              <div className="text-[9px] text-muted-foreground tabular-nums mt-0.5">
+                ×{(DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta).toFixed(2)}
+              </div>
             </div>
             <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Multiplicador base
+                Meta em {DEMO_GOAL_BARRIERS} barreiras
               </div>
-              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(bet * 5)}</div>
-              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">base ×5,00</div>
+              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
+              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">base ×{meta},00</div>
             </div>
           </div>
         )}
@@ -201,7 +214,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
             ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
-            : "Pagamento: entrada × (barreiras × 0,05), base ×5,00. Créditos demo neste dispositivo."}
+            : `Pagamento: entrada × 0,05 × base × barreiras. Sem teto — quanto mais barreiras, maior o ganho.`}
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
