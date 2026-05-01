@@ -83,7 +83,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
               ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar — caso contrário, perde a entrada. Sem cashout durante a partida."
-              : "Modo treino: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base. A meta da base é atingida em 20 barreiras — depois disso o ganho continua crescendo."}
+              : "Modo treino: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
           {economySource === "server" ? (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 text-center leading-snug">
@@ -91,7 +91,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
             </div>
           ) : (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Escolha sua <strong>base ×{meta},00</strong> — você atinge a meta em 20 barreiras e pode continuar lucrando depois.
+              🎯 Escolha sua <strong>base ×{meta},00</strong>
             </div>
           )}
         </div>
@@ -201,7 +201,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
             </div>
             <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Meta em {DEMO_GOAL_BARRIERS} barreiras
+                META
               </div>
               <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
               <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">base ×{meta},00</div>
@@ -214,7 +214,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
             ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
-            : `Pagamento: entrada × 0,05 × base × barreiras. Sem teto — quanto mais barreiras, maior o ganho.`}
+            : `Pagamento: entrada × 0,05 × base × barreiras.`}
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
