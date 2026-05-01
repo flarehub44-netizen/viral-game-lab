@@ -37,18 +37,20 @@ export interface ActiveServerRound extends StartRoundResponse {
   visual_result: VisualResult;
 }
 
-/** Resumo para a tela de fim de jogo (já liquidado no servidor). */
+/** Resumo para a tela de fim de jogo (já liquidado no servidor ou no demo). */
 export interface ServerEconomyPayload {
   stake: number;
   resultMultiplier: number;
   payout: number;
   netResult: number;
-  /** True se a meta foi atingida e o jogador recebeu o pagamento. */
+  /** LIVE: true se a meta foi atingida e o jogador recebeu o pagamento. DEMO: ignorado. */
   reachedTarget: boolean;
   /** Quantas barreiras o jogador passou. */
   barriersPassed: number;
-  /** Meta de barreiras que precisava passar. */
+  /** LIVE: meta de barreiras que precisava passar. DEMO: 0 (sem meta). */
   targetBarrier: number;
+  /** Modo da rodada — controla a apresentação do GameOver. */
+  mode?: "demo" | "live";
 }
 
 export interface RoundHistoryRow {
