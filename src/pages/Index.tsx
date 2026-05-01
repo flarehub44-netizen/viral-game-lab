@@ -10,6 +10,7 @@ import { WithdrawScreen } from "@/components/economy/WithdrawScreen";
 import { RoundSetupScreen } from "@/components/economy/RoundSetupScreen";
 import { RulesScreen } from "@/components/economy/RulesScreen";
 import { GameOverScreen } from "@/components/GameOverScreen";
+import { GoalReachedPopup } from "@/components/GoalReachedPopup";
 import { Leaderboard, invalidateLeaderboardCache } from "@/components/Leaderboard";
 import { NicknameDialog } from "@/components/NicknameDialog";
 import { MissionsPanel } from "@/components/MissionsPanel";
@@ -171,6 +172,7 @@ const Index = () => {
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
+  const [goalPopup, setGoalPopup] = useState<{ multiplier: number; barriers: number } | null>(null);
   const settledRoundsRef = useRef<Set<string>>(new Set());
 
   const bestKey = useMemo(() => {
@@ -352,6 +354,7 @@ const Index = () => {
     setLastProgression(null);
     setServerEconomy(null);
     setIsNewBest(false);
+    setGoalPopup(null);
     setScreen("roundSetup");
   };
 
@@ -471,6 +474,8 @@ const Index = () => {
 
     let finalEconomy: ServerEconomyPayload | null = null;
 
+    let goalHit: { multiplier: number; barriers: number } | null = null;
+
     if (settled) {
       if (isDemo) {
         const settledDemo = settleDemoRound(settled, barriersPassed);
@@ -484,6 +489,9 @@ const Index = () => {
           targetBarrier: 0,
           mode: "demo",
         };
+        if (barriersPassed >= 20) {
+          goalHit = { multiplier: settledDemo.multiplier, barriers: barriersPassed };
+        }
       } else {
         // Pré-popular com "perdeu" enquanto aguarda servidor
         finalEconomy = {
@@ -496,6 +504,13 @@ const Index = () => {
           targetBarrier: settled.target_barrier ?? 0,
           mode: "live",
         };
+        const targetBarrier = settled.target_barrier ?? 0;
+        if (targetBarrier > 0 && barriersPassed >= targetBarrier) {
+          goalHit = {
+            multiplier: settled.target_multiplier ?? settled.result_multiplier ?? 0,
+            barriers: barriersPassed,
+          };
+        }
       }
     }
     setServerEconomy(finalEconomy);
@@ -517,6 +532,7 @@ const Index = () => {
     setLastProgression(result);
 
     setScreen("over");
+    if (goalHit) setGoalPopup(goalHit);
 
     if (isDemo) {
       refreshDemoEconomy();
@@ -793,6 +809,14 @@ const Index = () => {
             current={displayNickname}
             onSave={handleSaveNick}
             onCancel={() => setShowNickDialog(false)}
+          />
+        )}
+
+        {goalPopup && (
+          <GoalReachedPopup
+            multiplier={goalPopup.multiplier}
+            barriers={goalPopup.barriers}
+            onContinue={() => setGoalPopup(null)}
           />
         )}
       </div>
