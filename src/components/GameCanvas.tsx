@@ -254,8 +254,9 @@ export const GameCanvas = ({
         aria-label="Neon Split game canvas"
       />
 
-      {/* HUD */}
-      <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between pointer-events-none">
+      {/* HUD topo */}
+      <div className="absolute top-0 left-0 right-0 p-2 flex items-start justify-between gap-2 pointer-events-none">
+        {/* Esquerda: menu + score */}
         <div className="flex items-start gap-2 pointer-events-auto">
           <button
             onPointerDown={startMenuHold}
@@ -275,25 +276,46 @@ export const GameCanvas = ({
             )}
           </button>
           <div className="flex flex-col">
-            <div className="text-2xl font-bold text-glow-cyan tabular-nums leading-none">
+            <div className="text-lg font-bold text-glow-cyan tabular-nums leading-none">
               {stats.score.toLocaleString()}
             </div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5">
               Score
             </div>
-            {stakeCredits != null && stakeCredits > 0 && (
-              <div className="text-[9px] font-bold uppercase tracking-wide text-[hsl(140_90%_58%)] mt-1 tabular-nums">
-                Entrada R$ {stakeCredits.toFixed(2)}
-              </div>
-            )}
-            {targetMultiplier != null && resultMultiplier != null && (
-              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground mt-1 tabular-nums">
-                Meta {targetMultiplier}x · resultado ×{resultMultiplier.toFixed(2)}
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Centro: GANHO ATUAL em R$ — destaque */}
+        {stake > 0 && (
+          <div
+            className="flex-1 flex flex-col items-center pointer-events-none"
+            aria-live="polite"
+          >
+            <div className="rounded-xl border border-[hsl(140_90%_45%/0.45)] bg-[hsl(140_45%_8%/0.78)] backdrop-blur px-3 py-1.5 min-w-[120px] text-center shadow-[0_0_18px_hsl(140_90%_45%/0.25)]">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
+                Ganho atual
+              </div>
+              <div
+                className={`text-2xl font-black tabular-nums leading-tight ${winColorClass}`}
+                style={{ textShadow: rawWinnings > stake ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
+              >
+                R$ {formatBRL(liveWinnings)}
+              </div>
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                ×{liveMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
+                {isCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+              </div>
+            </div>
+            {(stats.barriersPassed ?? 0) > 0 && (
+              <div className="mt-1 text-[9px] uppercase tracking-widest text-muted-foreground">
+                Fase {stats.barriersPassed}
+                {targetBarrier ? ` / ${targetBarrier}` : ""}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Direita: bolinhas + mute */}
         <div className="pointer-events-auto flex items-start gap-2">
           <div className="flex items-center gap-1">
             {stats.shieldActive && (
@@ -311,7 +333,7 @@ export const GameCanvas = ({
             )}
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-glow-magenta tabular-nums leading-none">
+            <div className="text-lg font-bold text-glow-magenta tabular-nums leading-none">
               ×{stats.alive}
             </div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5">
@@ -329,7 +351,7 @@ export const GameCanvas = ({
       </div>
 
       {import.meta.env.DEV && qaMode && (
-        <div className="absolute top-2 right-2 pointer-events-none">
+        <div className="absolute top-14 right-2 pointer-events-none">
           <span
             className={`inline-flex items-center rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${
               qaMode === "demo"
@@ -342,18 +364,24 @@ export const GameCanvas = ({
         </div>
       )}
 
-      {(stats.currentMultiplier ?? 0) > 0 && (
-        <>
-          <ClimbHUD
-            multiplier={stats.currentMultiplier ?? 0}
-            currentZone={stats.currentZone}
-            nextZoneThreshold={stats.nextZoneThreshold}
-            stake={stakeCredits}
-            barriersPassed={stats.barriersPassed}
-          />
-          <ZoneTransition zone={stats.currentZone} />
-        </>
-      )}
+      {/* Popups +R$ por barreira passada */}
+      <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
+        {floatingWins.map((w) => (
+          <div
+            key={w.id}
+            className="float-up rounded-lg border border-[hsl(140_90%_45%/0.55)] bg-[hsl(140_45%_8%/0.85)] px-3 py-1 text-center shadow-[0_0_16px_hsl(140_90%_50%/0.35)]"
+          >
+            <div className="text-base font-black tabular-nums text-[hsl(140_90%_62%)] leading-none">
+              +R$ {formatBRL(w.delta)}
+            </div>
+            <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
+              Fase {w.barrier} · Total R$ {formatBRL(w.total)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(stats.currentMultiplier ?? 0) > 0 && <ZoneTransition zone={stats.currentZone} />}
 
       {/* Countdown */}
       {isCountdown && stats.countdown != null && (
