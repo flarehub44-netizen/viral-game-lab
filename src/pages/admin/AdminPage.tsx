@@ -27,9 +27,12 @@ const AdminPage = () => {
     }
     let c = false;
     (async () => {
-      const { data, error } = await supabase.from("profiles").select("is_admin").eq("user_id", user.id).maybeSingle();
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
       if (c) return;
-      if (error || !data?.is_admin) setAllowed(false);
+      if (error || !data) setAllowed(false);
       else setAllowed(true);
       setChecking(false);
     })();
