@@ -388,7 +388,7 @@ const Index = () => {
     if (isDemo) {
       setStartingRound(true);
       try {
-        const res = startDemoRound(stake, targetMultiplier);
+        const res = startDemoRound(stake);
         if (!res.ok) {
           const err = res as { ok: false; error: string };
           if (err.error === "insufficient_balance") toast.error("Saldo insuficiente.");
@@ -475,12 +475,13 @@ const Index = () => {
         const settledDemo = settleDemoRound(settled, barriersPassed);
         finalEconomy = {
           stake: settled.stake_amount,
-          resultMultiplier: settled.result_multiplier,
+          resultMultiplier: settledDemo.multiplier,
           payout: settledDemo.payout,
           netResult: settledDemo.netResult,
-          reachedTarget: settledDemo.reachedTarget,
+          reachedTarget: settledDemo.payout > 0,
           barriersPassed,
-          targetBarrier: settled.target_barrier ?? 0,
+          targetBarrier: 0,
+          mode: "demo",
         };
       } else {
         // Pré-popular com "perdeu" enquanto aguarda servidor
@@ -492,6 +493,7 @@ const Index = () => {
           reachedTarget: false,
           barriersPassed,
           targetBarrier: settled.target_barrier ?? 0,
+          mode: "live",
         };
       }
     }
@@ -554,6 +556,7 @@ const Index = () => {
             reachedTarget: Boolean(data.reached_target),
             barriersPassed,
             targetBarrier: settled.target_barrier ?? 0,
+            mode: "live",
           });
         }
       }

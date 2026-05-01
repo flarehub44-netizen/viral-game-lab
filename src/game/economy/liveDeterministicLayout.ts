@@ -27,21 +27,11 @@ function hashSeed(s: string): number {
   return h >>> 0;
 }
 
-function gapForDifficulty(d: ZoneDifficulty, rng: () => number): number {
-  switch (d) {
-    case "easy":
-      return 0.35 + rng() * 0.1;
-    case "medium":
-      return 0.24 + rng() * 0.08;
-    case "hard":
-      return 0.16 + rng() * 0.06;
-    case "very_hard":
-      return 0.1 + rng() * 0.04;
-    default:
-      return 0.06 + rng() * 0.03;
-  }
-}
-
+/**
+ * Layout calibrado por distância ao alvo (LIVE):
+ * faz a maior parte dos jogadores morrer estatisticamente próximo
+ * ao `targetBarrier`, alimentando o RTP da tabela teórica.
+ */
 export function generateDeterministicLayout(
   layoutSeed: string,
   targetBarrier: number,
@@ -50,24 +40,34 @@ export function generateDeterministicLayout(
   const rng = mulberry32(hashSeed(layoutSeed));
   const rows: LayoutBarrier[] = [];
   for (let i = 0; i < count; i++) {
-    const d: ZoneDifficulty =
-      i < targetBarrier - 5
-        ? "easy"
-        : i < targetBarrier - 2
-          ? "medium"
-          : i < targetBarrier
-            ? "hard"
-            : i === targetBarrier
-              ? "very_hard"
-              : "extreme";
-    const gapSize = gapForDifficulty(d, rng);
+    const distanceToTarget = targetBarrier - i;
+    let gapSize: number;
+    let difficulty: ZoneDifficulty;
+
+    if (distanceToTarget > 10) {
+      gapSize = 0.35 + rng() * 0.10;
+      difficulty = "easy";
+    } else if (distanceToTarget > 5) {
+      gapSize = 0.22 + rng() * 0.10;
+      difficulty = "medium";
+    } else if (distanceToTarget > 2) {
+      gapSize = 0.15 + rng() * 0.05;
+      difficulty = "hard";
+    } else if (distanceToTarget > 0) {
+      gapSize = 0.08 + rng() * 0.04;
+      difficulty = "very_hard";
+    } else {
+      gapSize = 0.04 + rng() * 0.03;
+      difficulty = "extreme";
+    }
+
     const margin = Math.max(0, 1 - gapSize);
     rows.push({
       index: i,
-      difficulty: d,
+      difficulty,
       gapSize,
       gapPosition: rng() * margin,
-      speed: 90 + Math.min(120, i * 2.2),
+      speed: 80 + Math.min(100, i * 2.0),
     });
   }
   return rows;

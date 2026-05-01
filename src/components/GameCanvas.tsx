@@ -86,31 +86,47 @@ export const GameCanvas = ({
   const stake = stakeCredits ?? 0;
   const passedNow = stats.barriersPassed ?? 0;
 
-  // Meta de barreiras a atingir para receber o pagamento (skill puro).
-  // DEMO: usa o targetBarrier passado pelo activeRound (mesma lógica do LIVE).
+  const isDemoMode = mode === "demo";
+
+  // ---- LIVE: meta de barreiras ----
   const goalBarriers = targetBarrier ?? 0;
-  const reachedGoal = goalBarriers > 0 && passedNow >= goalBarriers;
+  const reachedGoal = !isDemoMode && goalBarriers > 0 && passedNow >= goalBarriers;
   const remainingBarriers = Math.max(0, goalBarriers - passedNow);
 
-  // Multiplicador-alvo da rodada (já sorteado pelo servidor / demoRound)
-  const roundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
+  // Multiplicador-alvo da rodada (LIVE: já sorteado pelo servidor)
+  const liveRoundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
 
-  // Pagamento garantido SE atingir meta. Antes disso, é só uma promessa.
-  const potentialPayout = Math.min(stake * roundMultiplier, MAX_ROUND_PAYOUT);
-  const isCapped = stake * roundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
+  // Pagamento garantido SE atingir meta (LIVE).
+  const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
+  const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
-  // Popup ao passar cada barreira: mostra quantas faltam para meta (ou GANHOU!)
+  // ---- DEMO: ganho proporcional em tempo real (skill puro, sem meta) ----
+  // Multiplicador = min(barriers × 0.05, 5.0) — espelha demoRound.ts
+  const DEMO_PER_BARRIER = 0.05;
+  const DEMO_CAP = 5.0;
+  const demoCurrentMultiplier = isDemoMode
+    ? Math.min(passedNow * DEMO_PER_BARRIER, DEMO_CAP)
+    : 0;
+  const demoCurrentWin = isDemoMode
+    ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
+    : 0;
+  const demoAtCap = isDemoMode && demoCurrentMultiplier >= DEMO_CAP;
+
+  // Popup ao passar cada barreira
   useEffect(() => {
     const passed = stats.barriersPassed ?? 0;
     if (passed > lastBarriersRef.current && stake > 0) {
       lastBarriersRef.current = passed;
       lastWinningsRef.current = passed;
       winIdRef.current += 1;
-      const justReached = goalBarriers > 0 && passed === goalBarriers;
+      const total = isDemoMode
+        ? Math.min(stake * Math.min(passed * DEMO_PER_BARRIER, DEMO_CAP), MAX_ROUND_PAYOUT)
+        : livePotentialPayout;
+      const justReached = !isDemoMode && goalBarriers > 0 && passed === goalBarriers;
       const item: FloatingWin = {
         id: winIdRef.current,
-        delta: justReached ? potentialPayout : 0,
-        total: potentialPayout,
+        delta: justReached ? livePotentialPayout : 0,
+        total,
         barrier: passed,
         createdAt: performance.now(),
       };
@@ -119,7 +135,7 @@ export const GameCanvas = ({
       lastBarriersRef.current = 0;
       lastWinningsRef.current = 0;
     }
-  }, [stats.barriersPassed, potentialPayout, stake, goalBarriers]);
+  }, [stats.barriersPassed, livePotentialPayout, stake, goalBarriers, isDemoMode]);
 
   // Auto-purga popups antigos
   useEffect(() => {
@@ -287,8 +303,39 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Centro: Meta de barreiras × multiplicador (skill puro: pagamento só se atingir meta) */}
-        {stake > 0 && (
+        {/* Centro: HUD principal — DEMO mostra ganho atual proporcional, LIVE mostra meta */}
+        {stake > 0 && isDemoMode && (
+          <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
+            <div
+              className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
+                demoCurrentWin > 0
+                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
+                  : "border-border bg-card/70"
+              }`}
+            >
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
+                Ganho atual
+              </div>
+              <div
+                className={`text-2xl font-black tabular-nums leading-tight ${
+                  demoCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                }`}
+                style={{ textShadow: demoCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
+              >
+                R$ {formatBRL(demoCurrentWin)}
+              </div>
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
+                {demoAtCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+              </div>
+            </div>
+            <div className="mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold text-muted-foreground">
+              Demo · cada barreira vale ×0,05
+            </div>
+          </div>
+        )}
+
+        {stake > 0 && !isDemoMode && (
           <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
             <div
               className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
@@ -306,11 +353,11 @@ export const GameCanvas = ({
                 }`}
                 style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
               >
-                {reachedGoal ? `+R$ ${formatBRL(potentialPayout)}` : `R$ ${formatBRL(potentialPayout)}`}
+                {reachedGoal ? `+R$ ${formatBRL(livePotentialPayout)}` : `R$ ${formatBRL(livePotentialPayout)}`}
               </div>
               <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                ×{roundMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
-                {isCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+                ×{liveRoundMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
+                {liveIsCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
             </div>
             {goalBarriers > 0 && (
@@ -376,10 +423,10 @@ export const GameCanvas = ({
         </div>
       )}
 
-      {/* Popups por barreira: mostra "META!" ao bater meta, ou faltantes */}
+      {/* Popups por barreira: DEMO mostra ganho corrente; LIVE mostra meta/faltantes */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
         {floatingWins.map((w) => {
-          const justReachedGoal = goalBarriers > 0 && w.barrier === goalBarriers;
+          const justReachedGoal = !isDemoMode && goalBarriers > 0 && w.barrier === goalBarriers;
           const remaining = Math.max(0, goalBarriers - w.barrier);
           return (
             <div
@@ -395,11 +442,20 @@ export const GameCanvas = ({
                   justReachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
                 }`}
               >
-                {justReachedGoal ? `META! +R$ ${formatBRL(w.total)}` : `Barreira ${w.barrier}`}
+                {isDemoMode
+                  ? `+R$ ${formatBRL(w.total)}`
+                  : justReachedGoal
+                    ? `META! +R$ ${formatBRL(w.total)}`
+                    : `Barreira ${w.barrier}`}
               </div>
-              {!justReachedGoal && goalBarriers > 0 && (
+              {!isDemoMode && !justReachedGoal && goalBarriers > 0 && (
                 <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
                   Faltam {remaining} para R$ {formatBRL(w.total)}
+                </div>
+              )}
+              {isDemoMode && (
+                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
+                  Barreira {w.barrier}
                 </div>
               )}
             </div>
