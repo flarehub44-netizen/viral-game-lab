@@ -1,63 +1,22 @@
+## Problema
 
-## Resumo
+O Edge Function `create-pix-deposit` está retornando 502 com `syncpay_cashin_failed`. O log mostra que a SyncPay respondeu HTTP 404 com uma página HTML do Next.js (painel "Sync Pay"), não com JSON da API.
 
-Aplicar 3 correções que resolvem os bugs de `age_required` no depósito PIX e saldo inicial em contas reais.
+Causa raiz: a base URL configurada em `supabase/functions/_shared/syncpay.ts` é `https://app.syncpayments.com.br`, que serve o **painel web** (front-end Next.js) e não a **API REST**. Por isso `/api/partner/v1/auth-token` cai num 404 do Next renderizado como HTML.
 
-## 1. Corrigir Edge Function `create-pix-deposit`
+A integração que está funcionando no outro projeto chama os mesmos paths (`/api/partner/v1/auth-token`, `/api/partner/v1/cash-in`) mas no host correto da API.
 
-**Causa raiz:** o código chama o RPC `get_user_pix_identity` que retorna apenas `(cpf, phone)`. Como `prof.over_18_confirmed_at` sempre vem `undefined`, a checagem `!prof.over_18_confirmed_at` é sempre verdadeira → todo usuário recebe 403 `age_required`.
+## Correção
 
-**Correção:** trocar o RPC por uma leitura direta da tabela `profiles` usando o cliente admin (service role bypassa RLS, funciona para qualquer usuário, admin ou não):
+1. Atualizar o `DEFAULT_BASE_URL` em `supabase/functions/_shared/syncpay.ts` de `https://app.syncpayments.com.br` para `https://api.syncpayments.com.br` (host de API, separado do painel).
 
-```ts
-const { data: prof, error: profErr } = await admin
-  .from("profiles")
-  .select("display_name, cpf, phone, over_18_confirmed_at, deleted_at")
-  .eq("user_id", user.id)
-  .maybeSingle();
-```
+2. A função já lê `SYNC_PAY_BASE_URL` do env como override; vamos manter esse fallback para que, se a SyncPay mudar de domínio no futuro, dê para corrigir só pelo segredo sem redeploy de código.
 
-Mantém todas as validações já existentes (`deleted_at`, `over_18_confirmed_at`, CPF, telefone).
+3. Após o deploy da função (automático), refazer um depósito PIX para validar. Se voltar a falhar com outra mensagem (ex.: 401 `invalid_credentials`), aí o problema passa a ser nos UUIDs em `SYNC_PAY_CLIENT_ID`/`SYNC_PAY_CLIENT_SECRET` e te peço para conferir no painel.
 
-## 2. Migration: saldo inicial = R$ 0 em contas reais
+## Detalhes técnicos
 
-```sql
--- Default da coluna passa a ser zero
-ALTER TABLE public.wallets ALTER COLUMN balance SET DEFAULT 0.00;
-
--- Trigger handle_new_user cria wallet com saldo 0
-CREATE OR REPLACE FUNCTION public.handle_new_user() ...
-  INSERT INTO public.wallets (user_id, balance) VALUES (NEW.id, 0.00) ...
-
--- Zerar wallets de teste que ainda não tiveram nenhum movimento
-UPDATE public.wallets
-SET balance = 0.00, updated_at = now()
-WHERE balance = 150.00
-  AND user_id NOT IN (
-    SELECT DISTINCT user_id FROM public.ledger_entries
-    WHERE kind IN ('deposit', 'payout', 'adjustment')
-  );
-```
-
-> Modo demo (localStorage) continua começando com R$ 150 — sem alteração.
-
-## 3. Mensagem `age_required` em PT-BR
-
-Adicionar em `src/lib/pixEdgeErrors.ts`:
-
-```ts
-age_required: "Confirme que você tem 18+ antes de depositar.",
-```
-
-## Arquivos afetados
-
-- `supabase/functions/create-pix-deposit/index.ts` — substitui RPC por SELECT direto.
-- Nova migration — default da `wallets.balance`, trigger `handle_new_user`, reset das 3 wallets de teste.
-- `src/lib/pixEdgeErrors.ts` — nova entrada `age_required`.
-
-## Resultado
-
-- ✅ Qualquer usuário (admin ou não) com 18+ confirmado e CPF/telefone consegue gerar o QR Code PIX.
-- ✅ Toda nova conta real começa com R$ 0,00.
-- ✅ Wallets atuais sem histórico vão para R$ 0,00.
-- ✅ Erros do PIX aparecem com mensagens claras em português.
+- Arquivo afetado: `supabase/functions/_shared/syncpay.ts` (1 linha — constante `DEFAULT_BASE_URL`).
+- Sem mudança de banco, sem novos secrets.
+- Sem mudança no fluxo do front-end ou no webhook.
+- Caso o host correto seja outro (a SyncPay tem documentação privada), a próxima tentativa retornará outro código HTTP (não mais o HTML do painel) e ajustamos para o domínio definitivo. Você também pode definir `SYNC_PAY_BASE_URL` como segredo para forçar a URL exata sem alterar código.

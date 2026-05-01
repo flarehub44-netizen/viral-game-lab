@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://app.syncpayments.com.br";
+const DEFAULT_BASE_URL = "https://api.syncpayments.com.br";
 
 export interface SyncPayAuth {
   access_token: string;
