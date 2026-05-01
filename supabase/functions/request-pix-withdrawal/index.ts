@@ -142,6 +142,23 @@ Deno.serve(async (req) => {
     return json(400, { error: "invalid_cpf_in_profile" });
   }
 
+  // B4: anti-mula. Se a chave Pix for CPF, exige que seja o CPF do titular da conta.
+  // Para outras chaves (e-mail/telefone/EVP), o `document` enviado ao SyncPay já é o do titular.
+  if (pixKeyType === "cpf") {
+    const pixCpfDigits = normalizeDigits(pixKey);
+    if (pixCpfDigits !== ownerCpfDigits) {
+      // log antifraude
+      await admin.rpc("log_fraud_signal", {
+        p_user_id: user.id,
+        p_round_id: null,
+        p_signal: "withdrawal_third_party_cpf",
+        p_score: 80,
+        p_payload: { attempted_cpf_hash: pixCpfDigits.slice(0, 3) + "***" },
+      });
+      return json(403, { error: "pix_key_cpf_mismatch_owner" });
+    }
+  }
+
   // Passo 1: reserva saldo e cria registro no banco ANTES de chamar SyncPay.
   // Evita double-spend se o banco falhar após o SyncPay ter executado.
   const { data: withdrawalId, error: wdErr } = await admin.rpc("request_pix_withdrawal", {

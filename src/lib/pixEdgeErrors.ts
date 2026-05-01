@@ -27,6 +27,9 @@ const MESSAGES: Record<string, string> = {
   invalid_phone: "Telefone inválido.",
   cpf_already_used: "Este CPF já está vinculado a outra conta.",
   not_authenticated: "Entre na sua conta para continuar.",
+  pix_key_cpf_mismatch_owner:
+    "A chave PIX (CPF) precisa ser do titular desta conta. Saques para terceiros não são permitidos.",
+  account_deleted: "Conta encerrada.",
 };
 
 export function pixEdgeErrorMessage(code: string | undefined): string {

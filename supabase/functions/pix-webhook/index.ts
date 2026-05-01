@@ -35,9 +35,9 @@ function parseIpAllowlist(): string[] {
     .filter(Boolean);
 }
 
-/** Quando a allowlist está vazia, não exige IP (usa só bearer ou outro controle). */
-function isIpAllowed(clientIp: string | null, allowlist: string[]): boolean {
-  if (allowlist.length === 0) return true;
+/** Em strict mode (produção), allowlist vazia significa REJEITAR todos os IPs. */
+function isIpAllowed(clientIp: string | null, allowlist: string[], strict: boolean): boolean {
+  if (allowlist.length === 0) return !strict;
   if (!clientIp) return false;
   return allowlist.includes(clientIp);
 }
@@ -85,7 +85,11 @@ Deno.serve(async (req) => {
   const ipAllowlist = parseIpAllowlist();
   const bearerConfigured = Boolean(Deno.env.get("SYNC_PAY_WEBHOOK_BEARER_TOKEN"));
   const hmacSecret = Deno.env.get("SYNC_PAY_WEBHOOK_HMAC_SECRET") ?? "";
-  const webhookSecurityConfigured = ipAllowlist.length > 0 || bearerConfigured || Boolean(hmacSecret);
+  // Strict mode: produção exige IP allowlist OU bearer token (HMAC sozinho não basta).
+  // Defina SYNC_PAY_WEBHOOK_STRICT=true em produção.
+  const strictMode = (Deno.env.get("SYNC_PAY_WEBHOOK_STRICT") ?? "").toLowerCase() === "true";
+  const networkSecurityConfigured = ipAllowlist.length > 0 || bearerConfigured;
+  const webhookSecurityConfigured = networkSecurityConfigured || Boolean(hmacSecret);
 
   if (!webhookSecurityConfigured) {
     return json(503, {
@@ -95,7 +99,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!isIpAllowed(clientIp, ipAllowlist)) {
+  if (strictMode && !networkSecurityConfigured) {
+    return json(503, {
+      error: "webhook_strict_requires_network_control",
+      hint:
+        "Em modo strict (produção), defina SYNC_PAY_WEBHOOK_IP_ALLOWLIST ou SYNC_PAY_WEBHOOK_BEARER_TOKEN. HMAC sozinho não é suficiente.",
+    });
+  }
+
+  if (!isIpAllowed(clientIp, ipAllowlist, strictMode)) {
     return json(401, { error: "ip_not_allowed" });
   }
 
