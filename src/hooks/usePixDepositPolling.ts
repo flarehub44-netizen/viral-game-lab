@@ -3,6 +3,12 @@ import { supabase } from "@/lib/supabaseExternal";
 
 export type PixDepositStatus = "pending" | "confirmed" | "failed" | "expired";
 
+/**
+ * Faz polling do status de um depósito PIX.
+ * - A cada `intervalMs` lê a linha em `pix_deposits`.
+ * - A cada ~9s força uma reconciliação no servidor (consulta SyncPay direto)
+ *   para o caso de o webhook não chegar.
+ */
 export function usePixDepositPolling(depositId: string | null, intervalMs = 3000) {
   const [status, setStatus] = useState<PixDepositStatus | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -26,6 +32,17 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
     const tick = async () => {
       if (stopped.current) return;
       tickCountRef.current += 1;
+
+      // A cada 3 ticks (~9s), força reconciliação contra o provedor.
+      if (tickCountRef.current % 3 === 0) {
+        try {
+          await supabase.functions.invoke("reconcile-pix-deposit", {
+            body: { deposit_id: depositId },
+          });
+        } catch {
+          /* silencioso: reconciliação é best-effort */
+        }
+      }
 
       const { data, error } = await supabase
         .from("pix_deposits")
