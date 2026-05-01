@@ -1,26 +1,31 @@
+## Diagnóstico (confirmado pelo session replay)
+
+Quando a última bolinha morre, o `tap` (pointerdown→click) com que o usuário derrubou a bolinha viaja na fila do navegador e cai no `GameOverScreen` que monta no mesmo lugar. O botão "Jogar de novo" ocupa quase toda a largura — recebe o click e dispara `handleRetry → openRoundSetup`, levando direto para "Iniciar partida". O GameOverScreen pisca por ~50ms (visível na barra de XP animando 11% → 67% no replay) e some.
+
 ## Correção
 
-Erro anterior: zerei `stakeCredits` no DEMO, então o bloco "Ganho atual em R$" sumiu do HUD do DEMO. As zonas devem sumir, mas o ganho financeiro (DEMO usa créditos fictícios; LIVE usa R$ real) deve continuar visível em ambos.
+Travar a interação com o GameOverScreen por 700ms após montagem para "consumir" o tap residual.
 
-## Mudanças
+**`src/components/GameOverScreen.tsx`**:
 
-**`src/pages/Index.tsx`** — passar sempre o stake para o GameCanvas (também no DEMO):
+1. Adicionar estado `armed`:
 ```tsx
-stakeCredits={activeRound.stake_amount}  // sem ternário isDemo
+const [armed, setArmed] = useState(false);
+useEffect(() => {
+  const t = window.setTimeout(() => setArmed(true), 700);
+  return () => window.clearTimeout(t);
+}, []);
 ```
-`targetMultiplier` e `resultMultiplier` continuam só no LIVE (no DEMO o multiplicador é skill puro = barreiras × 0.05).
 
-**`src/components/GameCanvas.tsx`** — unificar o HUD central: quando `stake > 0`, sempre mostrar o card "Ganho atual R$ X,XX · ×N · Entrada R$ Y · Barreiras: N", para DEMO e LIVE. Diferenças:
-- Label: `"Ganho (demo)"` no DEMO, `"Ganho atual"` ou `"Potencial"` no LIVE.
-- O `liveMultiplier` no DEMO já é calculado localmente como `min(passedNow * 0.05, 5)` (mantém a regra skill-based).
-- Sem mais ramificação `isDemoMode ? ... : stake > 0 ? ...` — vira um único bloco.
+2. Envolver os botões em um wrapper que ignora cliques enquanto `!armed`:
+```tsx
+<div className={armed ? "" : "pointer-events-none opacity-70"}>
+  ... botões ...
+</div>
+```
 
-Resultado:
-- DEMO HUD: `Ganho (demo) R$ 1,20 · ×1.20 · Entrada R$ 1,00 · Barreiras: 24`
-- LIVE HUD: `Ganho atual R$ 1,45 · ×1.45 · Entrada R$ 1,00 · Barreiras: 18`
-- Sem nenhuma menção a Zona/Fase em ambos.
+Isso resolve o problema sem mudar o engine, o Index.tsx, ou a lógica de save/economy. O GameOverScreen permanece visível normalmente; apenas os botões ficam clicáveis após 700ms.
 
 ## Arquivos modificados
 
-- `src/pages/Index.tsx` (1 linha)
-- `src/components/GameCanvas.tsx` (consolidar bloco central)
+- `src/components/GameOverScreen.tsx`
