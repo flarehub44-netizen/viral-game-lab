@@ -5,7 +5,7 @@ import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
-import { ZoneTransition } from "./ZoneTransition";
+
 
 interface FloatingWin {
   id: number;
@@ -85,24 +85,30 @@ export const GameCanvas = ({
 
   const stake = stakeCredits ?? 0;
   const passedNow = stats.barriersPassed ?? 0;
-  const engineMult = stats.currentMultiplier ?? 0;
+  const isDemoMode = mode === "demo";
 
-  // Fallback de multiplicador (sem mexer no engine):
-  // A) engine real (rodadas vencedoras com finalMultiplier > 0)
-  // B) interpolação do resultado real (caso engine ainda não tenha emitido)
-  // C) preview otimista baseado no targetMultiplier (rodadas perdedoras: result=0)
-  const progress =
-    targetBarrier && targetBarrier > 0 ? Math.min(1, passedNow / targetBarrier) : 0;
-  const fallbackMult =
-    progress > 0 && resultMultiplier != null && resultMultiplier > 0
-      ? progress * resultMultiplier
-      : 0;
-  const previewMult =
-    engineMult === 0 && fallbackMult === 0 && progress > 0 && targetMultiplier
-      ? progress * targetMultiplier
-      : 0;
-  const isPreview = engineMult === 0 && fallbackMult === 0 && previewMult > 0;
-  const liveMultiplier = engineMult > 0 ? engineMult : fallbackMult > 0 ? fallbackMult : previewMult;
+  // DEMO: multiplicador puramente skill-based — barreiras × 0.05, cap ×5.
+  // LIVE: usa engine; com fallback de interpolação durante o climb.
+  const engineMult = stats.currentMultiplier ?? 0;
+  let liveMultiplier: number;
+  let isPreview = false;
+  if (isDemoMode) {
+    liveMultiplier = Math.min(passedNow * 0.05, 5);
+  } else {
+    const progress =
+      targetBarrier && targetBarrier > 0 ? Math.min(1, passedNow / targetBarrier) : 0;
+    const fallbackMult =
+      progress > 0 && resultMultiplier != null && resultMultiplier > 0
+        ? progress * resultMultiplier
+        : 0;
+    const previewMult =
+      engineMult === 0 && fallbackMult === 0 && progress > 0 && targetMultiplier
+        ? progress * targetMultiplier
+        : 0;
+    isPreview = engineMult === 0 && fallbackMult === 0 && previewMult > 0;
+    liveMultiplier = engineMult > 0 ? engineMult : fallbackMult > 0 ? fallbackMult : previewMult;
+  }
+
   const rawWinnings = stake * liveMultiplier;
   const liveWinnings = Math.min(rawWinnings, MAX_ROUND_PAYOUT);
   const winColorClass = isPreview
@@ -113,10 +119,6 @@ export const GameCanvas = ({
         ? "text-[hsl(45_90%_60%)]"
         : "text-foreground";
   const isCapped = rawWinnings >= MAX_ROUND_PAYOUT && stake > 0;
-  const phaseDisplay =
-    targetBarrier && targetBarrier > 0
-      ? `${Math.min(passedNow, targetBarrier)} / ${targetBarrier}`
-      : String(passedNow);
 
   // Detecta barreira passada e empurra popup +R$
   useEffect(() => {
