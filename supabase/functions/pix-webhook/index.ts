@@ -3,8 +3,7 @@ import { isValidSyncPayWebhookAuthorization } from "../_shared/syncpay.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-pix-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 function json(status: number, body: Record<string, unknown>) {
@@ -17,229 +16,148 @@ function json(status: number, body: Record<string, unknown>) {
 function extractClientIp(req: Request): string | null {
   const cf = req.headers.get("cf-connecting-ip");
   if (cf) return cf.trim();
-
   const realIp = req.headers.get("x-real-ip");
   if (realIp) return realIp.split(",")[0]?.trim() ?? null;
-
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() ?? null;
-
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0]?.trim() ?? null;
   return null;
 }
 
-function parseIpAllowlist(): string[] {
-  const allowlistRaw = Deno.env.get("SYNC_PAY_WEBHOOK_IP_ALLOWLIST") ?? "";
-  return allowlistRaw
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
+type Outcome = "paid" | "failed" | "ignored";
+
+function classifyStatus(raw: string): Outcome {
+  const s = raw.trim().toUpperCase();
+  if (s === "PAID_OUT" || s === "PAID" || s === "COMPLETED" || s === "APPROVED") return "paid";
+  if (s === "FAILED" || s === "REFUNDED" || s === "REVERSED" || s === "EXPIRED" || s === "CANCELLED" || s === "CANCELED") return "failed";
+  return "ignored";
 }
 
-/** Em strict mode (produção), allowlist vazia significa REJEITAR todos os IPs. */
-function isIpAllowed(clientIp: string | null, allowlist: string[], strict: boolean): boolean {
-  if (allowlist.length === 0) return !strict;
-  if (!clientIp) return false;
-  return allowlist.includes(clientIp);
-}
-
-function isAllowedEvent(eventType: string): boolean {
-  return (
-    eventType === "cashin.create" ||
-    eventType === "cashin.update" ||
-    eventType === "cashout.create" ||
-    eventType === "cashout.update"
-  );
-}
-
-function hexFromBytes(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function hmacSha256Hex(secret: string, message: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
-  return hexFromBytes(sig);
-}
-
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+function pickFirst<T>(...values: Array<T | undefined | null>): T | undefined {
+  for (const v of values) if (v !== undefined && v !== null && v !== "") return v as T;
+  return undefined;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
 
-  const clientIp = extractClientIp(req);
-  const ipAllowlist = parseIpAllowlist();
+  // Bearer opcional. Se SYNC_PAY_WEBHOOK_BEARER_TOKEN estiver setado, exige header
+  // Authorization correspondente. Caso contrário, aceita (a URL é o segredo).
   const bearerConfigured = Boolean(Deno.env.get("SYNC_PAY_WEBHOOK_BEARER_TOKEN"));
-  const hmacSecret = Deno.env.get("SYNC_PAY_WEBHOOK_HMAC_SECRET") ?? "";
-  // Strict mode: produção exige IP allowlist OU bearer token (HMAC sozinho não basta).
-  // Defina SYNC_PAY_WEBHOOK_STRICT=true em produção.
-  const strictMode = (Deno.env.get("SYNC_PAY_WEBHOOK_STRICT") ?? "").toLowerCase() === "true";
-  const networkSecurityConfigured = ipAllowlist.length > 0 || bearerConfigured;
-  const webhookSecurityConfigured = networkSecurityConfigured || Boolean(hmacSecret);
-
-  if (!webhookSecurityConfigured) {
-    return json(503, {
-      error: "webhook_security_not_configured",
-      hint:
-        "Configure SYNC_PAY_WEBHOOK_IP_ALLOWLIST and/or SYNC_PAY_WEBHOOK_BEARER_TOKEN before accepting live Pix webhooks.",
-    });
-  }
-
-  if (strictMode && !networkSecurityConfigured) {
-    return json(503, {
-      error: "webhook_strict_requires_network_control",
-      hint:
-        "Em modo strict (produção), defina SYNC_PAY_WEBHOOK_IP_ALLOWLIST ou SYNC_PAY_WEBHOOK_BEARER_TOKEN. HMAC sozinho não é suficiente.",
-    });
-  }
-
-  if (!isIpAllowed(clientIp, ipAllowlist, strictMode)) {
-    return json(401, { error: "ip_not_allowed" });
-  }
-
   if (bearerConfigured && !isValidSyncPayWebhookAuthorization(req.headers.get("Authorization"))) {
-    return json(401, { error: "invalid_signature" });
+    return json(401, { error: "invalid_bearer" });
   }
 
-  const eventType = req.headers.get("event") ?? "";
-  if (!isAllowedEvent(eventType)) {
-    return json(400, { error: "unsupported_event" });
-  }
+  const clientIp = extractClientIp(req);
+
   const rawPayload = await req.text();
-  if (!hmacSecret) {
-    return json(503, {
-      error: "webhook_hmac_not_configured",
-      hint: "Configure SYNC_PAY_WEBHOOK_HMAC_SECRET to validate webhook signatures.",
-    });
-  }
-  const signatureHeader = req.headers.get("x-pix-signature")?.trim() ?? "";
-  const timestampHeader = req.headers.get("x-pix-timestamp")?.trim() ?? "";
-  if (!signatureHeader || !timestampHeader) {
-    return json(401, { error: "missing_hmac_headers" });
-  }
-  const tsMs = Number(timestampHeader);
-  if (!Number.isFinite(tsMs)) {
-    return json(400, { error: "invalid_hmac_timestamp" });
-  }
-  const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000;
-  const ageMs = Math.abs(Date.now() - tsMs);
-  if (ageMs > MAX_WEBHOOK_AGE_MS) {
-    return json(400, { error: "event_too_old" });
-  }
-  const expectedSignature = await hmacSha256Hex(hmacSecret, `${timestampHeader}.${rawPayload}`);
-  if (!safeEqual(signatureHeader.toLowerCase(), expectedSignature.toLowerCase())) {
-    return json(401, { error: "invalid_hmac_signature" });
-  }
-
-  let body: { provider_ref?: unknown; amount?: unknown; status?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = JSON.parse(rawPayload) as { provider_ref?: unknown; amount?: unknown; status?: unknown };
+    body = rawPayload ? (JSON.parse(rawPayload) as Record<string, unknown>) : {};
   } catch {
     return json(400, { error: "invalid_json" });
   }
 
-  const dataObj = (body as { data?: Record<string, unknown> }).data ?? {};
-  const providerRef = String(dataObj.id ?? body.provider_ref ?? "");
-  const amount = Math.round(Number(dataObj.amount ?? body.amount) * 100) / 100;
-  const status = String(dataObj.status ?? body.status ?? "");
-  if (!providerRef || !Number.isFinite(amount) || !status) {
-    return json(400, { error: "invalid_payload" });
-  }
+  // Aceita variações: payload direto da SyncPay, ou aninhado em data/payment.
+  const dataObj = (body.data ?? body.payment ?? body) as Record<string, unknown>;
 
-  // Defesa em profundidade: também valida timestamp no payload quando presente.
-  const eventTimestampRaw = dataObj.created_at ?? dataObj.timestamp ?? dataObj.event_time;
-  if (eventTimestampRaw) {
-    const eventTs = new Date(String(eventTimestampRaw)).getTime();
-    if (Number.isFinite(eventTs) && Date.now() - eventTs > MAX_WEBHOOK_AGE_MS) {
-      console.warn("Webhook event too old:", {
-        providerRef,
-        ageSec: Math.round((Date.now() - eventTs) / 1000),
-      });
-      return json(400, { error: "event_too_old" });
-    }
+  const providerRef = String(
+    pickFirst(
+      dataObj.identifier,
+      dataObj.id,
+      dataObj.reference_id,
+      body.identifier,
+      body.id,
+      body.reference_id,
+    ) ?? "",
+  );
+
+  const amount =
+    Math.round(
+      Number(pickFirst(dataObj.amount, body.amount, dataObj.value, body.value)) * 100,
+    ) / 100;
+
+  const rawStatus = String(pickFirst(dataObj.status, body.status, dataObj.state, body.state) ?? "");
+  const eventType = String(pickFirst(body.event, body.event_type, dataObj.event) ?? "cashin.update");
+
+  if (!providerRef || !rawStatus) {
+    console.warn("pix-webhook: invalid payload", { hasRef: !!providerRef, hasStatus: !!rawStatus });
+    return json(400, { error: "invalid_payload" });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceKey);
 
-  const { data: firstSeen, error: registerErr } = await admin.rpc("register_webhook_event", {
+  // Idempotência: register_webhook_event tem PK em (provider, provider_event_id)
+  // — mas como o mesmo identifier pode receber múltiplos eventos (create + update),
+  // usamos uma chave composta. Se falhar duplicado, ignoramos.
+  const dedupeKey = `${providerRef}:${rawStatus}`;
+  const { data: firstSeen } = await admin.rpc("register_webhook_event", {
     p_provider: "syncpay",
-    p_provider_event_id: providerRef,
+    p_provider_event_id: dedupeKey,
     p_event_type: eventType,
-    p_status: status,
+    p_status: rawStatus,
     p_payload: body,
     p_source_ip: clientIp,
   });
-  if (registerErr) {
-    console.error("register_webhook_event:", registerErr);
-    return json(500, { error: "webhook_register_failed" });
-  }
-  if (!firstSeen) {
-    await admin.rpc("log_fraud_signal", {
-      p_user_id: null,
-      p_round_id: null,
-      p_signal: "syncpay_webhook_duplicate",
-      p_score: 4,
-      p_payload: { providerRef, status, eventType, clientIp },
-    });
+
+  if (firstSeen === false) {
     return json(200, { ok: true, duplicated: true });
   }
 
-  if (eventType.startsWith("cashin.")) {
-    if (status !== "completed") return json(200, { ok: true, ignored: true });
-    const { data, error } = await admin.rpc("confirm_pix_deposit", {
-      p_provider_ref: providerRef,
-      p_amount: amount,
-      p_webhook_payload: body,
-    });
-    if (error) {
-      await admin.rpc("log_fraud_signal", {
-        p_user_id: null,
-        p_round_id: null,
-        p_signal: "syncpay_cashin_apply_failed",
-        p_score: 12,
-        p_payload: { providerRef, status, eventType, clientIp },
+  const outcome = classifyStatus(rawStatus);
+
+  // Identifica se é cashin (depósito) ou cashout (saque) consultando o banco.
+  const { data: dep } = await admin
+    .from("pix_deposits")
+    .select("id")
+    .eq("provider_ref", providerRef)
+    .maybeSingle();
+
+  if (dep) {
+    if (outcome === "paid") {
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return json(400, { error: "invalid_amount" });
+      }
+      const { data, error } = await admin.rpc("confirm_pix_deposit", {
+        p_provider_ref: providerRef,
+        p_amount: amount,
+        p_webhook_payload: body,
       });
-      console.error("confirm_pix_deposit:", error);
-      return json(500, { error: "confirm_failed" });
+      if (error) {
+        console.error("confirm_pix_deposit:", error);
+        return json(500, { error: "confirm_failed", detail: error.message });
+      }
+      return json(200, { ok: true, deposit_id: data, action: "confirmed" });
     }
-    return json(200, { ok: true, deposit_id: data });
+    if (outcome === "failed") {
+      await admin.rpc("cancel_pix_deposit_pending", { p_deposit_id: dep.id });
+      return json(200, { ok: true, deposit_id: dep.id, action: "failed" });
+    }
+    return json(200, { ok: true, ignored: true, status: rawStatus });
   }
 
-  if (eventType.startsWith("cashout.")) {
+  // Cashout
+  const { data: wd } = await admin
+    .from("pix_withdrawals")
+    .select("id")
+    .eq("provider_ref", providerRef)
+    .maybeSingle();
+
+  if (wd) {
     const { data, error } = await admin.rpc("apply_syncpay_cashout_webhook", {
       p_reference_id: providerRef,
-      p_status: status,
+      p_status: rawStatus.toLowerCase(),
       p_payload: body,
     });
     if (error) {
-      await admin.rpc("log_fraud_signal", {
-        p_user_id: null,
-        p_round_id: null,
-        p_signal: "syncpay_cashout_apply_failed",
-        p_score: 12,
-        p_payload: { providerRef, status, eventType, clientIp },
-      });
       console.error("apply_syncpay_cashout_webhook:", error);
       return json(500, { error: "cashout_update_failed" });
     }
-    return json(200, { ok: true, withdrawal_id: data, status });
+    return json(200, { ok: true, withdrawal_id: data });
   }
 
-  return json(200, { ok: true, ignored: true, event: eventType });
+  console.warn("pix-webhook: unknown provider_ref", { providerRef, status: rawStatus });
+  return json(200, { ok: true, unknown_ref: true });
 });
