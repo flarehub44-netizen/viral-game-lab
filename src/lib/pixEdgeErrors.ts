@@ -30,6 +30,7 @@ const MESSAGES: Record<string, string> = {
   pix_key_cpf_mismatch_owner:
     "A chave PIX (CPF) precisa ser do titular desta conta. Saques para terceiros não são permitidos.",
   account_deleted: "Conta encerrada.",
+  age_required: "Confirme que você tem 18 anos ou mais antes de depositar.",
 };
 
 export function pixEdgeErrorMessage(code: string | undefined): string {

@@ -1,59 +1,63 @@
-# Multiplicador como BASE no Demo
 
-## Regra de pagamento (Demo)
+## Resumo
 
+Aplicar 3 correções que resolvem os bugs de `age_required` no depósito PIX e saldo inicial em contas reais.
+
+## 1. Corrigir Edge Function `create-pix-deposit`
+
+**Causa raiz:** o código chama o RPC `get_user_pix_identity` que retorna apenas `(cpf, phone)`. Como `prof.over_18_confirmed_at` sempre vem `undefined`, a checagem `!prof.over_18_confirmed_at` é sempre verdadeira → todo usuário recebe 403 `age_required`.
+
+**Correção:** trocar o RPC por uma leitura direta da tabela `profiles` usando o cliente admin (service role bypassa RLS, funciona para qualquer usuário, admin ou não):
+
+```ts
+const { data: prof, error: profErr } = await admin
+  .from("profiles")
+  .select("display_name, cpf, phone, over_18_confirmed_at, deleted_at")
+  .eq("user_id", user.id)
+  .maybeSingle();
 ```
-ganho = entrada × 0,05 × base × barreiras
-multiplicador atual = 0,05 × base × barreiras
+
+Mantém todas as validações já existentes (`deleted_at`, `over_18_confirmed_at`, CPF, telefone).
+
+## 2. Migration: saldo inicial = R$ 0 em contas reais
+
+```sql
+-- Default da coluna passa a ser zero
+ALTER TABLE public.wallets ALTER COLUMN balance SET DEFAULT 0.00;
+
+-- Trigger handle_new_user cria wallet com saldo 0
+CREATE OR REPLACE FUNCTION public.handle_new_user() ...
+  INSERT INTO public.wallets (user_id, balance) VALUES (NEW.id, 0.00) ...
+
+-- Zerar wallets de teste que ainda não tiveram nenhum movimento
+UPDATE public.wallets
+SET balance = 0.00, updated_at = now()
+WHERE balance = 150.00
+  AND user_id NOT IN (
+    SELECT DISTINCT user_id FROM public.ledger_entries
+    WHERE kind IN ('deposit', 'payout', 'adjustment')
+  );
 ```
 
-A "meta" é atingida exatamente em **20 barreiras** (= ×base). Após 20 barreiras o ganho continua crescendo linearmente, sem teto próprio — apenas o limite global de segurança `MAX_ROUND_PAYOUT = R$ 400` permanece como guarda-chuva.
+> Modo demo (localStorage) continua começando com R$ 150 — sem alteração.
 
-### Exemplos
+## 3. Mensagem `age_required` em PT-BR
 
-| Base | Entrada | 5 barreiras | 10 barreiras | 20 barreiras (META) | 30 barreiras |
-|---|---|---|---|---|---|
-| ×2  | R$ 1 | R$ 0,50 | R$ 1,00 | R$ 2,00 | R$ 3,00 |
-| ×5  | R$ 1 | R$ 1,25 | R$ 2,50 | R$ 5,00 | R$ 7,50 |
-| ×10 | R$ 1 | R$ 2,50 | R$ 5,00 | R$ 10,00 | R$ 15,00 |
-| ×20 | R$ 1 | R$ 5,00 | R$ 10,00 | R$ 20,00 | R$ 30,00 |
+Adicionar em `src/lib/pixEdgeErrors.ts`:
 
-## O que muda
+```ts
+age_required: "Confirme que você tem 18+ antes de depositar.",
+```
 
-### 1. `src/game/economy/demoRound.ts`
-- Aceitar `base: number` (multiplicador escolhido) na função de início de rodada.
-- Substituir a constante `DEMO_CAP = 5.0` pela fórmula: `multiplier = 0.05 * base * barriers`.
-- Manter `MAX_ROUND_PAYOUT` (R$ 400) como guarda global; sem teto por base.
-- Persistir `base` no objeto da rodada ativa para o GameCanvas/HUD lerem.
+## Arquivos afetados
 
-### 2. `src/components/economy/RoundSetupScreen.tsx`
-- Reintroduzir o seletor de multiplicador (chips) **também no Demo**, opções: **2x / 5x / 10x / 20x** (default 5x).
-- Cards de stats:
-  - "Base" → mostra `×{base},00` e o ganho correspondente em 20 barreiras (`entrada × base`).
-  - "Por barreira" → `entrada × 0,05 × base` (ex.: base ×10, R$1 → R$ 0,50).
-- Texto explicativo: "Cada barreira vale entrada × 0,05 × base. Você atinge a meta em 20 barreiras, mas pode continuar lucrando depois."
+- `supabase/functions/create-pix-deposit/index.ts` — substitui RPC por SELECT direto.
+- Nova migration — default da `wallets.balance`, trigger `handle_new_user`, reset das 3 wallets de teste.
+- `src/lib/pixEdgeErrors.ts` — nova entrada `age_required`.
 
-### 3. `src/components/GameCanvas.tsx` (HUD do Demo)
-- Receber `base` da rodada ativa.
-- Calcular ao vivo: `currentMultiplier = 0.05 * base * barriersCrossed`.
-- Barra de progresso: `min(barriersCrossed / 20, 1) * 100` — chega a 100% em 20 barreiras (meta atingida).
-- Após 20 barreiras: barra fica destacada (verde/glow) com badge "META ✓" e o multiplicador continua subindo no rótulo.
-- Rótulo: `base ×{base},00 · ×{0.05*base} por barreira`.
+## Resultado
 
-### 4. `src/pages/Index.tsx`
-- Passar o `base` selecionado pelo `RoundSetupScreen` para `startDemoRound({ stake, base })`.
-- Mesmo fluxo do Live (que já passa multiplicador) — só que sem chamar Edge Function.
-
-### 5. `src/test/demoRound.test.ts`
-- Atualizar testes para a nova fórmula com `base` parametrizada.
-- Casos: base 2/5/10/20 × barreiras 0/5/10/20/30 conferindo a tabela acima.
-- Verificar que `MAX_ROUND_PAYOUT` ainda corta ganhos absurdos.
-
-## Não muda
-- Modo **Live**: continua usando a tabela RTP 85,7% e Edge Function `start-round`. Nada da economia online é tocado.
-- Carteira demo (`walletStore`): mesma lógica de débito/crédito.
-- Engine de jogo: nenhuma alteração na física/renderização.
-
-## Riscos / observações
-- Sem teto por base, uma rodada base ×20 com 100 barreiras pagaria R$ 100. O `MAX_ROUND_PAYOUT = R$ 400` é a única trava — confirmar que essa trava é aplicada no settlement do demo (será verificada na implementação).
-- A "meta" deixa de ser um corte e passa a ser um marco visual.
+- ✅ Qualquer usuário (admin ou não) com 18+ confirmado e CPF/telefone consegue gerar o QR Code PIX.
+- ✅ Toda nova conta real começa com R$ 0,00.
+- ✅ Wallets atuais sem histórico vão para R$ 0,00.
+- ✅ Erros do PIX aparecem com mensagens claras em português.
