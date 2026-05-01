@@ -40,6 +40,13 @@ export const GameOverScreen = ({
 }: Props) => {
   // Animate XP bar from before -> after
   const [animXp, setAnimXp] = useState(progression?.xpBefore ?? 0);
+  // Trava: ignora cliques nos botões por 700ms para evitar tap residual
+  // que matou a última bolinha (caso contrário, o usuário pula direto para "Iniciar partida").
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setArmed(true), 700);
+    return () => window.clearTimeout(t);
+  }, []);
   useEffect(() => {
     if (!progression) return;
     setAnimXp(progression.xpBefore);
@@ -285,7 +292,7 @@ export const GameOverScreen = ({
 
       <div className="flex-1 min-h-4" />
 
-      <div className="w-full max-w-xs md:max-w-md mx-auto flex flex-col gap-3 mt-4">
+      <div className={`w-full max-w-xs md:max-w-md mx-auto flex flex-col gap-3 mt-4 transition-opacity ${armed ? "" : "pointer-events-none opacity-60"}`}>
         <button
           onClick={onRetry}
           className="btn-neon w-full py-4 text-lg font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2"
