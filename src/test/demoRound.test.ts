@@ -77,7 +77,7 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     const res = startDemoRound(5, 7);
     expect(res.ok).toBe(false);
     if (res.ok) return;
-    expect(res.error).toBe("invalid_base");
+    expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
   it("settleDemoRound credita pagamento proporcional × base ×10", () => {
