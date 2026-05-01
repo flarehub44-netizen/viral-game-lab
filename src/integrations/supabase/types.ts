@@ -46,7 +46,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      confirm_age_18: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
