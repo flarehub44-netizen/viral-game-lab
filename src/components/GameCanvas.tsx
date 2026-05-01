@@ -87,38 +87,18 @@ export const GameCanvas = ({
   const passedNow = stats.barriersPassed ?? 0;
   const isDemoMode = mode === "demo";
 
-  // DEMO: multiplicador puramente skill-based — barreiras × 0.05, cap ×5.
-  // LIVE: usa engine; com fallback de interpolação durante o climb.
-  const engineMult = stats.currentMultiplier ?? 0;
-  let liveMultiplier: number;
-  let isPreview = false;
-  if (isDemoMode) {
-    liveMultiplier = Math.min(passedNow * 0.05, 5);
-  } else {
-    const progress =
-      targetBarrier && targetBarrier > 0 ? Math.min(1, passedNow / targetBarrier) : 0;
-    const fallbackMult =
-      progress > 0 && resultMultiplier != null && resultMultiplier > 0
-        ? progress * resultMultiplier
-        : 0;
-    const previewMult =
-      engineMult === 0 && fallbackMult === 0 && progress > 0 && targetMultiplier
-        ? progress * targetMultiplier
-        : 0;
-    isPreview = engineMult === 0 && fallbackMult === 0 && previewMult > 0;
-    liveMultiplier = engineMult > 0 ? engineMult : fallbackMult > 0 ? fallbackMult : previewMult;
-  }
+  // Meta de barreiras a atingir para receber o pagamento (skill puro).
+  // DEMO: usa o targetBarrier passado pelo activeRound (mesma lógica do LIVE).
+  const goalBarriers = targetBarrier ?? 0;
+  const reachedGoal = goalBarriers > 0 && passedNow >= goalBarriers;
+  const remainingBarriers = Math.max(0, goalBarriers - passedNow);
 
-  const rawWinnings = stake * liveMultiplier;
-  const liveWinnings = Math.min(rawWinnings, MAX_ROUND_PAYOUT);
-  const winColorClass = isPreview
-    ? "text-muted-foreground"
-    : rawWinnings > stake
-      ? "text-[hsl(140_90%_58%)]"
-      : rawWinnings > 0 && rawWinnings < stake
-        ? "text-[hsl(45_90%_60%)]"
-        : "text-foreground";
-  const isCapped = rawWinnings >= MAX_ROUND_PAYOUT && stake > 0;
+  // Multiplicador-alvo da rodada (já sorteado pelo servidor / demoRound)
+  const roundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
+
+  // Pagamento garantido SE atingir meta. Antes disso, é só uma promessa.
+  const potentialPayout = Math.min(stake * roundMultiplier, MAX_ROUND_PAYOUT);
+  const isCapped = stake * roundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
   // Detecta barreira passada e empurra popup +R$
   useEffect(() => {
