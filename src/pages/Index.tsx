@@ -655,7 +655,7 @@ const Index = () => {
   if (!isOnline && !isDemo) {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
-        <div className="relative w-full h-full neon-app-column">
+        <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
           <AuthScreen onPlayDemo={enterDemo} />
         </div>
       </main>
@@ -673,7 +673,7 @@ const Index = () => {
   if (isOnline && profile && !profile.over_18_confirmed_at) {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
-        <div className="relative w-full h-full neon-app-column">
+        <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
           <AgeGateScreen onConfirmed={() => void reloadProfile()} />
         </div>
       </main>
@@ -687,7 +687,7 @@ const Index = () => {
       className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop"
       style={{ touchAction: "manipulation" }}
     >
-      <div className="relative w-full h-full neon-app-column">
+      <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
         {screen === "lobby" && (
           <LobbyScreen
             walletBalance={walletBalance}
