@@ -4,8 +4,26 @@ import type { RoundScript } from "@/game/economy/multiplierTable";
 import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
-import { ClimbHUD } from "./ClimbHUD";
+import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
 import { ZoneTransition } from "./ZoneTransition";
+
+interface FloatingWin {
+  id: number;
+  delta: number;
+  total: number;
+  barrier: number;
+  createdAt: number;
+}
+
+const WIN_POPUP_TTL_MS = 1500;
+const MAX_FLOATING_WINS = 6;
+
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 interface Props {
   onGameOver: (stats: PublicGameStats, summary: RoundSummaryOut) => void;
