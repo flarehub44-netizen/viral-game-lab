@@ -381,6 +381,9 @@ export class GameEngine {
   }
 
   private spawnBarrier() {
+    // Cor única (verde neon) para todas as barreiras — nada de cor por zona.
+    const NEON_HUE = 140;
+
     if (this.mode === "live" && this.layoutPlan && this.layoutCursor < this.layoutPlan.length) {
       const row = this.layoutPlan[this.layoutCursor++];
       const start = Math.max(0.01, Math.min(0.95, row.gapPosition));
@@ -389,35 +392,42 @@ export class GameEngine {
         y: this.height + 20,
         height: 18,
         gaps: [{ start, end }],
-        hue: HUES[row.index % HUES.length],
+        hue: NEON_HUE,
         passed: false,
         speed: row.speed,
       });
       return;
     }
-    const diff = this.currentDifficulty();
-    const t = this.elapsedMs / 1000;
-    // Decide variant: chance of double-gap rises after 30s
-    const doubleChance = t > 30 ? Math.min(0.25, (t - 30) / 200) : 0;
-    const isDouble = Math.random() < doubleChance;
-    const speed = 90 + diff * 80;
-    const gaps: { start: number; end: number }[] = [];
-    if (isDouble) {
-      const gw = 0.18 - diff * 0.06;
-      const left = 0.05 + Math.random() * 0.25;
-      const right = 0.55 + Math.random() * 0.25;
-      gaps.push({ start: left, end: left + gw });
-      gaps.push({ start: right, end: right + gw });
-    } else {
-      const gapWidth = 0.38 - diff * 0.20;
-      const start = Math.random() * (1 - gapWidth);
-      gaps.push({ start, end: start + gapWidth });
+
+    // DEMO skill puro: barreiras aleatórias, fáceis e generosas.
+    if (this.mode === "demo") {
+      const idx = this.barriersPassedCount + this.barriers.length;
+      const difficulty = Math.min(0.45, 0.15 + idx * 0.01);
+      // gap entre 50% (fácil) e 30% (médio)
+      const gapSize = 0.50 - (0.50 - 0.30) * (difficulty / 0.45);
+      const start = Math.max(0.01, Math.random() * (1 - gapSize));
+      const speed = Math.min(140, 60 + idx * 1.5);
+      this.barriers.push({
+        y: this.height + 20,
+        height: 18,
+        gaps: [{ start, end: start + gapSize }],
+        hue: NEON_HUE,
+        passed: false,
+        speed,
+      });
+      return;
     }
+
+    // Fallback (modo live sem layoutPlan e sem script): comportamento legado simplificado.
+    const diff = this.currentDifficulty();
+    const speed = 90 + diff * 80;
+    const gapWidth = 0.38 - diff * 0.20;
+    const start = Math.random() * (1 - gapWidth);
     this.barriers.push({
       y: this.height + 20,
       height: 18,
-      gaps,
-      hue: HUES[Math.floor(Math.random() * HUES.length)],
+      gaps: [{ start, end: start + gapWidth }],
+      hue: NEON_HUE,
       passed: false,
       speed,
     });
@@ -793,11 +803,7 @@ export class GameEngine {
     c.lineTo(this.width, this.height * 0.25);
     c.stroke();
 
-    // Multiplier zone tint
-    if (ts < this.multiplierUntilMs) {
-      c.fillStyle = "hsla(55, 100%, 60%, 0.04)";
-      c.fillRect(0, 0, this.width, this.height);
-    }
+    // (removido) tint de zona — sem variação visual de zona.
 
     // Barriers
     c.globalCompositeOperation = "source-over";

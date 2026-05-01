@@ -19,8 +19,6 @@ interface Props {
   economySource?: "demo" | "server";
   onChangeStake?: () => void;
   onOpenHistory?: () => void;
-  climbZone?: number;
-  climbMultiplier?: number;
   barriersPassed?: number;
 }
 
@@ -38,8 +36,6 @@ export const GameOverScreen = ({
   economySource = "server",
   onChangeStake,
   onOpenHistory,
-  climbZone,
-  climbMultiplier,
   barriersPassed,
 }: Props) => {
   // Animate XP bar from before -> after
@@ -134,11 +130,10 @@ export const GameOverScreen = ({
             <div className="text-lg font-bold tabular-nums">{stats.durationSeconds}s</div>
           </div>
         </div>
-        {(climbZone != null || climbMultiplier != null) && (
-          <div className="mt-3 rounded-lg border border-secondary/35 bg-secondary/10 px-3 py-2 text-xs text-secondary">
-            {climbZone != null && <div>Zona alcançada: {climbZone}</div>}
-            {climbMultiplier != null && <div className="tabular-nums">Multiplicador final visual: x{climbMultiplier.toFixed(2)}</div>}
-            {barriersPassed != null && <div>Barreiras passadas: {barriersPassed}</div>}
+        {barriersPassed != null && barriersPassed > 0 && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs tabular-nums">
+            <Flag size={12} className="text-primary" />
+            <span className="font-bold">Barreiras: {barriersPassed}</span>
           </div>
         )}
         {progression && (
