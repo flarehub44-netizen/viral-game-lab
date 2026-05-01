@@ -156,32 +156,50 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="text-4xl font-black tabular-nums text-white">R$ {fmt(bet)}</div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-              Meta máxima
+        {economySource === "server" ? (
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+                Meta máxima
+              </div>
+              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
             </div>
-            <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
-          </div>
-          <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-              / barreira (aprox.)
+            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+                / barreira (aprox.)
+              </div>
+              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perPlatform)}</div>
             </div>
-            <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perPlatform)}</div>
-          </div>
-          <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-              Barreiras aprox.
+            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+                Barreiras aprox.
+              </div>
+              <div className="text-lg font-black tabular-nums text-foreground">~{stats.platForMeta}</div>
             </div>
-            <div className="text-lg font-black tabular-nums text-foreground">~{stats.platForMeta}</div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+                Por barreira
+              </div>
+              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(bet * 0.05)}</div>
+            </div>
+            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+                Ganho máximo (×5)
+              </div>
+              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(bet * 5)}</div>
+            </div>
+          </div>
+        )}
 
         <p className="text-[11px] text-center text-muted-foreground bg-muted/40 rounded-xl px-3 py-2 border border-border">
           Saldo atual:{" "}
-          <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>. Pagamento: entrada ×
-          multiplicador sorteado ao iniciar (
-          {economySource === "server" ? "servidor" : "neste dispositivo, modo demo"}).
+          <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
+          {economySource === "server"
+            ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
+            : "Pagamento: entrada × (barreiras × 0,05), até ×5,00. Créditos demo neste dispositivo."}
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
