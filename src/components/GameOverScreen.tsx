@@ -151,7 +151,60 @@ export const GameOverScreen = ({
         )}
       </div>
 
-      {serverEconomy && (
+      {serverEconomy && serverEconomy.mode === "demo" && (
+        <div className="mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border border-[hsl(140_60%_35%/0.5)] bg-[hsl(140_25%_8%/0.45)] p-4 space-y-3">
+          <div className="text-center text-xs font-black uppercase tracking-[0.25em] text-[hsl(30_100%_60%)]">
+            Demo · sem meta
+          </div>
+          <div className="text-center text-[10px] uppercase tracking-widest text-muted-foreground tabular-nums">
+            Você passou {serverEconomy.barriersPassed} barreiras
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-center pt-1">
+            <div>
+              <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
+              <div className="text-lg font-black tabular-nums text-destructive">
+                −R$ {fmt(serverEconomy.stake)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase text-muted-foreground">Multiplicador</div>
+              <div className="text-lg font-black tabular-nums text-foreground">
+                ×{serverEconomy.resultMultiplier.toFixed(2)}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div>
+              <div className="text-[9px] uppercase text-muted-foreground">Pagamento</div>
+              <div
+                className={`text-lg font-black tabular-nums ${
+                  serverEconomy.payout > 0 ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
+                }`}
+              >
+                {serverEconomy.payout > 0 ? "+" : ""}R$ {fmt(serverEconomy.payout)}
+              </div>
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="text-[9px] uppercase text-muted-foreground">
+                {serverEconomy.netResult >= 0 ? "Lucro" : "Prejuízo"}
+              </div>
+              <div
+                className={`text-lg font-black tabular-nums ${
+                  serverEconomy.netResult >= 0 ? "text-[hsl(140_90%_62%)]" : "text-destructive"
+                }`}
+              >
+                {serverEconomy.netResult >= 0 ? "+" : ""}
+                R$ {fmt(serverEconomy.netResult)}
+              </div>
+            </div>
+          </div>
+          <p className="text-[9px] text-center text-muted-foreground leading-relaxed px-1">
+            Modo treino: cada barreira vale ×0,05 (até ×5,00). Pagamento em créditos fictícios.
+          </p>
+        </div>
+      )}
+
+      {serverEconomy && serverEconomy.mode !== "demo" && (
         <div
           className={`mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border p-4 space-y-3 ${
             serverEconomy.reachedTarget
@@ -210,9 +263,7 @@ export const GameOverScreen = ({
           </div>
           <p className="text-[9px] text-center text-muted-foreground leading-relaxed px-1">
             {serverEconomy.reachedTarget
-              ? economySource === "server"
-                ? "Você atingiu a meta de barreiras. Pagamento creditado no servidor."
-                : "Você atingiu a meta no modo demo. Pagamento creditado em créditos fictícios."
+              ? "Você atingiu a meta de barreiras. Pagamento creditado no servidor."
               : "Você precisa passar a meta de barreiras para ganhar. Sem isso, a entrada é perdida."}
           </p>
         </div>
