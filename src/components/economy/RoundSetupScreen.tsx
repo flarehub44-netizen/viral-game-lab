@@ -83,7 +83,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
               ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar — caso contrário, perde a entrada. Sem cashout durante a partida."
-              : "Modo treino: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
+              : "Modo Demo: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
           {economySource === "server" ? (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 text-center leading-snug">
