@@ -35,9 +35,9 @@ function parseIpAllowlist(): string[] {
     .filter(Boolean);
 }
 
-/** Quando a allowlist está vazia, não exige IP (usa só bearer ou outro controle). */
-function isIpAllowed(clientIp: string | null, allowlist: string[]): boolean {
-  if (allowlist.length === 0) return true;
+/** Em strict mode (produção), allowlist vazia significa REJEITAR todos os IPs. */
+function isIpAllowed(clientIp: string | null, allowlist: string[], strict: boolean): boolean {
+  if (allowlist.length === 0) return !strict;
   if (!clientIp) return false;
   return allowlist.includes(clientIp);
 }
