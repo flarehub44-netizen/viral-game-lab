@@ -204,7 +204,7 @@ export const LobbyScreen = ({
           </h1>
           <p className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
             {playMode === "demo"
-              ? "Experimente com créditos fictícios locais. Para saldo servidor e ranking, entre com uma conta."
+              ? "Experimente com créditos fictícios locais. Para saldo e ranking real, entre com uma conta."
               : "Créditos na conta, rodadas liquidadas no servidor e ranking global."}
           </p>
         </section>
