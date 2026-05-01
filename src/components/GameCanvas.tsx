@@ -77,6 +77,58 @@ export const GameCanvas = ({
   const [stats, setStats] = useState<PublicGameStats>(initialStats);
   const [muted, setMutedState] = useState(isMuted());
 
+  // Popups de ganho em R$ a cada barreira passada
+  const [floatingWins, setFloatingWins] = useState<FloatingWin[]>([]);
+  const lastBarriersRef = useRef(0);
+  const lastWinningsRef = useRef(0);
+  const winIdRef = useRef(0);
+
+  const stake = stakeCredits ?? 0;
+  const liveMultiplier = stats.currentMultiplier ?? 0;
+  const rawWinnings = stake * liveMultiplier;
+  const liveWinnings = Math.min(rawWinnings, MAX_ROUND_PAYOUT);
+  const winColorClass =
+    rawWinnings > stake
+      ? "text-[hsl(140_90%_58%)]"
+      : rawWinnings > 0 && rawWinnings < stake
+        ? "text-muted-foreground"
+        : "text-foreground";
+  const isCapped = rawWinnings >= MAX_ROUND_PAYOUT && stake > 0;
+
+  // Detecta barreira passada e empurra popup +R$
+  useEffect(() => {
+    const passed = stats.barriersPassed ?? 0;
+    if (passed > lastBarriersRef.current && stake > 0) {
+      const prevWin = lastWinningsRef.current;
+      const delta = Math.max(0, liveWinnings - prevWin);
+      lastBarriersRef.current = passed;
+      lastWinningsRef.current = liveWinnings;
+      winIdRef.current += 1;
+      const item: FloatingWin = {
+        id: winIdRef.current,
+        delta,
+        total: liveWinnings,
+        barrier: passed,
+        createdAt: performance.now(),
+      };
+      setFloatingWins((prev) => [...prev.slice(-(MAX_FLOATING_WINS - 1)), item]);
+    } else if (passed === 0 && lastBarriersRef.current !== 0) {
+      // Reset entre rodadas
+      lastBarriersRef.current = 0;
+      lastWinningsRef.current = 0;
+    }
+  }, [stats.barriersPassed, liveWinnings, stake]);
+
+  // Auto-purga popups antigos
+  useEffect(() => {
+    if (floatingWins.length === 0) return;
+    const t = window.setInterval(() => {
+      const now = performance.now();
+      setFloatingWins((prev) => prev.filter((w) => now - w.createdAt < WIN_POPUP_TTL_MS));
+    }, 250);
+    return () => window.clearInterval(t);
+  }, [floatingWins.length]);
+
   const menuHoldRef = useRef<number | null>(null);
   const menuStartRef = useRef<number>(0);
   const [menuHoldProgress, setMenuHoldProgress] = useState(0);
