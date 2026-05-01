@@ -310,27 +310,12 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Centro: Multiplicador + (LIVE) ganho em R$ */}
-        {isDemoMode ? (
+        {/* Centro: Ganho atual em R$ (DEMO usa créditos fictícios, LIVE usa saldo real) */}
+        {stake > 0 && (
           <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
             <div className="rounded-xl border border-[hsl(140_90%_45%/0.45)] bg-[hsl(140_45%_8%/0.78)] backdrop-blur px-3 py-1.5 min-w-[120px] text-center shadow-[0_0_18px_hsl(140_90%_45%/0.25)]">
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                Modo Demonstração
-              </div>
-              <div className="text-2xl font-black tabular-nums leading-tight text-[hsl(140_90%_62%)]">
-                ×{liveMultiplier.toFixed(2)}
-              </div>
-              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                Barreiras: {passedNow}
-                {liveMultiplier >= 5 && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-              </div>
-            </div>
-          </div>
-        ) : stake > 0 ? (
-          <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
-            <div className="rounded-xl border border-[hsl(140_90%_45%/0.45)] bg-[hsl(140_45%_8%/0.78)] backdrop-blur px-3 py-1.5 min-w-[120px] text-center shadow-[0_0_18px_hsl(140_90%_45%/0.25)]">
-              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                {isPreview ? "Potencial" : "Ganho atual"}
+                {isDemoMode ? "Ganho (demo)" : isPreview ? "Potencial" : "Ganho atual"}
               </div>
               <div
                 className={`text-2xl font-black tabular-nums leading-tight ${winColorClass}`}
@@ -349,7 +334,7 @@ export const GameCanvas = ({
               </div>
             )}
           </div>
-        ) : null}
+        )}
 
         {/* Direita: bolinhas + mute */}
         <div className="pointer-events-auto flex items-start gap-2">

@@ -717,7 +717,7 @@ const Index = () => {
             layoutPlan={isDemo ? null : activeLayout}
             onGameOver={handleGameOver}
             onExit={exitPlaying}
-            stakeCredits={isDemo ? 0 : activeRound.stake_amount}
+            stakeCredits={activeRound.stake_amount}
             targetMultiplier={isDemo ? undefined : activeRound.target_multiplier}
             resultMultiplier={isDemo ? undefined : activeRound.result_multiplier}
           />
