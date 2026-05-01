@@ -531,6 +531,7 @@ const Index = () => {
     setLastProgression(result);
 
     setScreen("over");
+    if (goalHit) setGoalPopup(goalHit);
 
     if (isDemo) {
       refreshDemoEconomy();
