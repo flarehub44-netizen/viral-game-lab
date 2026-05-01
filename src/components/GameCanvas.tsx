@@ -377,21 +377,35 @@ export const GameCanvas = ({
         </div>
       )}
 
-      {/* Popups +R$ por barreira passada */}
+      {/* Popups por barreira: mostra "META!" ao bater meta, ou faltantes */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
-        {floatingWins.map((w) => (
-          <div
-            key={w.id}
-            className="float-up rounded-lg border border-[hsl(140_90%_45%/0.55)] bg-[hsl(140_45%_8%/0.85)] px-3 py-1 text-center shadow-[0_0_16px_hsl(140_90%_50%/0.35)]"
-          >
-            <div className="text-base font-black tabular-nums text-[hsl(140_90%_62%)] leading-none">
-              +R$ {formatBRL(w.delta)}
+        {floatingWins.map((w) => {
+          const justReachedGoal = goalBarriers > 0 && w.barrier === goalBarriers;
+          const remaining = Math.max(0, goalBarriers - w.barrier);
+          return (
+            <div
+              key={w.id}
+              className={`float-up rounded-lg border px-3 py-1 text-center ${
+                justReachedGoal
+                  ? "border-[hsl(140_90%_55%)] bg-[hsl(140_55%_10%/0.92)] shadow-[0_0_20px_hsl(140_90%_55%/0.55)]"
+                  : "border-border bg-card/85"
+              }`}
+            >
+              <div
+                className={`text-base font-black tabular-nums leading-none ${
+                  justReachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                }`}
+              >
+                {justReachedGoal ? `META! +R$ ${formatBRL(w.total)}` : `Barreira ${w.barrier}`}
+              </div>
+              {!justReachedGoal && goalBarriers > 0 && (
+                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
+                  Faltam {remaining} para R$ {formatBRL(w.total)}
+                </div>
+              )}
             </div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
-              Barreira {w.barrier} · Total R$ {formatBRL(w.total)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Countdown */}
