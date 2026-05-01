@@ -9,11 +9,13 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
   const stopped = useRef(false);
   const startedAtRef = useRef(0);
   const consecutiveErrorsRef = useRef(0);
+  const tickCountRef = useRef(0);
 
   useEffect(() => {
     stopped.current = false;
     startedAtRef.current = Date.now();
     consecutiveErrorsRef.current = 0;
+    tickCountRef.current = 0;
     setPollError(null);
     if (!depositId) {
       setStatus(null);
@@ -23,11 +25,14 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
 
     const tick = async () => {
       if (stopped.current) return;
+      tickCountRef.current += 1;
+
       const { data, error } = await supabase
         .from("pix_deposits")
         .select("status")
         .eq("id", depositId)
         .maybeSingle();
+
       if (error || !data?.status) {
         consecutiveErrorsRef.current += 1;
         const elapsedMs = Date.now() - startedAtRef.current;
@@ -43,6 +48,19 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
       setStatus(s);
       if (s === "confirmed" || s === "failed" || s === "expired") {
         stopped.current = true;
+        return;
+      }
+
+      // Fallback: a cada 3 polls (~9s) enquanto pendente, força reconciliação
+      // direto com a SyncPay caso o webhook tenha falhado.
+      if (s === "pending" && tickCountRef.current % 3 === 0) {
+        try {
+          await supabase.functions.invoke("reconcile-pix-deposit", {
+            body: { deposit_id: depositId },
+          });
+        } catch {
+          // Falha de reconciliação não é fatal — próximo tick tenta de novo.
+        }
       }
     };
 

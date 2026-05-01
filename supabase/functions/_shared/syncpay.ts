@@ -123,6 +123,24 @@ export async function syncPayCreateCashIn(payload: SyncPayCashInRequest): Promis
   );
 }
 
+export interface SyncPayCashInStatus {
+  identifier: string;
+  status: string;
+  amount?: number;
+  paid_at?: string | null;
+  [key: string]: unknown;
+}
+
+/** Consulta o status atual de um cash-in já criado. Usado pelo polling de reconciliação. */
+export async function syncPayGetCashIn(identifier: string): Promise<SyncPayCashInStatus> {
+  const auth = await syncPayAuthToken();
+  return await syncPayFetch<SyncPayCashInStatus>(
+    `/api/partner/v1/cash-in/${encodeURIComponent(identifier)}`,
+    { method: "GET" },
+    auth.access_token,
+  );
+}
+
 export async function syncPayCreateCashOut(payload: SyncPayCashOutRequest): Promise<SyncPayCashOutResponse> {
   const auth = await syncPayAuthToken();
   return await syncPayFetch<SyncPayCashOutResponse>(
