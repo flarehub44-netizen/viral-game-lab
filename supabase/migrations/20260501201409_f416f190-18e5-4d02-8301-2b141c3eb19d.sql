@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.start_round_atomic(uuid, numeric, numeric, numeric, numeric, jsonb, text, integer, integer, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.settle_round_atomic(uuid, uuid, integer, integer, boolean, jsonb) FROM PUBLIC, anon, authenticated;
