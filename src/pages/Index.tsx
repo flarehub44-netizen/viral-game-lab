@@ -473,6 +473,8 @@ const Index = () => {
 
     let finalEconomy: ServerEconomyPayload | null = null;
 
+    let goalHit: { multiplier: number; barriers: number } | null = null;
+
     if (settled) {
       if (isDemo) {
         const settledDemo = settleDemoRound(settled, barriersPassed);
@@ -486,6 +488,9 @@ const Index = () => {
           targetBarrier: 0,
           mode: "demo",
         };
+        if (barriersPassed >= 20) {
+          goalHit = { multiplier: settledDemo.multiplier, barriers: barriersPassed };
+        }
       } else {
         // Pré-popular com "perdeu" enquanto aguarda servidor
         finalEconomy = {
@@ -498,6 +503,13 @@ const Index = () => {
           targetBarrier: settled.target_barrier ?? 0,
           mode: "live",
         };
+        const targetBarrier = settled.target_barrier ?? 0;
+        if (targetBarrier > 0 && barriersPassed >= targetBarrier) {
+          goalHit = {
+            multiplier: settled.target_multiplier ?? settled.result_multiplier ?? 0,
+            barriers: barriersPassed,
+          };
+        }
       }
     }
     setServerEconomy(finalEconomy);
