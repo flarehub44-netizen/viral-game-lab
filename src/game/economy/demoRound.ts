@@ -82,7 +82,13 @@ export function startDemoRound(stake: number):
     result_multiplier: 0, // será definido em settle
     payout_amount: 0,
     net_result: -stakeRounded,
-    visual_result: { barriers_crossed: 0, score_target: 0, duration_seconds: DEMO_MAX_DURATION_SECONDS },
+    visual_result: {
+      barriers_crossed: 0,
+      balls_count: 1,
+      score_target: 0,
+      duration_seconds: DEMO_MAX_DURATION_SECONDS,
+      finish_type: "demo_skill",
+    },
     layout_seed: `demo:${roundId}`,
     layout_signature: `demo_sig_${roundId}`,
     target_barrier: 0, // sem meta
