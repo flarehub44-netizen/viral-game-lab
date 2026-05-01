@@ -810,6 +810,14 @@ const Index = () => {
             onCancel={() => setShowNickDialog(false)}
           />
         )}
+
+        {goalPopup && (
+          <GoalReachedPopup
+            multiplier={goalPopup.multiplier}
+            barriers={goalPopup.barriers}
+            onContinue={() => setGoalPopup(null)}
+          />
+        )}
       </div>
 
       <p className="fixed bottom-1 left-0 right-0 text-center text-[9px] text-muted-foreground pointer-events-none px-4 neon-app-column">
