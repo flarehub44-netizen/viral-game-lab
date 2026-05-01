@@ -25,6 +25,8 @@ export interface EndRoundResponse {
   result_multiplier: number;
   payout_amount: number;
   net_result: number;
+  /** Verdadeiro se o jogador atingiu a meta de barreiras (e portanto recebeu o pagamento). */
+  reached_target?: boolean;
   forced_by_timeout: boolean;
   already_settled?: boolean;
   error?: string;
@@ -41,6 +43,12 @@ export interface ServerEconomyPayload {
   resultMultiplier: number;
   payout: number;
   netResult: number;
+  /** True se a meta foi atingida e o jogador recebeu o pagamento. */
+  reachedTarget: boolean;
+  /** Quantas barreiras o jogador passou. */
+  barriersPassed: number;
+  /** Meta de barreiras que precisava passar. */
+  targetBarrier: number;
 }
 
 export interface RoundHistoryRow {
