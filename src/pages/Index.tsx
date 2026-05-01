@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { AgeGateScreen } from "@/components/auth/AgeGateScreen";
 import { GameCanvas } from "@/components/GameCanvas";
+import { DepositScreen } from "@/components/economy/DepositScreen";
+import { KycIdentityScreen } from "@/components/economy/KycIdentityScreen";
 import { LobbyScreen } from "@/components/economy/LobbyScreen";
 import { WalletScreen } from "@/components/economy/WalletScreen";
+import { WithdrawScreen } from "@/components/economy/WithdrawScreen";
 import { RoundSetupScreen } from "@/components/economy/RoundSetupScreen";
 import { RulesScreen } from "@/components/economy/RulesScreen";
 import { GameOverScreen } from "@/components/GameOverScreen";
@@ -33,13 +36,35 @@ type ProfileRow = {
   display_name: string;
   over_18_confirmed_at: string | null;
   kyc_status: "none" | "pending" | "approved";
+  cpf?: string | null;
+  phone?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type PixDepositRow = {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+  confirmed_at: string | null;
+};
+
+type PixWithdrawalRow = {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  provider_ref: string | null;
 };
 
 type Screen =
   | "lobby"
   | "wallet"
+  | "deposit"
+  | "withdraw"
+  | "kycIdentity"
   | "roundSetup"
   | "playing"
   | "over"
@@ -115,7 +140,10 @@ const Index = () => {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [roundHistory, setRoundHistory] = useState<RoundHistoryRow[]>([]);
+  const [pixDeposits, setPixDeposits] = useState<PixDepositRow[]>([]);
+  const [pixWithdrawals, setPixWithdrawals] = useState<PixWithdrawalRow[]>([]);
   const [economyLoading, setEconomyLoading] = useState(false);
+  const kycReturnRef = useRef<"deposit" | "withdraw" | null>(null);
 
   const [screen, setScreen] = useState<Screen>("lobby");
   const [nickname, setNickname] = useState("");
@@ -160,7 +188,7 @@ const Index = () => {
     if (!user) return;
     setEconomyLoading(true);
     try {
-      const [{ data: w }, { data: rounds }] = await Promise.all([
+      const [{ data: w }, { data: rounds }, { data: deps }, { data: wds }] = await Promise.all([
         supabase.from("wallets").select("balance").eq("user_id", user.id).single(),
         supabase
           .from("game_rounds")
@@ -168,9 +196,40 @@ const Index = () => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(40),
+        supabase
+          .from("pix_deposits")
+          .select("id,amount,status,created_at,expires_at,confirmed_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(25),
+        supabase
+          .from("pix_withdrawals")
+          .select("id,amount,status,created_at,provider_ref")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(25),
       ]);
       setWalletBalance(Number(w?.balance ?? 0));
       setRoundHistory(mapRoundRows(rounds ?? []));
+      setPixDeposits(
+        (deps ?? []).map((r: Record<string, unknown>) => ({
+          id: String(r.id),
+          amount: Number(r.amount),
+          status: String(r.status),
+          created_at: String(r.created_at),
+          expires_at: r.expires_at != null ? String(r.expires_at) : null,
+          confirmed_at: r.confirmed_at != null ? String(r.confirmed_at) : null,
+        })),
+      );
+      setPixWithdrawals(
+        (wds ?? []).map((r: Record<string, unknown>) => ({
+          id: String(r.id),
+          amount: Number(r.amount),
+          status: String(r.status),
+          created_at: String(r.created_at),
+          provider_ref: r.provider_ref != null ? String(r.provider_ref) : null,
+        })),
+      );
     } finally {
       setEconomyLoading(false);
     }
@@ -193,6 +252,47 @@ const Index = () => {
     setProfile(data as ProfileRow | null);
     if (data?.display_name) setNickname(data.display_name);
   }, [user]);
+
+  const openDepositFlow = useCallback(() => {
+    const p = profile;
+    const cpfOk = typeof p?.cpf === "string" && p.cpf.replace(/\D/g, "").length === 11;
+    const phoneOk = typeof p?.phone === "string" && p.phone.replace(/\D/g, "").length >= 10;
+    if (!cpfOk || !phoneOk) {
+      kycReturnRef.current = "deposit";
+      setScreen("kycIdentity");
+      return;
+    }
+    setScreen("deposit");
+  }, [profile]);
+
+  const openWithdrawFlow = useCallback(() => {
+    const p = profile;
+    const cpfOk = typeof p?.cpf === "string" && p.cpf.replace(/\D/g, "").length === 11;
+    const phoneOk = typeof p?.phone === "string" && p.phone.replace(/\D/g, "").length >= 10;
+    if (!cpfOk || !phoneOk) {
+      kycReturnRef.current = "withdraw";
+      setScreen("kycIdentity");
+      return;
+    }
+    setScreen("withdraw");
+  }, [profile]);
+
+  const handleKycIdentitySaved = useCallback(async () => {
+    await reloadProfile();
+    const next = kycReturnRef.current;
+    kycReturnRef.current = null;
+    if (next === "deposit") setScreen("deposit");
+    else if (next === "withdraw") setScreen("withdraw");
+    else setScreen("wallet");
+  }, [reloadProfile]);
+
+  const handlePixDepositConfirmed = useCallback(async () => {
+    await refreshEconomy();
+  }, [refreshEconomy]);
+
+  const handlePixWithdrawRequested = useCallback(async () => {
+    await refreshEconomy();
+  }, [refreshEconomy]);
 
   useEffect(() => {
     if (!user) {
@@ -217,6 +317,16 @@ const Index = () => {
       cancelled = true;
     };
   }, [user, reloadProfile, refreshEconomy, isDemo]);
+
+  // Quando o usuário confirma o age gate em outra aba, refaz o profile ao voltar para esta.
+  useEffect(() => {
+    if (!user || profile?.over_18_confirmed_at) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reloadProfile();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [user, profile?.over_18_confirmed_at, reloadProfile]);
 
   const displayNickname = isDemo
     ? demoNickname.trim() || "Jogador demo"
@@ -391,8 +501,15 @@ const Index = () => {
           },
         });
         if (error || !data?.ok) {
+          const errCode = (data as Record<string, unknown> | null)?.error as string | undefined;
           console.error("end-round failed:", error ?? data);
-          toast.error("Falha ao fechar rodada no servidor.");
+          if (errCode === "layout_mismatch_seed" || errCode === "layout_mismatch_signature") {
+            toast.error("Rodada cancelada: falha na verificação de integridade.");
+          } else {
+            toast.error("Falha ao fechar rodada no servidor.");
+          }
+        } else if (data.round_status === "rejected") {
+          toast.error("Rodada cancelada: falha na verificação de integridade.");
         }
       }
       await refreshEconomy();
@@ -413,6 +530,7 @@ const Index = () => {
             nickname: displayNickname.slice(0, 20),
             score: stats.score,
             duration_seconds: stats.durationSeconds,
+            round_id: settled?.round_id,
           },
         });
         if (error) throw error;
@@ -532,6 +650,34 @@ const Index = () => {
             loading={!isDemo && economyLoading}
             onBack={() => setScreen("lobby")}
             variant={isDemo ? "demo" : "online"}
+            onDeposit={isDemo ? undefined : openDepositFlow}
+            onWithdraw={isDemo ? undefined : openWithdrawFlow}
+            pixDeposits={isDemo ? [] : pixDeposits}
+            pixWithdrawals={isDemo ? [] : pixWithdrawals}
+          />
+        )}
+
+        {screen === "kycIdentity" && !isDemo && (
+          <KycIdentityScreen
+            onBack={() => {
+              kycReturnRef.current = null;
+              setScreen("wallet");
+            }}
+            onSaved={handleKycIdentitySaved}
+          />
+        )}
+
+        {screen === "deposit" && !isDemo && (
+          <DepositScreen onBack={() => setScreen("wallet")} onConfirmed={handlePixDepositConfirmed} />
+        )}
+
+        {screen === "withdraw" && !isDemo && profile && (
+          <WithdrawScreen
+            walletBalance={walletBalance}
+            kycApproved={profile.kyc_status === "approved"}
+            over18={Boolean(profile.over_18_confirmed_at)}
+            onBack={() => setScreen("wallet")}
+            onRequested={handlePixWithdrawRequested}
           />
         )}
 

@@ -16,6 +16,13 @@ interface EndBody {
 
 type RoundStatus = "open" | "closed" | "expired" | "rejected";
 
+function extractClientIp(req: Request): string | null {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (!forwarded) return null;
+  const first = forwarded.split(",")[0]?.trim();
+  return first || null;
+}
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -38,12 +45,30 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: authHeader } },
   });
   const admin = createClient(supabaseUrl, serviceKey);
+  const deviceFingerprint = req.headers.get("x-device-fingerprint");
+  const clientIp = extractClientIp(req);
 
   const {
     data: { user },
     error: authErr,
   } = await userClient.auth.getUser();
   if (authErr || !user) return json(401, { error: "invalid_session" });
+
+  const { data: allowRate, error: rateErr } = await admin.rpc("guard_request_rate", {
+    p_user_id: user.id,
+    p_action: "end-round",
+    p_ip: clientIp,
+    p_device_fingerprint: deviceFingerprint,
+    p_limit: 24,
+    p_window_seconds: 60,
+  });
+  if (rateErr) {
+    console.error("guard_request_rate:", rateErr);
+    return json(500, { error: "rate_limit_check_failed" });
+  }
+  if (!allowRate) {
+    return json(429, { error: "rate_limited" });
+  }
 
   let body: EndBody;
   try {
@@ -67,6 +92,13 @@ Deno.serve(async (req) => {
   if (row.user_id !== user.id) return json(403, { error: "forbidden" });
   if (row.round_status !== "open") {
     const settledStatus = String(row.round_status) as RoundStatus;
+    await admin.rpc("log_fraud_signal", {
+      p_user_id: user.id,
+      p_round_id: row.id,
+      p_signal: "end_round_replay_attempt",
+      p_score: 4,
+      p_payload: { round_status: settledStatus },
+    });
     return json(200, {
       ok: true,
       round_id: row.id,
@@ -89,6 +121,13 @@ Deno.serve(async (req) => {
   if (!timedOut && (!hasAlive || alive > 0)) return json(400, { error: "alive_must_be_zero_or_timeout" });
 
   if (typeof body.layout_seed !== "string" || body.layout_seed !== row.layout_seed) {
+    await admin.rpc("log_fraud_signal", {
+      p_user_id: user.id,
+      p_round_id: row.id,
+      p_signal: "layout_seed_mismatch",
+      p_score: 15,
+      p_payload: { payload: body },
+    });
     await admin
       .from("game_rounds")
       .update({
@@ -105,6 +144,13 @@ Deno.serve(async (req) => {
     typeof body.layout_signature !== "string" ||
     body.layout_signature !== row.layout_signature
   ) {
+    await admin.rpc("log_fraud_signal", {
+      p_user_id: user.id,
+      p_round_id: row.id,
+      p_signal: "layout_signature_mismatch",
+      p_score: 25,
+      p_payload: { payload: body },
+    });
     await admin
       .from("game_rounds")
       .update({

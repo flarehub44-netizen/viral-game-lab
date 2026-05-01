@@ -23,6 +23,13 @@ interface LayoutParams {
   maxDurationSeconds: number;
 }
 
+function extractClientIp(req: Request): string | null {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (!forwarded) return null;
+  const first = forwarded.split(",")[0]?.trim();
+  return first || null;
+}
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -52,12 +59,29 @@ function mapMultiplierToLayout(mult: number): LayoutParams {
   return { targetBarrier: 42, maxDurationSeconds: 72 };
 }
 
-async function sha256Hex(input: string): Promise<string> {
-  const bytes = new TextEncoder().encode(input);
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash))
+function hexFromBytes(buf: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/** HMAC-SHA256 com chave secreta — impede que o cliente forje assinaturas. */
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(message));
+  return hexFromBytes(sig);
+}
+
+async function signLayout(secret: string, message: string): Promise<string> {
+  if (!secret) throw new Error("LAYOUT_SIGNATURE_SECRET não configurado — impossível assinar layout.");
+  return hmacSha256Hex(secret, message);
 }
 
 Deno.serve(async (req) => {
@@ -77,6 +101,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const signatureSecret = Deno.env.get("LAYOUT_SIGNATURE_SECRET") ?? "";
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -119,16 +144,38 @@ Deno.serve(async (req) => {
   const stakeRounded = Math.round(stake * 100) / 100;
 
   const admin = createClient(supabaseUrl, serviceKey);
+  const deviceFingerprint = req.headers.get("x-device-fingerprint");
+  const clientIp = extractClientIp(req);
+
+  const { data: allowRate, error: rateErr } = await admin.rpc("guard_request_rate", {
+    p_user_id: user.id,
+    p_action: "start-round",
+    p_ip: clientIp,
+    p_device_fingerprint: deviceFingerprint,
+    p_limit: 12,
+    p_window_seconds: 60,
+  });
+  if (rateErr) {
+    console.error("guard_request_rate:", rateErr);
+    return json(500, { error: "rate_limit_check_failed" });
+  }
+  if (!allowRate) {
+    return json(429, { error: "rate_limited" });
+  }
 
   const { data: profile, error: profileErr } = await admin
     .from("profiles")
-    .select("over_18_confirmed_at")
+    .select("over_18_confirmed_at, deleted_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (profileErr) {
     console.error(profileErr);
     return json(500, { error: "profile_read_failed" });
+  }
+
+  if (profile?.deleted_at) {
+    return json(403, { error: "account_deleted" });
   }
 
   if (!profile?.over_18_confirmed_at) {
@@ -145,9 +192,8 @@ Deno.serve(async (req) => {
   const visual = buildVisualResult(resultMultiplier);
   const layout = mapMultiplierToLayout(resultMultiplier);
   const layoutSeed = `${user.id}:${idempotencyKey}:${resultMultiplier.toFixed(4)}`;
-  const layoutSignature = await sha256Hex(
-    `${layoutSeed}|${layout.targetBarrier}|${layout.maxDurationSeconds}|${stakeRounded}`,
-  );
+  const signatureInput = `${layoutSeed}|${layout.targetBarrier}|${layout.maxDurationSeconds}|${stakeRounded}`;
+  const layoutSignature = await signLayout(signatureSecret, signatureInput);
 
   const { data: roundId, error: rpcErr } = await admin.rpc("start_round_atomic", {
     p_user_id: user.id,
@@ -168,6 +214,9 @@ Deno.serve(async (req) => {
     const msg = rpcErr.message ?? "";
     if (msg.includes("insufficient_balance")) {
       return json(400, { error: "insufficient_balance" });
+    }
+    if (msg.includes("open_round_exists")) {
+      return json(409, { error: "open_round_exists" });
     }
     if (msg.includes("wallet_not_found")) {
       return json(400, { error: "wallet_not_found" });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseExternal";
 import { toast } from "sonner";
 
 interface AuthScreenProps {
@@ -12,6 +13,7 @@ export const AuthScreen = ({ onPlayDemo }: AuthScreenProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -32,8 +34,24 @@ export const AuthScreen = ({ onPlayDemo }: AuthScreenProps) => {
           setBusy(false);
           return;
         }
-        const { error } = await signUp(email.trim(), password, displayName.trim());
+        if (!consentAccepted) {
+          toast.error("Aceite os Termos de Uso e a Política de Privacidade para continuar.");
+          setBusy(false);
+          return;
+        }
+        const { error, session } = await signUp(email.trim(), password, displayName.trim());
         if (error) throw error;
+        if (session) {
+          // Record LGPD consent immediately when session is available (no e-mail confirmation required)
+          void Promise.all([
+            supabase.functions.invoke("record-consent", {
+              body: { document_type: "tos", document_version: "1.0" },
+            }),
+            supabase.functions.invoke("record-consent", {
+              body: { document_type: "privacy_policy", document_version: "1.0" },
+            }),
+          ]).catch((err) => console.error("record-consent failed:", err));
+        }
         toast.success("Conta criada. Verifique o e-mail se a confirmação estiver ativa.");
       }
     } catch (err) {
@@ -110,9 +128,25 @@ export const AuthScreen = ({ onPlayDemo }: AuthScreenProps) => {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>
+          {mode === "register" && (
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-border accent-[hsl(180_70%_45%)] cursor-pointer shrink-0"
+                checked={consentAccepted}
+                onChange={(e) => setConsentAccepted(e.target.checked)}
+              />
+              <span className="text-[10px] text-muted-foreground leading-relaxed">
+                Li e aceito os{" "}
+                <span className="text-[hsl(180_70%_45%)]">Termos de Uso v1.0</span> e a{" "}
+                <span className="text-[hsl(180_70%_45%)]">Política de Privacidade v1.0</span>.
+                Confirmo ter 18 anos ou mais.
+              </span>
+            </label>
+          )}
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || (mode === "register" && !consentAccepted)}
             className="btn-neon w-full py-3 rounded-xl font-black uppercase tracking-widest text-sm disabled:opacity-50"
           >
             {busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}

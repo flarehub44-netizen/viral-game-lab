@@ -8,7 +8,6 @@ const KEY = "ns_wallet_v1";
 
 export interface PersistedWallet {
   balance: number;
-  reserved: number;
   totalWagered: number;
   totalPaidOut: number;
   transactions: Transaction[];
@@ -17,7 +16,6 @@ export interface PersistedWallet {
 function defaultWallet(): PersistedWallet {
   return {
     balance: INITIAL_WALLET_BALANCE,
-    reserved: 0,
     totalWagered: 0,
     totalPaidOut: 0,
     transactions: [],
@@ -60,7 +58,6 @@ export function loadWallet(): PersistedWallet {
       : [];
     return {
       balance: toNonNegNumber(o.balance) || INITIAL_WALLET_BALANCE,
-      reserved: toNonNegNumber(o.reserved),
       totalWagered: toNonNegNumber(o.totalWagered),
       totalPaidOut: toNonNegNumber(o.totalPaidOut),
       transactions: txs.slice(-MAX_TRANSACTION_HISTORY),
@@ -70,11 +67,13 @@ export function loadWallet(): PersistedWallet {
   }
 }
 
-export function saveWallet(data: PersistedWallet): void {
+export function saveWallet(data: PersistedWallet): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    /* ignore quota */
+    return true;
+  } catch (e) {
+    console.warn("[walletStore] Falha ao persistir carteira (localStorage cheio?):", e);
+    return false;
   }
 }
 

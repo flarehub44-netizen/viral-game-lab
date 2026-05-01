@@ -6,7 +6,7 @@ const MUTE_KEY = "ns_muted";
 
 try {
   muted = localStorage.getItem(MUTE_KEY) === "1";
-} catch {}
+} catch { /* localStorage not available */ }
 
 export function isMuted() {
   return muted;
@@ -15,16 +15,20 @@ export function setMuted(v: boolean) {
   muted = v;
   try {
     localStorage.setItem(MUTE_KEY, v ? "1" : "0");
-  } catch {}
+  } catch { /* localStorage not available */ }
+}
+
+interface WindowWithWebkitAudio extends Window {
+  webkitAudioContext?: typeof AudioContext;
 }
 
 export function unlockAudio() {
   if (ctx) return;
   try {
-    const C = window.AudioContext || (window as any).webkitAudioContext;
+    const C = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
     if (!C) return;
     ctx = new C();
-  } catch {}
+  } catch { /* AudioContext not available */ }
 }
 
 function tone(freq: number, dur: number, type: OscillatorType = "sine", gain = 0.05) {
@@ -40,7 +44,7 @@ function tone(freq: number, dur: number, type: OscillatorType = "sine", gain = 0
     o.connect(g).connect(ctx.destination);
     o.start(t);
     o.stop(t + dur);
-  } catch {}
+  } catch { /* audio context op failed */ }
 }
 
 export const sfx = {
@@ -62,5 +66,5 @@ export function haptic(ms: number) {
   if (muted) return;
   try {
     if ("vibrate" in navigator) navigator.vibrate(ms);
-  } catch {}
+  } catch { /* vibration API not available */ }
 }

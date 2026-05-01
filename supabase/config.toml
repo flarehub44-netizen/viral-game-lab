@@ -7,4 +7,31 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.submit-score]
+verify_jwt = true
+
+[functions.create-pix-deposit]
+verify_jwt = true
+
+[functions.request-pix-withdrawal]
+verify_jwt = true
+
+[functions.pix-webhook]
 verify_jwt = false
+
+[functions.lgpd-export]
+verify_jwt = true
+
+[functions.lgpd-delete-request]
+verify_jwt = true
+
+[functions.close-stale-rounds]
+verify_jwt = false
+
+[functions.process-lgpd-deletions]
+verify_jwt = false
+
+[functions.record-consent]
+verify_jwt = true
+
+[functions.admin-action]
+verify_jwt = true
