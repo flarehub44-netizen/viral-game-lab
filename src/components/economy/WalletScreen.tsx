@@ -70,9 +70,32 @@ export const WalletScreen = ({
   onWithdraw,
   pixDeposits = [],
   pixWithdrawals = [],
+  onReconcilePending,
 }: Props) => {
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+  const autoReconciledRef = useRef(false);
+  const hasPending = pixDeposits.some((d) => d.status === "pending");
+
+  useEffect(() => {
+    if (variant !== "online") return;
+    if (autoReconciledRef.current) return;
+    if (!hasPending || !onReconcilePending) return;
+    autoReconciledRef.current = true;
+    void onReconcilePending();
+  }, [variant, hasPending, onReconcilePending]);
+
+  const handleManualReconcile = async (id: string) => {
+    if (!onReconcilePending) return;
+    setReconcilingId(id);
+    try {
+      await onReconcilePending(id);
+    } finally {
+      setReconcilingId(null);
+    }
+  };
 
   type PixLine = {
     kind: "dep" | "wd";
