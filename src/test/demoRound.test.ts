@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { computeRoundEconomy, startDemoRound, validateStakeAmount } from "@/game/economy/demoRound";
-import { mulberry32 } from "@/game/economy/settlement";
+import {
+  demoMultiplierFor,
+  settleDemoRound,
+  startDemoRound,
+  validateStakeAmount,
+  DEMO_MULTIPLIER_CAP,
+} from "@/game/economy/demoRound";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { loadWallet, saveWallet } from "@/game/economy/walletStore";
 
-describe("demoRound / computeRoundEconomy", () => {
+describe("demoRound (skill-puro linear)", () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -15,25 +21,56 @@ describe("demoRound / computeRoundEconomy", () => {
     expect(validateStakeAmount(0)).toBe(false);
   });
 
-  it("is deterministic for the same RNG seed stream", () => {
-    const rngA = mulberry32(999888777);
-    const rngB = mulberry32(999888777);
-    const x = computeRoundEconomy(10, rngA);
-    const y = computeRoundEconomy(10, rngB);
-    expect(x.resultMultiplier).toBe(y.resultMultiplier);
-    expect(x.payout).toBe(y.payout);
-    expect(x.netResult).toBe(y.netResult);
+  it("demoMultiplierFor: 0 barreiras = ×0", () => {
+    expect(demoMultiplierFor(0)).toBe(0);
   });
 
-  it("never exceeds MAX_ROUND_PAYOUT", () => {
-    const hi = () => 1 - Number.EPSILON;
-    const r = computeRoundEconomy(50, hi);
-    expect(r.payout).toBeLessThanOrEqual(MAX_ROUND_PAYOUT);
+  it("demoMultiplierFor: 20 barreiras = ×1.00", () => {
+    expect(demoMultiplierFor(20)).toBe(1);
   });
 
-  it("uses user-selected target multiplier in demo payload", () => {
-    const round = startDemoRound(1, 10);
-    expect(round.ok).toBe(true);
-    if (round.ok) expect(round.round.target_multiplier).toBe(10);
+  it("demoMultiplierFor: 100 barreiras é capado em ×5.00", () => {
+    expect(demoMultiplierFor(100)).toBe(DEMO_MULTIPLIER_CAP);
+    expect(demoMultiplierFor(500)).toBe(DEMO_MULTIPLIER_CAP);
+  });
+
+  it("startDemoRound debita a entrada e abre rodada sem meta", () => {
+    const res = startDemoRound(5);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.round.target_barrier).toBe(0);
+    expect(res.round.stake_amount).toBe(5);
+    // saldo inicial 150 - 5 = 145
+    expect(loadWallet().balance).toBe(145);
+  });
+
+  it("settleDemoRound credita pagamento proporcional às barreiras", () => {
+    const res = startDemoRound(10);
+    if (!res.ok) throw new Error("start failed");
+    // 30 barreiras → ×1.5 → payout 15 → saldo 150 - 10 + 15 = 155
+    const out = settleDemoRound(res.round, 30);
+    expect(out.multiplier).toBe(1.5);
+    expect(out.payout).toBe(15);
+    expect(out.netResult).toBe(5);
+    expect(loadWallet().balance).toBe(155);
+  });
+
+  it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {
+    const res = startDemoRound(10);
+    if (!res.ok) throw new Error("start failed");
+    const out = settleDemoRound(res.round, 0);
+    expect(out.payout).toBe(0);
+    expect(out.netResult).toBe(-10);
+    expect(loadWallet().balance).toBe(140);
+  });
+
+  it("payout nunca excede MAX_ROUND_PAYOUT", () => {
+    saveWallet({ ...loadWallet(), balance: 1000 });
+    const res = startDemoRound(50);
+    if (!res.ok) throw new Error("start failed");
+    // multiplier capado em 5 → 50×5 = 250 (abaixo do cap 400). OK.
+    const out = settleDemoRound(res.round, 1000);
+    expect(out.payout).toBeLessThanOrEqual(MAX_ROUND_PAYOUT);
+    expect(out.multiplier).toBe(DEMO_MULTIPLIER_CAP);
   });
 });

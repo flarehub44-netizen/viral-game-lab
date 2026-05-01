@@ -556,6 +556,7 @@ const Index = () => {
             reachedTarget: Boolean(data.reached_target),
             barriersPassed,
             targetBarrier: settled.target_barrier ?? 0,
+            mode: "live",
           });
         }
       }
