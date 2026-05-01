@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { RoundHistoryRow } from "@/game/economy/serverRound";
 
 export type PixDepositRow = {
@@ -28,6 +29,7 @@ interface Props {
   onWithdraw?: () => void;
   pixDeposits?: PixDepositRow[];
   pixWithdrawals?: PixWithdrawalRow[];
+  onReconcilePending?: (depositId?: string) => Promise<void> | void;
 }
 
 function pixStatusLabel(kind: "dep" | "wd", status: string): string {
