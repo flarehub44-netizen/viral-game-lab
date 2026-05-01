@@ -328,9 +328,25 @@ export const GameCanvas = ({
                 ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
                 {demoAtCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
+              {/* Barra de progresso até o multiplicador-base ×5,00 */}
+              <div className="mt-1 flex items-center gap-1.5">
+                <div className="flex-1 h-1.5 rounded-full bg-card/80 border border-border overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-200 ease-out ${
+                      demoAtCap
+                        ? "bg-[hsl(30_100%_60%)] shadow-[0_0_8px_hsl(30_100%_55%/0.7)]"
+                        : "bg-[hsl(140_90%_55%)] shadow-[0_0_6px_hsl(140_90%_50%/0.55)]"
+                    }`}
+                    style={{ width: `${Math.min(demoCurrentMultiplier / DEMO_CAP, 1) * 100}%` }}
+                  />
+                </div>
+                <span className="text-[8px] font-bold tracking-wide text-secondary tabular-nums">
+                  base ×5,00
+                </span>
+              </div>
             </div>
             <div className="mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold text-muted-foreground">
-              Demo · cada barreira vale ×0,05
+              Base ×5,00 · ×0,05 por barreira
             </div>
           </div>
         )}
