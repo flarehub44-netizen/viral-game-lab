@@ -1,45 +1,50 @@
-# Por que o saldo continua zerado
+Encontrei o problema principal: o PIX está sendo gerado, mas o webhook da SyncPay não está chegando ao backend. Não há nenhum log de chamada em `pix-webhook` e a tabela `webhook_events` está vazia. Por isso o depósito fica em `pending` / “Aguardando PIX” e o saldo não é creditado automaticamente.
 
-Confirmado nos dados:
+Também identifiquei uma falha importante na tentativa anterior de reconciliação: ela consultava um endpoint incorreto (`/cash-in/{id}`). A documentação atual da SyncPay mostra que o endpoint correto para consultar uma transação é:
 
-- 2 depósitos `pending` no banco (R$ 10 + R$ 25), ambos com `provider_ref` (cobrança criada com sucesso na SyncPay).
-- **Zero logs** na função `pix-webhook` desde que foi reescrita → a SyncPay não chamou nosso webhook (URL provavelmente não está configurada no painel deles, ou o evento ainda não disparou).
-- **Zero logs** em `reconcile-pix-deposit` → a reconciliação nunca rodou, porque ela só dispara dentro do `DepositScreen` (modal de depósito). Assim que o usuário fechou o modal e foi para a `WalletScreen`, o polling parou.
+```text
+GET /api/partner/v1/transaction/{identifier}
+```
 
-Resultado: ninguém credita o saldo.
+Isso permite resolver o caso mesmo quando o webhook falha.
 
-# Plano
+Plano de correção:
 
-## 1. Reconciliar agora os 2 PIX já pagos
+1. Recuperar os PIX pagos que ficaram pendentes
+   - Consultar diretamente a SyncPay usando o endpoint correto `/api/partner/v1/transaction/{identifier}` para os depósitos pendentes.
+   - Se a SyncPay retornar `completed`, executar o crédito via função atômica `confirm_pix_deposit`.
+   - No caso atual, há um depósito recente de R$ 10,00 ainda `pending` com provider_ref `38ae9a72-5c53-4f6d-8a87-5e47735b6e0d`.
+   - Também vou revisar os últimos depósitos de R$ 10,00 para confirmar se existe outro pago que não foi creditado.
 
-Chamar `reconcile-pix-deposit` server-side para os 2 `provider_ref` pendentes consultando o status real na SyncPay e creditando via `confirm_pix_deposit` se vierem como `PAID_OUT`. Isso resolve o saldo do usuário imediatamente.
+2. Recriar a reconciliação automática usando o endpoint correto
+   - Criar uma função backend `reconcile-pix-deposit` protegida por autenticação.
+   - Ela receberá o `deposit_id`, validará que pertence ao usuário logado, buscará o status na SyncPay pelo `provider_ref` e, se estiver `completed`, chamará `confirm_pix_deposit`.
+   - Ela também tratará `failed`, `refunded` e `med` sem creditar indevidamente.
 
-## 2. Reconciliação automática na carteira (correção principal)
+3. Tornar a tela de depósito resiliente
+   - Atualizar `usePixDepositPolling` para, enquanto o PIX estiver pendente, chamar a reconciliação periodicamente.
+   - Assim, se o webhook continuar sem chegar, o saldo ainda será creditado quando a SyncPay confirmar o pagamento.
 
-Criar um hook `usePixDepositReconciliation` que roda na `WalletScreen` ao montar:
+4. Corrigir o webhook para casar exatamente com a documentação SyncPay
+   - Aceitar status `completed` como pago.
+   - Ler `data.id` / `data.reference_id` / `identifier` com prioridade correta.
+   - Ler o tipo de evento também do header `event`, porque a SyncPay envia `event: cashin.update` no cabeçalho.
+   - Registrar logs úteis de payload recebido, referência desconhecida e resultado da confirmação.
 
-- Busca todos os `pix_deposits` do usuário com `status='pending'`, `provider_ref not null` e ainda dentro de `expires_at`.
-- Para cada um, dispara `reconcile-pix-deposit` em paralelo.
-- Refaz a busca após terminar para atualizar a lista de transações.
+5. Atualizar a biblioteca SyncPay compartilhada
+   - Substituir/remover a consulta antiga `/cash-in/{identifier}`.
+   - Implementar `syncPayGetTransaction(identifier)` usando `/api/partner/v1/transaction/{identifier}`.
+   - Normalizar a resposta, que vem dentro de `data`, com campos `reference_id`, `amount`, `status`, `pix_code`.
 
-Adicionar também um botão discreto "Atualizar status" em cada linha "AGUARDANDO PIX" do histórico para o usuário forçar a reconciliação manualmente.
+6. Corrigir a experiência da Carteira
+   - Adicionar botão “Atualizar status” nos PIX pendentes.
+   - Ao abrir a carteira, tentar reconciliar automaticamente os PIX pendentes recentes antes de mostrar “Aguardando PIX”.
+   - Atualizar saldo e histórico após reconciliação.
 
-## 3. Reconciliação periódica em background
+7. Verificação final
+   - Conferir no banco se os depósitos pagos saíram de `pending` para `confirmed`.
+   - Conferir se o saldo passou a refletir a soma real.
+   - Verificar logs de `create-pix-deposit`, `pix-webhook` e da nova reconciliação.
+   - Manter a exigência de autenticação nas funções chamadas pelo app e manter o webhook sem JWT para permitir chamadas externas da SyncPay.
 
-Criar uma Edge Function agendada `reconcile-pending-deposits` (cron a cada 2 min) que varre `pix_deposits` com `status='pending'` mais antigos que 30s e ainda não expirados, e chama a SyncPay para cada um. Isso garante que mesmo se o usuário nunca abrir a carteira, o crédito sai assim que o PIX for pago.
-
-## 4. Validar config do webhook SyncPay
-
-Pedir confirmação no painel SyncPay de que o webhook está apontando para:
-`https://vezortwznwmziqukypjj.supabase.co/functions/v1/pix-webhook`
-
-(O webhook continua sendo o caminho preferencial — a reconciliação é só um fallback robusto.)
-
-## Detalhes técnicos
-
-- **Reconciliação manual dos 2 PIX**: rodar via `supabase--curl_edge_functions` no `reconcile-pix-deposit` com Authorization Bearer do usuário, ou alternativamente um script SQL chamando direto `confirm_pix_deposit` se a SyncPay confirmar status `PAID_OUT` via consulta manual.
-- **Hook na WalletScreen**: `useEffect` no mount, query `select id from pix_deposits where user_id=auth.uid() and status='pending' and provider_ref is not null and expires_at > now()`, depois `Promise.allSettled` chamando `supabase.functions.invoke('reconcile-pix-deposit', { body: { deposit_id } })`.
-- **Cron**: `supabase/config.toml` com `[functions.reconcile-pending-deposits]` + `schedule = "*/2 * * * *"`. A função usa service role e itera limitado a 50 depósitos por execução.
-- **Idempotência já garantida**: `confirm_pix_deposit` é uma RPC que já trata duplicata via `provider_ref` único — chamadas repetidas são seguras.
-
-Após sua aprovação, eu implemento e em seguida confirmo que os R$ 35 caíram no seu saldo.
+Observação importante: como não há chamadas chegando em `pix-webhook`, ainda será necessário conferir se o webhook configurado na SyncPay aponta para a URL correta. Mas com a reconciliação pelo endpoint de transação, o saldo não dependerá exclusivamente do webhook.

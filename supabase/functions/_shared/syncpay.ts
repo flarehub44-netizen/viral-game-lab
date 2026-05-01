@@ -123,22 +123,43 @@ export async function syncPayCreateCashIn(payload: SyncPayCashInRequest): Promis
   );
 }
 
-export interface SyncPayCashInStatus {
-  identifier: string;
-  status: string;
-  amount?: number;
-  paid_at?: string | null;
-  [key: string]: unknown;
+export type SyncPayTransactionStatus =
+  | "pending"
+  | "completed"
+  | "failed"
+  | "refunded"
+  | "med"
+  | string;
+
+export interface SyncPayTransactionData {
+  reference_id: string;
+  currency: string;
+  amount: number;
+  transaction_date?: string;
+  status: SyncPayTransactionStatus;
+  description?: string | null;
+  pix_code?: string | null;
 }
 
-/** Consulta o status atual de um cash-in já criado. Usado pelo polling de reconciliação. */
-export async function syncPayGetCashIn(identifier: string): Promise<SyncPayCashInStatus> {
+export interface SyncPayTransactionResponse {
+  data: SyncPayTransactionData;
+}
+
+/**
+ * Consulta o status de uma transação (cash-in ou cash-out) usando o endpoint
+ * oficial `/api/partner/v1/transaction/{identifier}`. Usado pela reconciliação
+ * quando o webhook não chegou.
+ */
+export async function syncPayGetTransaction(
+  identifier: string,
+): Promise<SyncPayTransactionData> {
   const auth = await syncPayAuthToken();
-  return await syncPayFetch<SyncPayCashInStatus>(
-    `/api/partner/v1/cash-in/${encodeURIComponent(identifier)}`,
+  const resp = await syncPayFetch<SyncPayTransactionResponse>(
+    `/api/partner/v1/transaction/${encodeURIComponent(identifier)}`,
     { method: "GET" },
     auth.access_token,
   );
+  return resp.data;
 }
 
 export async function syncPayCreateCashOut(payload: SyncPayCashOutRequest): Promise<SyncPayCashOutResponse> {
