@@ -50,18 +50,6 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
         stopped.current = true;
         return;
       }
-
-      // Fallback: a cada 3 polls (~9s) enquanto pendente, força reconciliação
-      // direto com a SyncPay caso o webhook tenha falhado.
-      if (s === "pending" && tickCountRef.current % 3 === 0) {
-        try {
-          await supabase.functions.invoke("reconcile-pix-deposit", {
-            body: { deposit_id: depositId },
-          });
-        } catch {
-          // Falha de reconciliação não é fatal — próximo tick tenta de novo.
-        }
-      }
     };
 
     void tick();
