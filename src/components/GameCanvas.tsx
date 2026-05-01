@@ -100,17 +100,22 @@ export const GameCanvas = ({
   const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
   const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
 
-  // ---- DEMO: ganho proporcional em tempo real (skill puro, sem meta) ----
-  // Multiplicador = min(barriers × 0.05, 5.0) — espelha demoRound.ts
-  const DEMO_PER_BARRIER = 0.05;
-  const DEMO_CAP = 5.0;
+  // ---- DEMO: ganho proporcional em tempo real ----
+  // Multiplicador atual = 0.05 × base × barreiras (sem teto próprio; só MAX_ROUND_PAYOUT)
+  // A "meta" da base é atingida em 20 barreiras; depois disso continua crescendo.
+  const DEMO_PER_BARRIER_FACTOR = 0.05;
+  const DEMO_GOAL_BARRIERS = 20;
+  const demoBase = isDemoMode ? (targetMultiplier ?? resultMultiplier ?? 5) : 0;
   const demoCurrentMultiplier = isDemoMode
-    ? Math.min(passedNow * DEMO_PER_BARRIER, DEMO_CAP)
+    ? DEMO_PER_BARRIER_FACTOR * demoBase * passedNow
     : 0;
   const demoCurrentWin = isDemoMode
     ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
     : 0;
-  const demoAtCap = isDemoMode && demoCurrentMultiplier >= DEMO_CAP;
+  const demoReachedGoal = isDemoMode && passedNow >= DEMO_GOAL_BARRIERS;
+  const demoAtPayoutCap =
+    isDemoMode && stake > 0 && stake * demoCurrentMultiplier >= MAX_ROUND_PAYOUT;
+  const demoPerBarrierValue = isDemoMode ? stake * DEMO_PER_BARRIER_FACTOR * demoBase : 0;
 
   // Popup ao passar cada barreira
   useEffect(() => {
