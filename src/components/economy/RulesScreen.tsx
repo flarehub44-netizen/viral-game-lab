@@ -30,7 +30,7 @@ export const RulesScreen = ({ onBack }: Props) => {
         <h2 className="text-lg font-black uppercase tracking-wide">Regras</h2>
       </div>
 
-      <div className="flex-1 px-5 py-6 space-y-5 max-w-md mx-auto w-full text-sm leading-relaxed">
+      <div className="flex-1 px-5 py-6 space-y-5 w-full text-sm leading-relaxed">
         <section className="space-y-2">
           <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
             Objetivo

@@ -47,7 +47,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
 
   return (
     <div className="absolute inset-0 flex flex-col bg-gradient-to-b from-[hsl(270_45%_10%)] via-background to-background overflow-y-auto">
-      <div className="flex items-center justify-between gap-2 px-4 pt-5 pb-3 shrink-0 border-b border-border max-w-md mx-auto w-full">
+      <div className="flex items-center justify-between gap-2 px-4 pt-5 pb-3 shrink-0 border-b border-border w-full">
         <button
           type="button"
           onClick={onBack}
@@ -63,7 +63,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         </div>
       </div>
 
-      <div className="flex-1 px-5 py-6 space-y-6 max-w-md mx-auto w-full pb-36">
+      <div className="flex-1 px-5 py-6 space-y-6 w-full pb-36">
         <div>
           <h2 className="text-xl font-black uppercase tracking-wide text-center mb-2">
             Iniciar partida
@@ -176,7 +176,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         </p>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent max-w-md mx-auto w-full space-y-2">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent neon-app-column space-y-2">
         <button
           type="button"
           disabled={!bet || insufficient || Boolean(busy)}

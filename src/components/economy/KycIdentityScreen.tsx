@@ -80,7 +80,7 @@ export const KycIdentityScreen = ({ onBack, onSaved }: Props) => {
         <h2 className="text-lg font-black uppercase tracking-wide">Dados PIX</h2>
       </div>
 
-      <div className="flex-1 px-5 py-6 space-y-5 max-w-md mx-auto w-full">
+      <div className="flex-1 px-5 py-6 space-y-5 w-full">
         <p className="text-[11px] text-muted-foreground leading-relaxed border border-border rounded-lg p-3 bg-card/30">
           Informe CPF e celular usados na cobrança PIX. Os dados ficam no seu perfil e são exigidos pelo
           provedor de pagamento.

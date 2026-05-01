@@ -11,7 +11,6 @@ const MULTS = MULTIPLIER_TIERS.map((t) => t.multiplier);
 
 export const AdminSandbox = () => {
   const [stake, setStake] = useState("5");
-  const [mult, setMult] = useState<number>(1);
   const [busy, setBusy] = useState(false);
   const [activeRound, setActiveRound] = useState<ActiveServerRound | null>(null);
   const [simN, setSimN] = useState("5000");
@@ -33,7 +32,6 @@ export const AdminSandbox = () => {
       const res = await invokeAdminAction<{ ok: boolean; round: ActiveServerRound }>({
         type: "sandbox_round",
         stake: s,
-        forced_multiplier: mult,
       });
       const r = res.round;
       setActiveRound({
@@ -109,27 +107,16 @@ export const AdminSandbox = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-lg mx-auto pb-24">
+    <div className="space-y-6 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto pb-24">
       <h1 className="text-xl font-black uppercase tracking-wide">Sandbox</h1>
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         Gera uma rodada <strong>mode=sandbox</strong> já fechada no banco (sem movimentar carteira). Use para validar
         animação e payout por multiplicador.
       </p>
-
-      <label className="block space-y-1">
-        <span className="text-[10px] uppercase text-muted-foreground">Multiplicador forçado</span>
-        <select
-          value={mult}
-          onChange={(e) => setMult(Number(e.target.value))}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
-        >
-          {MULTS.map((m) => (
-            <option key={m} value={m}>
-              ×{m}
-            </option>
-          ))}
-        </select>
-      </label>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Sorteio automático do sandbox: <strong>80% vitória</strong> (multiplicador {">"} 1.0) e{" "}
+        <strong>20% derrota</strong> (multiplicador {"<="} 1.0).
+      </p>
 
       <label className="block space-y-1">
         <span className="text-[10px] uppercase text-muted-foreground">Stake visual (1–50)</span>

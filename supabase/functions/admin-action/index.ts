@@ -12,8 +12,6 @@ const TARGET_MULT = 20;
 const MIN_STAKE = 1;
 const MAX_STAKE = 50;
 
-const ALLOWED_MULTS = new Set(MULTIPLIER_TIERS.map((t) => t.multiplier));
-
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -59,6 +57,27 @@ async function signLayout(secret: string, message: string): Promise<string> {
   return hmacSha256Hex(secret, message);
 }
 
+function cryptoRng(): () => number {
+  const buf = new Uint32Array(1);
+  return () => {
+    crypto.getRandomValues(buf);
+    return buf[0]! / 0xffffffff;
+  };
+}
+
+function pickOne<T>(items: readonly T[], rng: () => number): T {
+  const idx = Math.min(items.length - 1, Math.floor(rng() * items.length));
+  return items[idx]!;
+}
+
+function pickSandboxMultiplier(rng: () => number): number {
+  const winTierMultipliers = MULTIPLIER_TIERS.filter((t) => t.multiplier > 1).map((t) => t.multiplier);
+  const loseTierMultipliers = MULTIPLIER_TIERS.filter((t) => t.multiplier <= 1).map((t) => t.multiplier);
+  const isWin = rng() < 0.8;
+  const pool = isWin ? winTierMultipliers : loseTierMultipliers;
+  return pickOne(pool, rng);
+}
+
 type AdminBody =
   | { type: "search_users"; query?: string; limit?: number }
   | { type: "credit"; user_id: string; amount: number; note?: string }
@@ -68,7 +87,7 @@ type AdminBody =
   | { type: "ban_user"; user_id: string }
   | { type: "unban_user"; user_id: string }
   | { type: "set_feature_flag"; key: string; enabled: boolean; rollout_percent?: number | null }
-  | { type: "sandbox_round"; stake: number; forced_multiplier: number }
+  | { type: "sandbox_round"; stake: number }
   | { type: "reset_sandbox" };
 
 Deno.serve(async (req) => {
@@ -214,12 +233,10 @@ Deno.serve(async (req) => {
       }
       case "sandbox_round": {
         const stake = Math.round(Number(body.stake) * 100) / 100;
-        const mult = Number(body.forced_multiplier);
+        const rng = cryptoRng();
+        const mult = pickSandboxMultiplier(rng);
         if (!Number.isFinite(stake) || stake < MIN_STAKE || stake > MAX_STAKE) {
           return json(400, { error: "invalid_stake" });
-        }
-        if (!Number.isFinite(mult) || !ALLOWED_MULTS.has(mult)) {
-          return json(400, { error: "invalid_multiplier" });
         }
         let payout = Math.round(stake * mult * 100) / 100;
         if (payout > MAX_PAYOUT) payout = MAX_PAYOUT;

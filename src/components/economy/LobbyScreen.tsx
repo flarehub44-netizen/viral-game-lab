@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Trophy, Target, Award, Play, Wallet, Users, ScrollText, BookOpen, LogIn, Flame } from "lucide-react";
 import { levelFromXp, loadProgression, type ProgressionProfile } from "@/game/progression";
 
@@ -27,6 +28,39 @@ function pseudoOnlinePlayers(): number {
   return 2400 + (daySeed % 650);
 }
 
+type WinnerItem = {
+  id: string;
+  nameMasked: string;
+  amount: number;
+  badge: "PIX" | "Prêmio";
+  minutesAgo: number;
+};
+
+function makeMaskedName(): string {
+  const samples = ["rafael", "carol", "julia", "andre", "gustavo", "bianca", "savio", "joao", "marina", "felipe"];
+  const raw = samples[Math.floor(Math.random() * samples.length)] ?? "player";
+  const visible = raw.slice(0, 2);
+  const hidden = "*".repeat(Math.max(3, raw.length - 2));
+  return `${visible}${hidden}`;
+}
+
+function generateMockWinnersFeed() {
+  const count = 10;
+  const winners: WinnerItem[] = [];
+  for (let i = 0; i < count; i++) {
+    const amount = Math.round((15 + Math.random() * 1985) * 100) / 100;
+    winners.push({
+      id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+      nameMasked: makeMaskedName(),
+      amount,
+      badge: Math.random() < 0.78 ? "PIX" : "Prêmio",
+      minutesAgo: 2 + Math.floor(Math.random() * 58),
+    });
+  }
+  const distributed = winners.reduce((acc, row) => acc + row.amount, 0) + 35000 + Math.random() * 25000;
+  return { winners, distributed };
+}
+
 export const LobbyScreen = ({
   walletBalance,
   nickname,
@@ -47,13 +81,15 @@ export const LobbyScreen = ({
   const lvl = levelFromXp(prog.xp);
   const missionsLeft = prog.missions.list.filter((m) => !m.done).length;
   const online = pseudoOnlinePlayers();
+  const winnersFeed = useMemo(() => generateMockWinnersFeed(), []);
+  const tickerRows = [...winnersFeed.winners, ...winnersFeed.winners];
 
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="absolute inset-0 flex flex-col bg-gradient-to-b from-[hsl(270_45%_10%)] via-background to-background overflow-y-auto">
-      <div className="w-full max-w-md mx-auto flex flex-col flex-1 px-5 pt-6 pb-8 gap-5">
+      <div className="w-full flex flex-col flex-1 px-5 pt-6 pb-8 gap-5">
         <div
           className={`rounded-xl border px-3 py-2 text-[10px] leading-snug ${
             playMode === "demo"
@@ -118,6 +154,47 @@ export const LobbyScreen = ({
             {online.toLocaleString("pt-BR")} jogadores online agora
           </div>
         </div>
+
+        <section className="rounded-2xl border border-cyan-400/30 bg-card/40 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/70 bg-black/20">
+            <h2 className="text-[12px] font-black uppercase tracking-wide text-white">Últimos ganhadores</h2>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Prêmios Distribuídos</div>
+              <div className="text-[18px] font-black tabular-nums text-[hsl(140_90%_58%)]">
+                R$ {fmt(winnersFeed.distributed)}
+              </div>
+            </div>
+          </div>
+          <div className="winners-ticker">
+            <div className="winners-track">
+              {tickerRows.map((item, idx) => (
+                <article
+                  key={`${item.id}-${idx}`}
+                  className="min-w-[162px] rounded-xl border border-border/80 bg-background/70 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-black tracking-wide text-foreground">{item.nameMasked}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
+                        item.badge === "PIX"
+                          ? "bg-[hsl(140_75%_30%)] text-[hsl(140_95%_70%)]"
+                          : "bg-[hsl(36_80%_30%)] text-[hsl(45_96%_70%)]"
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-end justify-between gap-2">
+                    <span className="text-[22px] leading-none font-black tabular-nums text-[hsl(140_90%_58%)]">
+                      R$ {fmt(item.amount)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">há {item.minutesAgo} min</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="text-center space-y-3 pt-2">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">

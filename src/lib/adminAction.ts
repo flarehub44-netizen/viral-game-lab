@@ -9,7 +9,7 @@ export type AdminRequestBody =
   | { type: "ban_user"; user_id: string }
   | { type: "unban_user"; user_id: string }
   | { type: "set_feature_flag"; key: string; enabled: boolean; rollout_percent?: number | null }
-  | { type: "sandbox_round"; stake: number; forced_multiplier: number }
+  | { type: "sandbox_round"; stake: number }
   | { type: "reset_sandbox" };
 
 export type AdminSearchRow = {

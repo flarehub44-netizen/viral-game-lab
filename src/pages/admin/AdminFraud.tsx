@@ -42,7 +42,7 @@ export const AdminFraud = () => {
   }, {});
 
   return (
-    <div className="space-y-4 px-4 py-6 max-w-3xl mx-auto">
+    <div className="space-y-4 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto">
       <h1 className="text-xl font-black uppercase tracking-wide">Sinais de fraude</h1>
       <div className="flex flex-wrap gap-2 text-[10px]">
         {Object.entries(bySignal).map(([sig, n]) => (

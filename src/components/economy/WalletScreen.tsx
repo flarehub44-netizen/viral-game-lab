@@ -113,7 +113,7 @@ export const WalletScreen = ({
         <h2 className="text-lg font-black uppercase tracking-wide">Carteira</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-md mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 w-full">
         {variant === "demo" && (
           <p className="text-[10px] rounded-lg border border-[hsl(180_70%_45%/0.35)] bg-[hsl(195_35%_12%/0.5)] px-3 py-2 text-muted-foreground leading-relaxed">
             Modo demo: saldo e histórico ficam só no navegador. Depósitos e saques não existem aqui.

@@ -4,7 +4,7 @@ import { syncPayCreateCashOut } from "../_shared/syncpay.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-device-fingerprint",
+    "authorization, x-client-info, apikey, content-type, x-device-fingerprint, idempotency-key",
 };
 
 function json(status: number, body: Record<string, unknown>) {
@@ -86,9 +86,14 @@ Deno.serve(async (req) => {
   } = await userClient.auth.getUser();
   if (authErr || !user) return json(401, { error: "invalid_session" });
 
-  let body: { amount?: unknown; pix_key?: unknown; pix_key_type?: unknown };
+  let body: { amount?: unknown; pix_key?: unknown; pix_key_type?: unknown; idempotency_key?: unknown };
   try {
-    body = (await req.json()) as { amount?: unknown; pix_key?: unknown; pix_key_type?: unknown };
+    body = (await req.json()) as {
+      amount?: unknown;
+      pix_key?: unknown;
+      pix_key_type?: unknown;
+      idempotency_key?: unknown;
+    };
   } catch {
     return json(400, { error: "invalid_json" });
   }
@@ -96,9 +101,15 @@ Deno.serve(async (req) => {
   const amount = Math.round(Number(body.amount) * 100) / 100;
   const pixKey = typeof body.pix_key === "string" ? body.pix_key.trim() : "";
   const pixKeyType = typeof body.pix_key_type === "string" ? body.pix_key_type.trim() : "";
+  const idempotencyHeader = req.headers.get("idempotency-key")?.trim() ?? "";
+  const idempotencyBody = typeof body.idempotency_key === "string" ? body.idempotency_key.trim() : "";
+  const idempotencyKey = (idempotencyBody || idempotencyHeader).slice(0, 64);
   if (!Number.isFinite(amount) || amount < 5 || amount > 5000) return json(400, { error: "invalid_amount" });
   if (!pixKey || !["cpf", "email", "phone", "evp"].includes(pixKeyType)) {
     return json(400, { error: "invalid_pix_key" });
+  }
+  if (!idempotencyKey || idempotencyKey.length < 8) {
+    return json(400, { error: "idempotency_key_required" });
   }
   const pixKeyErr = validatePixKey(pixKey, pixKeyType);
   if (pixKeyErr) return json(400, { error: pixKeyErr });
@@ -139,6 +150,7 @@ Deno.serve(async (req) => {
     p_pix_key: pixKey,
     p_pix_key_type: pixKeyType,
     // provider_ref omitido: será definido em finalize_pix_withdrawal após SyncPay
+    p_idempotency_key: idempotencyKey,
   });
   if (wdErr) {
     const msg = wdErr.message ?? "";

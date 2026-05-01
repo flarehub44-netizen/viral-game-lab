@@ -71,7 +71,7 @@ export const AdminUsers = () => {
   };
 
   return (
-    <div className="space-y-4 px-4 py-6 max-w-2xl mx-auto pb-24">
+    <div className="space-y-4 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto pb-24">
       <h1 className="text-xl font-black uppercase tracking-wide">Usuários</h1>
       <div className="flex gap-2">
         <input

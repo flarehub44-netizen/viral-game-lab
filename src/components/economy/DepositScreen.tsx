@@ -19,7 +19,7 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
   const [depositId, setDepositId] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState("");
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const pollStatus = usePixDepositPolling(depositId);
+  const { status: pollStatus, pollError } = usePixDepositPolling(depositId);
 
   const expiresMs = useMemo(() => (expiresAt ? Date.parse(expiresAt) : 0), [expiresAt]);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -36,6 +36,13 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
 
   useEffect(() => {
     if (!depositId) return;
+    if (pollError) {
+      toast.error("Não foi possível acompanhar o status do depósito. Verifique sua carteira em instantes.");
+      setDepositId(null);
+      setQrCode("");
+      setExpiresAt(null);
+      return;
+    }
     if (pollStatus === "confirmed") {
       toast.success("Depósito confirmado! Seu saldo foi atualizado.");
       void onConfirmed();
@@ -51,7 +58,7 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
       setQrCode("");
       setExpiresAt(null);
     }
-  }, [pollStatus, depositId, onBack, onConfirmed]);
+  }, [pollStatus, pollError, depositId, onBack, onConfirmed]);
 
   const amountNum = Math.round(Number(amountStr.replace(",", ".")) * 100) / 100;
 
@@ -113,7 +120,7 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
         <h2 className="text-lg font-black uppercase tracking-wide">Depósito PIX</h2>
       </div>
 
-      <div className="flex-1 px-5 py-6 space-y-5 max-w-md mx-auto w-full">
+      <div className="flex-1 px-5 py-6 space-y-5 w-full">
         {!qrCode ? (
           <>
             <p className="text-[11px] text-muted-foreground leading-relaxed">

@@ -150,7 +150,7 @@ export const GameOverScreen = ({
       </div>
 
       {serverEconomy && (
-        <div className="mt-5 mx-auto w-full max-w-xs rounded-xl border border-[hsl(140_80%_35%/0.35)] bg-[hsl(140_25%_8%/0.5)] p-4 space-y-3">
+        <div className="mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border border-[hsl(140_80%_35%/0.35)] bg-[hsl(140_25%_8%/0.5)] p-4 space-y-3">
           <div className="text-[10px] uppercase tracking-[0.25em] text-center text-muted-foreground">
             Resultado da rodada
           </div>
@@ -197,7 +197,7 @@ export const GameOverScreen = ({
 
       {/* XP / Level bar */}
       {progression && (
-        <div className="mt-5 mx-auto w-full max-w-xs rounded-xl border border-border bg-card/40 p-3">
+        <div className="mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border border-border bg-card/40 p-3">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-[10px] font-black text-background">
@@ -232,7 +232,7 @@ export const GameOverScreen = ({
 
       {/* Near-miss motivation */}
       {nearMissMessages.length > 0 && (
-        <div className="mt-3 mx-auto w-full max-w-xs flex flex-col gap-1.5">
+        <div className="mt-3 mx-auto w-full max-w-xs md:max-w-md flex flex-col gap-1.5">
           {nearMissMessages.slice(0, 2).map(({ key, text }) => (
             <div key={key} className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
               <span>⚡</span>
@@ -244,7 +244,7 @@ export const GameOverScreen = ({
 
       {/* Missions / Achievements completed */}
       {progression && (progression.missionsCompleted.length > 0 || progression.achievementsUnlocked.length > 0) && (
-        <div className="mt-3 mx-auto w-full max-w-xs flex flex-col gap-2">
+        <div className="mt-3 mx-auto w-full max-w-xs md:max-w-md flex flex-col gap-2">
           {progression.missionsCompleted.map((m) => (
             <div
               key={m.id}
@@ -268,7 +268,7 @@ export const GameOverScreen = ({
         </div>
       )}
       {progression && progression.runGoalsCompleted.length > 0 && (
-        <div className="mt-3 mx-auto w-full max-w-xs flex flex-col gap-2">
+        <div className="mt-3 mx-auto w-full max-w-xs md:max-w-md flex flex-col gap-2">
           {progression.runGoalsCompleted.map((goal) => (
             <div
               key={goal.id}
@@ -290,7 +290,7 @@ export const GameOverScreen = ({
 
       <div className="flex-1 min-h-4" />
 
-      <div className="w-full max-w-xs mx-auto flex flex-col gap-3 mt-4">
+      <div className="w-full max-w-xs md:max-w-md mx-auto flex flex-col gap-3 mt-4">
         <button
           onClick={onRetry}
           className="btn-neon w-full py-4 text-lg font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2"

@@ -51,6 +51,32 @@ function isAllowedEvent(eventType: string): boolean {
   );
 }
 
+function hexFromBytes(buf: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return hexFromBytes(sig);
+}
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
@@ -58,7 +84,8 @@ Deno.serve(async (req) => {
   const clientIp = extractClientIp(req);
   const ipAllowlist = parseIpAllowlist();
   const bearerConfigured = Boolean(Deno.env.get("SYNC_PAY_WEBHOOK_BEARER_TOKEN"));
-  const webhookSecurityConfigured = ipAllowlist.length > 0 || bearerConfigured;
+  const hmacSecret = Deno.env.get("SYNC_PAY_WEBHOOK_HMAC_SECRET") ?? "";
+  const webhookSecurityConfigured = ipAllowlist.length > 0 || bearerConfigured || Boolean(hmacSecret);
 
   if (!webhookSecurityConfigured) {
     return json(503, {
@@ -81,6 +108,31 @@ Deno.serve(async (req) => {
     return json(400, { error: "unsupported_event" });
   }
   const rawPayload = await req.text();
+  if (!hmacSecret) {
+    return json(503, {
+      error: "webhook_hmac_not_configured",
+      hint: "Configure SYNC_PAY_WEBHOOK_HMAC_SECRET to validate webhook signatures.",
+    });
+  }
+  const signatureHeader = req.headers.get("x-pix-signature")?.trim() ?? "";
+  const timestampHeader = req.headers.get("x-pix-timestamp")?.trim() ?? "";
+  if (!signatureHeader || !timestampHeader) {
+    return json(401, { error: "missing_hmac_headers" });
+  }
+  const tsMs = Number(timestampHeader);
+  if (!Number.isFinite(tsMs)) {
+    return json(400, { error: "invalid_hmac_timestamp" });
+  }
+  const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000;
+  const ageMs = Math.abs(Date.now() - tsMs);
+  if (ageMs > MAX_WEBHOOK_AGE_MS) {
+    return json(400, { error: "event_too_old" });
+  }
+  const expectedSignature = await hmacSha256Hex(hmacSecret, `${timestampHeader}.${rawPayload}`);
+  if (!safeEqual(signatureHeader.toLowerCase(), expectedSignature.toLowerCase())) {
+    return json(401, { error: "invalid_hmac_signature" });
+  }
+
   let body: { provider_ref?: unknown; amount?: unknown; status?: unknown };
   try {
     body = JSON.parse(rawPayload) as { provider_ref?: unknown; amount?: unknown; status?: unknown };
@@ -96,8 +148,7 @@ Deno.serve(async (req) => {
     return json(400, { error: "invalid_payload" });
   }
 
-  // Previne replay de webhooks antigos. Verifica apenas se o payload incluir timestamp.
-  const MAX_WEBHOOK_AGE_MS = 5 * 60 * 1000;
+  // Defesa em profundidade: também valida timestamp no payload quando presente.
   const eventTimestampRaw = dataObj.created_at ?? dataObj.timestamp ?? dataObj.event_time;
   if (eventTimestampRaw) {
     const eventTs = new Date(String(eventTimestampRaw)).getTime();
@@ -127,6 +178,13 @@ Deno.serve(async (req) => {
     return json(500, { error: "webhook_register_failed" });
   }
   if (!firstSeen) {
+    await admin.rpc("log_fraud_signal", {
+      p_user_id: null,
+      p_round_id: null,
+      p_signal: "syncpay_webhook_duplicate",
+      p_score: 4,
+      p_payload: { providerRef, status, eventType, clientIp },
+    });
     return json(200, { ok: true, duplicated: true });
   }
 

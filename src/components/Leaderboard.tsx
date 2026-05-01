@@ -26,6 +26,7 @@ export function invalidateLeaderboardCache() {
 export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
   const [rows, setRows] = useState<ScoreRow[]>(cache?.rows ?? []);
   const [loading, setLoading] = useState(!cache);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,9 +34,11 @@ export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
     if (cache && now - cache.ts < CACHE_TTL_MS) {
       setRows(cache.rows);
       setLoading(false);
+      setLoadError(null);
       return;
     }
     setLoading(true);
+    setLoadError(null);
     (async () => {
       const { data, error } = await supabase
         .from("scores")
@@ -46,6 +49,8 @@ export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
       if (!error && data) {
         cache = { rows: data, ts: Date.now() };
         setRows(data);
+      } else {
+        setLoadError("Não foi possível carregar o ranking agora.");
       }
       setLoading(false);
     })();
@@ -75,6 +80,35 @@ export const Leaderboard = ({ onBack, highlightNickname }: Props) => {
         {loading ? (
           <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
             Carregando...
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-12 text-muted-foreground text-sm space-y-3">
+            <p>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                cache = null;
+                setLoading(true);
+                setLoadError(null);
+                void (async () => {
+                  const { data, error } = await supabase
+                    .from("scores")
+                    .select("id, nickname, score, created_at")
+                    .order("score", { ascending: false })
+                    .limit(50);
+                  if (!error && data) {
+                    cache = { rows: data, ts: Date.now() };
+                    setRows(data);
+                  } else {
+                    setLoadError("Não foi possível carregar o ranking agora.");
+                  }
+                  setLoading(false);
+                })();
+              }}
+              className="px-3 py-2 rounded-lg border border-border bg-card/60 text-foreground text-xs font-bold"
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : rows.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">

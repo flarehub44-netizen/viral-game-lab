@@ -5,12 +5,19 @@ export type PixDepositStatus = "pending" | "confirmed" | "failed" | "expired";
 
 export function usePixDepositPolling(depositId: string | null, intervalMs = 3000) {
   const [status, setStatus] = useState<PixDepositStatus | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
   const stopped = useRef(false);
+  const startedAtRef = useRef(0);
+  const consecutiveErrorsRef = useRef(0);
 
   useEffect(() => {
     stopped.current = false;
+    startedAtRef.current = Date.now();
+    consecutiveErrorsRef.current = 0;
+    setPollError(null);
     if (!depositId) {
       setStatus(null);
+      setPollError(null);
       return;
     }
 
@@ -21,7 +28,17 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
         .select("status")
         .eq("id", depositId)
         .maybeSingle();
-      if (error || !data?.status) return;
+      if (error || !data?.status) {
+        consecutiveErrorsRef.current += 1;
+        const elapsedMs = Date.now() - startedAtRef.current;
+        if (consecutiveErrorsRef.current >= 5 || elapsedMs > 90_000) {
+          stopped.current = true;
+          setPollError("poll_unavailable");
+          setStatus("failed");
+        }
+        return;
+      }
+      consecutiveErrorsRef.current = 0;
       const s = data.status as PixDepositStatus;
       setStatus(s);
       if (s === "confirmed" || s === "failed" || s === "expired") {
@@ -37,5 +54,5 @@ export function usePixDepositPolling(depositId: string | null, intervalMs = 3000
     };
   }, [depositId, intervalMs]);
 
-  return status;
+  return { status, pollError };
 }

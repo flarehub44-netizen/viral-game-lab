@@ -36,7 +36,7 @@ export const AgeGateScreen = ({ onConfirmed }: Props) => {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-[hsl(270_45%_10%)] via-background to-background overflow-y-auto">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-sm sm:max-w-md md:max-w-lg space-y-6">
         <h1 className="text-2xl font-black text-center">Confirmação de idade</h1>
         <p className="text-sm text-muted-foreground text-center leading-relaxed">
           Este jogo envolve apostas simuladas em créditos e não é destinado a menores de 18 anos. Confirme que

@@ -12,6 +12,7 @@ const MESSAGES: Record<string, string> = {
   invalid_email_pix_key: "E-mail da chave PIX inválido.",
   invalid_phone_pix_key: "Telefone da chave PIX inválido.",
   invalid_evp_pix_key: "Chave aleatória (EVP) inválida.",
+  idempotency_key_required: "Não foi possível validar esta tentativa. Tente novamente.",
   insufficient_balance: "Saldo insuficiente.",
   kyc_required: "Verificação de identidade (KYC) aprovada é necessária para sacar.",
   rate_limited: "Muitas tentativas. Aguarde um instante e tente de novo.",

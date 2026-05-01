@@ -73,6 +73,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
           amount: amountNum,
           pix_key: trimmedKey,
           pix_key_type: pixKeyType,
+          idempotency_key: crypto.randomUUID(),
         },
       });
       const errCode = await parsePixInvokeError(data, error);
@@ -107,7 +108,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
           </button>
           <h2 className="text-lg font-black uppercase tracking-wide">Saque PIX</h2>
         </div>
-        <div className="flex-1 px-5 py-8 space-y-4 max-w-md mx-auto w-full text-center">
+        <div className="flex-1 px-5 py-8 space-y-4 w-full text-center">
           <p className="text-sm text-[hsl(140_90%_62%)] font-bold">Pedido registrado</p>
           {doneRef !== "ok" && (
             <p className="text-[10px] font-mono break-all text-muted-foreground">
@@ -140,7 +141,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
         <h2 className="text-lg font-black uppercase tracking-wide">Saque PIX</h2>
       </div>
 
-      <div className="flex-1 px-5 py-6 space-y-5 max-w-md mx-auto w-full">
+      <div className="flex-1 px-5 py-6 space-y-5 w-full">
         {(!over18 || !kycApproved) && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200/90">
             {!over18 && <p>Confirme a maioridade (18+) no app antes de solicitar saque.</p>}

@@ -188,7 +188,12 @@ const Index = () => {
     if (!user) return;
     setEconomyLoading(true);
     try {
-      const [{ data: w }, { data: rounds }, { data: deps }, { data: wds }] = await Promise.all([
+      const [
+        { data: w, error: wErr },
+        { data: rounds, error: roundsErr },
+        { data: deps, error: depsErr },
+        { data: wds, error: wdsErr },
+      ] = await Promise.all([
         supabase.from("wallets").select("balance").eq("user_id", user.id).single(),
         supabase
           .from("game_rounds")
@@ -209,6 +214,9 @@ const Index = () => {
           .order("created_at", { ascending: false })
           .limit(25),
       ]);
+      if (wErr || roundsErr || depsErr || wdsErr) {
+        toast.error("Não foi possível atualizar a carteira agora.");
+      }
       setWalletBalance(Number(w?.balance ?? 0));
       setRoundHistory(mapRoundRows(rounds ?? []));
       setPixDeposits(
@@ -248,7 +256,11 @@ const Index = () => {
 
   const reloadProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+    if (error) {
+      toast.error("Não foi possível carregar seu perfil.");
+      return;
+    }
     setProfile(data as ProfileRow | null);
     if (data?.display_name) setNickname(data.display_name);
   }, [user]);
@@ -566,10 +578,9 @@ const Index = () => {
     }
     setNickname(trimmed);
     if (user && trimmed) {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ display_name: trimmed })
-        .eq("user_id", user.id);
+      const { error } = await supabase.rpc("set_profile_display_name", {
+        p_display_name: trimmed,
+      });
       if (error) toast.error("Não foi possível atualizar o apelido.");
       else await reloadProfile();
     }
@@ -591,7 +602,7 @@ const Index = () => {
   if (!isOnline && !isDemo) {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden bg-background">
-        <div className="relative w-full h-full max-w-md mx-auto">
+        <div className="relative w-full h-full neon-app-column">
           <AuthScreen onPlayDemo={enterDemo} />
         </div>
       </main>
@@ -609,7 +620,7 @@ const Index = () => {
   if (isOnline && profile && !profile.over_18_confirmed_at) {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden bg-background">
-        <div className="relative w-full h-full max-w-md mx-auto">
+        <div className="relative w-full h-full neon-app-column">
           <AgeGateScreen onConfirmed={() => void reloadProfile()} />
         </div>
       </main>
@@ -623,7 +634,7 @@ const Index = () => {
       className="fixed inset-0 w-full h-full overflow-hidden bg-background"
       style={{ touchAction: "manipulation" }}
     >
-      <div className="relative w-full h-full max-w-md mx-auto">
+      <div className="relative w-full h-full neon-app-column">
         {screen === "lobby" && (
           <LobbyScreen
             walletBalance={walletBalance}
@@ -751,7 +762,7 @@ const Index = () => {
         )}
       </div>
 
-      <p className="fixed bottom-1 left-0 right-0 text-center text-[9px] text-muted-foreground pointer-events-none px-4 max-w-md mx-auto">
+      <p className="fixed bottom-1 left-0 right-0 text-center text-[9px] text-muted-foreground pointer-events-none px-4 neon-app-column">
         {isDemo
           ? "Demo: sem dados de conta. Créditos fictícios."
           : "Jogue com responsabilidade. Proibido para menores de 18 anos."}

@@ -87,6 +87,13 @@
   }
 }
 
+@layer components {
+  /** Coluna principal do app: mobile-first, escala no desktop sem redesenhar telas. */
+  .neon-app-column {
+    @apply w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto;
+  }
+}
+
 @layer utilities {
   .text-glow-cyan {
     color: hsl(var(--neon-cyan));
@@ -141,5 +148,22 @@
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-6px); }
     40%, 80% { transform: translateX(6px); }
+  }
+  .winners-ticker {
+    overflow: hidden;
+    padding: 0.65rem 0;
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+  .winners-track {
+    display: flex;
+    width: max-content;
+    gap: 0.6rem;
+    padding-inline: 0.5rem;
+    animation: winners-marquee 28s linear infinite;
+  }
+  @keyframes winners-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-50% - 0.3rem)); }
   }
 }

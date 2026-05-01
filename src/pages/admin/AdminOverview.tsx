@@ -68,7 +68,7 @@ export const AdminOverview = () => {
         : "text-destructive";
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-2xl mx-auto">
+    <div className="space-y-6 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto">
       <h1 className="text-xl font-black uppercase tracking-wide">Visão geral</h1>
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>

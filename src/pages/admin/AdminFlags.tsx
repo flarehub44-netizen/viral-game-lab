@@ -48,7 +48,7 @@ export const AdminFlags = () => {
   if (loading) return <p className="px-4 py-6 text-sm text-muted-foreground">Carregando…</p>;
 
   return (
-    <div className="space-y-4 px-4 py-6 max-w-xl mx-auto">
+    <div className="space-y-4 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto">
       <h1 className="text-xl font-black uppercase tracking-wide">Feature flags</h1>
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma flag cadastrada.</p>
