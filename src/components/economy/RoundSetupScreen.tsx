@@ -79,7 +79,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
             </div>
           ) : (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Treino: cada barreira vale 0,05× sua entrada (até ×5,00). Sem meta — quanto mais barreiras passar, mais ganha.
+              🎯 Multiplicador <strong>base ×5,00</strong> — cada barreira vale ×0,05 da entrada. Quanto mais passar, mais perto do teto.
             </div>
           )}
         </div>
@@ -184,12 +184,14 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
                 Por barreira
               </div>
               <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(bet * 0.05)}</div>
+              <div className="text-[9px] text-muted-foreground tabular-nums mt-0.5">×0,05</div>
             </div>
-            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+            <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Ganho máximo (×5)
+                Multiplicador base
               </div>
               <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(bet * 5)}</div>
+              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">base ×5,00</div>
             </div>
           </div>
         )}
@@ -199,7 +201,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
             ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
-            : "Pagamento: entrada × (barreiras × 0,05), até ×5,00. Créditos demo neste dispositivo."}
+            : "Pagamento: entrada × (barreiras × 0,05), base ×5,00. Créditos demo neste dispositivo."}
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
