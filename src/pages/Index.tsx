@@ -310,6 +310,35 @@ const Index = () => {
     await refreshEconomy();
   }, [refreshEconomy]);
 
+  // Quando o usuário abre a Carteira, força a reconciliação dos PIX pendentes
+  // que ainda têm provider_ref válido (cobre falhas de webhook).
+  useEffect(() => {
+    if (screen !== "wallet" || isDemo || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("pix_deposits")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .not("provider_ref", "is", null)
+        .gte("expires_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+        .limit(20);
+      if (cancelled || !data || data.length === 0) return;
+      await Promise.allSettled(
+        data.map((d) =>
+          supabase.functions.invoke("reconcile-pix-deposit", {
+            body: { deposit_id: d.id },
+          }),
+        ),
+      );
+      if (!cancelled) await refreshEconomy();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [screen, isDemo, user, refreshEconomy]);
+
   useEffect(() => {
     if (!user) {
       setProfile(null);
