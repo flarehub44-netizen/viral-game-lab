@@ -79,7 +79,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
             </div>
           ) : (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Treino: cada barreira vale 0,05× sua entrada (até ×5,00). Sem meta — quanto mais barreiras passar, mais ganha.
+              🎯 Multiplicador <strong>base ×5,00</strong> — cada barreira vale ×0,05 da entrada. Quanto mais passar, mais perto do teto.
             </div>
           )}
         </div>
