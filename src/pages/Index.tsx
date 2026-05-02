@@ -172,7 +172,8 @@ const Index = () => {
   const [isNewBest, setIsNewBest] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [showNickDialog, setShowNickDialog] = useState(false);
-  const [goalPopup, setGoalPopup] = useState<{ multiplier: number; barriers: number } | null>(null);
+  
+  const [prePlayPopup, setPrePlayPopup] = useState<{ multiplier: number; barriers: number } | null>(null);
   const settledRoundsRef = useRef<Set<string>>(new Set());
 
   const bestKey = useMemo(() => {
@@ -354,7 +355,7 @@ const Index = () => {
     setLastProgression(null);
     setServerEconomy(null);
     setIsNewBest(false);
-    setGoalPopup(null);
+    setPrePlayPopup(null);
     setScreen("roundSetup");
   };
 
@@ -402,7 +403,12 @@ const Index = () => {
         activeRoundRef.current = res.round;
         setActiveRound(res.round);
         refreshDemoEconomy();
-        setScreen("playing");
+        const mult = res.round.result_multiplier ?? 0;
+        if (mult > 0) {
+          setPrePlayPopup({ multiplier: mult, barriers: res.round.target_barrier ?? 0 });
+        } else {
+          setScreen("playing");
+        }
       } finally {
         setStartingRound(false);
       }
@@ -451,7 +457,15 @@ const Index = () => {
       activeRoundRef.current = roundPayload;
       setActiveRound(roundPayload);
       await refreshEconomy();
-      setScreen("playing");
+      const mult = roundPayload.result_multiplier ?? 0;
+      if (mult > 0) {
+        setPrePlayPopup({
+          multiplier: mult,
+          barriers: roundPayload.target_barrier ?? 0,
+        });
+      } else {
+        setScreen("playing");
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Falha ao iniciar rodada");
@@ -476,8 +490,6 @@ const Index = () => {
 
     let finalEconomy: ServerEconomyPayload | null = null;
 
-    let goalHit: { multiplier: number; barriers: number } | null = null;
-
     if (settled) {
       if (isDemo) {
         const settledDemo = settleDemoRound(settled, barriersPassed);
@@ -491,9 +503,6 @@ const Index = () => {
           targetBarrier: 0,
           mode: "demo",
         };
-        if (settledDemo.payout > 0 && settledDemo.multiplier > 0) {
-          goalHit = { multiplier: settledDemo.multiplier, barriers: barriersPassed };
-        }
       } else {
         // Pré-popular com "perdeu" enquanto aguarda servidor
         finalEconomy = {
@@ -506,17 +515,6 @@ const Index = () => {
           targetBarrier: settled.target_barrier ?? 0,
           mode: "live",
         };
-        const targetBarrier = settled.target_barrier ?? 0;
-        const liveMult = settled.result_multiplier ?? 0;
-        if (
-          (targetBarrier > 0 && barriersPassed >= targetBarrier) ||
-          liveMult > 0
-        ) {
-          goalHit = {
-            multiplier: liveMult || settled.target_multiplier || 0,
-            barriers: barriersPassed,
-          };
-        }
       }
     }
     setServerEconomy(finalEconomy);
@@ -537,13 +535,7 @@ const Index = () => {
     );
     setLastProgression(result);
 
-    if (goalHit) {
-      // Mostra popup obrigatório ANTES de ir para a tela de fim de jogo.
-      // A transição para "over" só acontece quando o jogador clica em "Fechar".
-      setGoalPopup(goalHit);
-    } else {
-      setScreen("over");
-    }
+    setScreen("over");
 
     if (isDemo) {
       refreshDemoEconomy();
@@ -838,13 +830,13 @@ const Index = () => {
           />
         )}
 
-        {goalPopup && (
+        {prePlayPopup && (
           <GoalReachedPopup
-            multiplier={goalPopup.multiplier}
-            barriers={goalPopup.barriers}
+            multiplier={prePlayPopup.multiplier}
+            barriers={prePlayPopup.barriers}
             onContinue={() => {
-              setGoalPopup(null);
-              if (screen !== "over") setScreen("over");
+              setPrePlayPopup(null);
+              setScreen("playing");
             }}
           />
         )}
