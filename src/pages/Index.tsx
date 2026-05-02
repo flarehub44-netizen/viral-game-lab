@@ -878,6 +878,19 @@ const Index = () => {
             }}
           />
         )}
+
+        {showDailyPopup && dailyStatus && onlineUserId && (
+          <DailyLoginPopup
+            currentStreak={dailyStatus.currentStreak}
+            onClaimed={() => {
+              setShowDailyPopup(false);
+              refreshDaily();
+              refreshBonus();
+              refreshEconomy();
+            }}
+            onClose={() => setShowDailyPopup(false)}
+          />
+        )}
       </div>
 
       <p className="fixed bottom-1 left-0 right-0 text-center text-[9px] text-muted-foreground pointer-events-none px-4 neon-app-column">
