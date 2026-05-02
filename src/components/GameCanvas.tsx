@@ -435,41 +435,23 @@ export const GameCanvas = ({
         </div>
       )}
 
-      {/* Popups por barreira: DEMO mostra ganho corrente; LIVE mostra meta/faltantes */}
+      {/* Popups por barreira: ganho corrente em R$ */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
         {floatingWins.map((w) => {
-          const justReachedGoal = !isDemoMode && goalBarriers > 0 && w.barrier === goalBarriers;
-          const remaining = Math.max(0, goalBarriers - w.barrier);
+          const popupMult = isDemoMode
+            ? DEMO_PER_BARRIER_FACTOR * demoBase * w.barrier
+            : multiplierForBarriers(w.barrier);
           return (
             <div
               key={w.id}
-              className={`float-up rounded-lg border px-3 py-1 text-center ${
-                justReachedGoal
-                  ? "border-[hsl(140_90%_55%)] bg-[hsl(140_55%_10%/0.92)] shadow-[0_0_20px_hsl(140_90%_55%/0.55)]"
-                  : "border-border bg-card/85"
-              }`}
+              className="float-up rounded-lg border px-3 py-1 text-center border-border bg-card/85"
             >
-              <div
-                className={`text-base font-black tabular-nums leading-none ${
-                  justReachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                }`}
-              >
-                {isDemoMode
-                  ? `+R$ ${formatBRL(w.total)}`
-                  : justReachedGoal
-                    ? `META! +R$ ${formatBRL(w.total)}`
-                    : `Barreira ${w.barrier}`}
+              <div className="text-base font-black tabular-nums leading-none text-foreground">
+                +R$ {formatBRL(w.total)}
               </div>
-              {!isDemoMode && !justReachedGoal && goalBarriers > 0 && (
-                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
-                  Faltam {remaining} para R$ {formatBRL(w.total)}
-                </div>
-              )}
-              {isDemoMode && (
-                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
-                  Barreira {w.barrier}
-                </div>
-              )}
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
+                Barreira {w.barrier} · ×{popupMult.toFixed(2)}
+              </div>
             </div>
           );
         })}
