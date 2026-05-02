@@ -92,6 +92,12 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
       setQrCode(d.qr_code);
       setExpiresAt(d.expires_at ?? null);
       toast.message("PIX gerado. Pague no app do seu banco.");
+      void trackMeta("AddPaymentInfo", {
+        value: amountNum,
+        currency: "BRL",
+        content_name: "pix_qr_generated",
+        content_category: "deposit",
+      });
     } finally {
       setBusy(false);
     }
