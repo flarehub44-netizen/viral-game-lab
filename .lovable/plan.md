@@ -1,48 +1,50 @@
-# Plano
+Você está certo: na sandbox e no demo deveria contabilizar no momento em que a bolinha passa pela barrinha/linha da barreira. O motivo de não estar acontecendo assim é uma diferença entre o valor visual da barreira e a contagem oficial usada pelo HUD.
 
-## Problema 1 — Saldo da bolinha vs. ganho atual divergem (demo e sandbox)
+Do I know what the issue is? Sim.
 
-**Causa raiz**: existe um off-by-one entre o índice da barreira e a contagem do HUD.
+O problema exato:
+- A contagem oficial do jogo (`barriersPassedCount`) só aumenta quando a barreira sobe até passar de uma linha fixa no topo da área de jogo (`height * 0.25 - 20`).
+- Mas as bolinhas ficam jogando mais abaixo, perto do meio da área útil.
+- Então, visualmente, a bolinha já atravessou a barreira R$ 100,00, mas o código ainda não considera aquela barreira como “passada” até ela subir mais.
+- Por isso o HUD ainda mostra R$ 37,50 / 10 barreiras enquanto a tela já exibe uma barreira de R$ 100,00 ou R$ 112,50 sendo atravessada.
+- Isso aparece no sandbox/demo porque há várias barreiras visíveis ao mesmo tempo e a fórmula demo cresce rápido. No live, o layout/ritmo atual acaba ficando alinhado o suficiente, então não vamos mexer nele.
 
-- `barrierIndex` em `engine.ts` é **0-based** (a 1ª barreira tem `barrierIndex = 0`, a 37ª tem `barrierIndex = 36`).
-- `barriersPassedCount` é uma **contagem** (1-based: vira 1 após passar a 1ª barreira).
-- O HUD/popup "Ganho atual" usa `barriersPassed` direto na fórmula `0,05 × base × max(0, count − 7)`.
-- As **etiquetas R$** desenhadas em cada barreira usam `predictedMultiplier(barrierIndex, …)` em `barrierVisual.ts`, que aplica `max(0, idx − 7)` sobre o índice 0-based.
+Plano de correção apenas para sandbox/demo:
 
-Resultado: a etiqueta R$ desenhada **na própria barreira que o jogador vai cruzar** mostra o valor de **uma barreira a menos** do que o HUD exibe depois de cruzá-la. Isso é exatamente o que aparece na imagem 1 (HUD R$375 enquanto as próximas barreiras mostram R$412,50 / R$425 / R$437,50 / R$450 — sequência deslocada).
+1. Manter o live intacto
+   - Não alterar o modo live, curva live, payout live, teto live ou layout live.
+   - A correção será condicional para `mode === "demo"`, que também é usado pelo sandbox.
 
-**Correção**: alinhar `predictedMultiplier` para usar a mesma semântica do HUD (contagem 1-based). Como a etiqueta numa barreira deve representar o valor que o jogador terá **após cruzá-la**, basta tratar `barrierIndex` como `barrierIndex + 1`.
+2. Alterar o ponto de contabilização no demo/sandbox
+   - No demo/sandbox, a barreira será contabilizada quando ela cruzar a zona real das bolinhas, não só quando passar da linha fixa do topo.
+   - Usar como referência a área onde as bolinhas se estabilizam (`playZoneTop`/`playZoneBottom`), para que o HUD avance assim que a bolinha efetivamente passou pela barrinha.
 
-```ts
-// src/game/economy/barrierVisual.ts
-export function predictedMultiplier(
-  barrierIndex: number,
-  mode: "live" | "demo",
-  demoBase: number,
-): number {
-  // barrierIndex é 0-based no engine; para alinhar com o HUD (que usa
-  // barriersPassedCount, 1-based), usamos a contagem equivalente após
-  // cruzar esta barreira.
-  const passedAfter = Math.floor(barrierIndex) + 1;
-  if (mode === "demo") {
-    const effective = Math.max(0, passedAfter - DEMO_FREE_BARRIERS);
-    return DEMO_PER_BARRIER_FACTOR * demoBase * effective;
-  }
-  return multiplierForBarriers(passedAfter);
-}
-```
+3. Evitar contabilização antecipada indevida
+   - A barreira só será marcada como passada uma vez (`!bar.passed`).
+   - A contagem seguirá sequencial e continuará alimentando:
+     - “Ganho atual”;
+     - popup `+R$`;
+     - saldo final do demo;
+     - saldo final do sandbox.
 
-Isso conserta os 3 lugares afetados: cor/glow da barreira, etiqueta R$ na barreira, e mantém o HUD coerente com o que vai entrar no saldo. Aplica-se igualmente a demo, sandbox e live (mesma fonte de verdade visual).
+4. Corrigir a etiqueta visual do demo/sandbox se necessário
+   - Conferir se o valor escrito na barreira corresponde à barreira que será contabilizada naquele momento.
+   - Se houver defasagem visual restante, ajustar apenas a previsão visual do demo/sandbox para que a etiqueta e o HUD avancem juntos.
 
-Também simplifico/alinho os popups flutuantes em `GameCanvas.tsx` que recalculam o multiplicador localmente: já estão corretos (usam `barriersPassed`), só vou conferir que a fórmula bate (não muda nada substantivo).
+5. Validar com o caso do print
+   - Quando a bolinha atravessar a barreira escrita “R$ 100,00”, o HUD deve atualizar para R$ 100,00 naquele momento, não continuar em R$ 37,50.
+   - Sandbox e demo continuam sem teto de R$ 400.
+   - A flag visual de sandbox continua removida.
 
-## Problema 2 — Remover badge "SANDBOX" do canto superior esquerdo
+Arquivos previstos:
+- `src/game/engine.ts`
+- possivelmente `src/game/economy/barrierVisual.ts`, só se a etiqueta ainda precisar de ajuste fino no demo/sandbox
+- teste de regressão em `src/test/...` para garantir que demo/sandbox contabilizam no ponto correto
 
-Em `src/pages/admin/AdminSandbox.tsx` (linhas ~125–134) há uma `div` que renderiza a tag roxa "SANDBOX" sobre o canvas durante o jogo (a da imagem 2). Vou removê-la por completo.
+<lov-actions>
+  <lov-open-history>View History</lov-open-history>
+</lov-actions>
 
-## Arquivos a alterar
-
-- `src/game/economy/barrierVisual.ts` — corrigir `predictedMultiplier` (off-by-one).
-- `src/pages/admin/AdminSandbox.tsx` — remover o bloco do badge SANDBOX no canvas.
-
-Sem mudanças em backend, schema ou testes (a fórmula do `demoMultiplierFor` que liquida a rodada continua usando `barriersPassed` 1-based, então o saldo creditado já corresponderá ao valor anunciado pela última etiqueta cruzada).
+<lov-actions>
+<lov-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</lov-link>
+</lov-actions>
