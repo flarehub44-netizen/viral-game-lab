@@ -20,7 +20,7 @@ interface Props {
   kycApproved: boolean;
   over18: boolean;
   onBack: () => void;
-  onRequested: () => void | Promise<void>;
+  onRequested: (amount?: number) => void | Promise<void>;
 }
 
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
