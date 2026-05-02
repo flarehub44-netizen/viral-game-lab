@@ -2,7 +2,7 @@ import { ArrowLeft, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
-import { DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
+import { DEMO_DEFAULT_BASE } from "@/game/economy/demoRound";
 
 interface Props {
   balance: number;
