@@ -1,28 +1,27 @@
-## Problema
+## Objetivo
 
-No modo demo, o HUD durante o jogo mostra o ganho calculado como `entrada × 0,05 × base × barreiras` (fórmula linear da base escolhida). Porém, ao terminar a rodada, a tela de fim de jogo mostra um valor diferente, porque `settleDemoRound` foi alterado para usar a curva pública `m(b)` do modo live (ignorando a base).
-
-Resultado: o jogador vê R$ X durante o jogo e recebe R$ Y na tela final — quebra de confiança.
-
-## Solução
-
-Unificar o cálculo: o `settleDemoRound` deve usar **exatamente a mesma fórmula** que o HUD (`0.05 × base × barreiras`), respeitando a base escolhida pelo jogador (×2, ×5, ×10, ×20).
+Tornar `/admin/sandbox` uma **cópia 1:1 do jogo demo**, mas usando uma carteira fake (R$ 1.000 só para a UI, sem tocar a carteira real do admin nem o backend). Jogo fluido, livre, sem regras, sem scripting do servidor, sem ferramentas de força de resultado.
 
 ## Mudanças
 
-### 1. `src/game/economy/demoRound.ts`
-- Reverter `demoMultiplierFor(barriers, base)` para usar a fórmula linear: `DEMO_MULTIPLIER_PER_BARRIER_FACTOR × base × barriers` (sem cap próprio; só `MAX_ROUND_PAYOUT` no payout final).
-- Remover o import de `multiplierForBarriers` que não será mais usado.
-- Atualizar comentários: deixar claro que demo usa fórmula linear baseada na base, separada da curva live.
+### 1. `src/pages/admin/AdminSandbox.tsx` — reescrita simplificada
 
-### 2. `src/test/demoRound.test.ts`
-- Reescrever os testes que validavam a curva pública para validar a fórmula linear:
-  - `demoMultiplierFor(20, 5)` → `5` (atinge meta em 20 barreiras)
-  - `demoMultiplierFor(20, 10)` → `10`
-  - `demoMultiplierFor(10, 5)` → `2.5`
-  - Base passa a importar (não é ignorada)
-- Manter testes de cap em `MAX_ROUND_PAYOUT` e de débito da entrada.
+Remover toda a parte que conversa com o backend e usar a mesma engine econômica do demo:
+
+- **Remover**: `invokeAdminAction({ type: "sandbox_round" })`, `forceMult`, `forceBarrier`, presets `Win+ ×20 / Win ×2 / Loss ×0`, simulação RTP, botão "Reset sandbox", `layoutPlan` determinístico, `MULTIPLIER_TIERS`, `sampleMultiplier`, `theoreticalRtp`, `MULTIPLIER_CURVE_HARD_CAP`.
+- **Adicionar**: estado local de "carteira fake sandbox" (saldo inicial R$ 1.000) que substitui o `loadWallet`/`saveWallet` do demo. Implementação:
+  - Calcular o ganho com a mesma fórmula do demo: `0,05 × base × barreiras` (base padrão = `DEMO_DEFAULT_BASE`).
+  - Debitar a entrada do saldo fake ao iniciar; creditar o payout ao final.
+  - O cálculo é puro (não persiste em `localStorage`), só state em memória do componente.
+- **Setup pré-jogo**: usar `RoundSetupScreen` com `economySource="demo"` e `balance={fakeBalance}` — exatamente o que o demo já mostra.
+- **Jogo ativo**: `GameCanvas` com `mode="demo"`, `visualScript={null}`, `allowScriptTerminate={false}`, sem `targetBarrier` nem `layoutPlan`. HUD overlay sandbox simplificado: só o badge "SANDBOX" no canto (sem `mult/target/payout`, pois o `GameCanvas` já mostra o ganho atual).
+- **Fim de jogo**: `GameOverScreen` com `economySource="demo"` e `serverEconomy` montado a partir do cálculo local (stake, multiplicador final, payout, netResult). Botões "Jogar de novo" e "Voltar" reiniciam ou voltam ao setup.
+- **Header**: manter o título "INICIAR PARTIDA" e o badge "SANDBOX" para deixar claro que é admin.
+
+### 2. Arquivos a remover (não usados em mais lugar nenhum)
+
+Verificar se `invokeAdminAction({ type: "sandbox_round" })` e `{ type: "reset_sandbox" })` são usados em outro lugar. Se não, remover os branches correspondentes em `supabase/functions/admin-action/index.ts` numa próxima iteração — **fora do escopo deste plano** (mantemos a edge function como está; apenas paramos de chamar).
 
 ## Resultado
 
-Durante e após o jogo demo, o jogador verá o mesmo valor. A consistência entre HUD e tela de fim de jogo é restaurada. Modo live permanece intocado (continua usando `multiplierForBarriers` da curva pública).
+`/admin/sandbox` passa a ser visualmente e funcionalmente idêntico ao demo: jogo livre, ganho linear por barreira (`0,05 × base × barreiras`), termina quando o jogador perde todas as bolas, e o que aparece no HUD durante o jogo é exatamente o que aparece na tela final. A única diferença é o saldo fictício de R$ 1.000 e o badge "SANDBOX" no topo.
