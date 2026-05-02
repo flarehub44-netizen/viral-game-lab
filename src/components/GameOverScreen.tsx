@@ -151,19 +151,24 @@ export const GameOverScreen = ({
         )}
       </div>
 
-      {serverEconomy && serverEconomy.mode === "demo" && (
-        <div className="mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border border-[hsl(140_60%_35%/0.5)] bg-[hsl(140_25%_8%/0.45)] p-4 space-y-3">
-          <div className="text-center text-xs font-black uppercase tracking-[0.25em] text-[hsl(30_100%_60%)]">
-            Demo · sem meta
-          </div>
-          <div className="text-center text-[10px] uppercase tracking-widest text-muted-foreground tabular-nums">
-            Você passou {serverEconomy.barriersPassed} barreiras
+      {serverEconomy && (
+        <div
+          className={`mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border p-4 space-y-3 ${
+            serverEconomy.netResult > 0
+              ? "border-[hsl(140_80%_35%/0.55)] bg-[hsl(140_25%_8%/0.45)]"
+              : serverEconomy.netResult === 0
+                ? "border-border bg-card/40"
+                : "border-border/60 bg-card/30"
+          }`}
+        >
+          <div className="text-center text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">
+            Resultado da rodada
           </div>
           <div className="grid grid-cols-2 gap-3 text-center pt-1">
             <div>
               <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
-              <div className="text-lg font-black tabular-nums text-destructive">
-                −R$ {fmt(serverEconomy.stake)}
+              <div className="text-lg font-black tabular-nums text-foreground/80">
+                R$ {fmt(serverEconomy.stake)}
               </div>
             </div>
             <div>
@@ -181,90 +186,29 @@ export const GameOverScreen = ({
                   serverEconomy.payout > 0 ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
                 }`}
               >
-                {serverEconomy.payout > 0 ? "+" : ""}R$ {fmt(serverEconomy.payout)}
+                R$ {fmt(serverEconomy.payout)}
               </div>
             </div>
             <div className="flex flex-col justify-center">
-              <div className="text-[9px] uppercase text-muted-foreground">
-                {serverEconomy.netResult >= 0 ? "Lucro" : "Prejuízo"}
-              </div>
+              <div className="text-[9px] uppercase text-muted-foreground">Saldo da rodada</div>
               <div
                 className={`text-lg font-black tabular-nums ${
-                  serverEconomy.netResult >= 0 ? "text-[hsl(140_90%_62%)]" : "text-destructive"
+                  serverEconomy.netResult > 0
+                    ? "text-[hsl(140_90%_62%)]"
+                    : serverEconomy.netResult === 0
+                      ? "text-foreground"
+                      : "text-destructive/80"
                 }`}
               >
-                {serverEconomy.netResult >= 0 ? "+" : ""}
+                {serverEconomy.netResult > 0 ? "+" : ""}
                 R$ {fmt(serverEconomy.netResult)}
               </div>
             </div>
           </div>
           <p className="text-[9px] text-center text-muted-foreground leading-relaxed px-1">
-            Modo treino: cada barreira vale ×0,05 (até ×5,00). Pagamento em créditos fictícios.
-          </p>
-        </div>
-      )}
-
-      {serverEconomy && serverEconomy.mode !== "demo" && (
-        <div
-          className={`mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border p-4 space-y-3 ${
-            serverEconomy.reachedTarget
-              ? "border-[hsl(140_80%_35%/0.55)] bg-[hsl(140_25%_8%/0.55)]"
-              : "border-destructive/50 bg-destructive/10"
-          }`}
-        >
-          <div
-            className={`text-center text-xs font-black uppercase tracking-[0.25em] ${
-              serverEconomy.reachedTarget ? "text-[hsl(140_90%_62%)]" : "text-destructive"
-            }`}
-          >
-            {serverEconomy.reachedTarget ? "✓ Meta atingida" : "✗ Meta não atingida"}
-          </div>
-          <div className="text-center text-[10px] uppercase tracking-widest text-muted-foreground tabular-nums">
-            Meta: {serverEconomy.targetBarrier} barreiras · Você passou: {serverEconomy.barriersPassed}
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-center pt-1">
-            <div>
-              <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
-              <div className="text-lg font-black tabular-nums text-destructive">
-                −R$ {fmt(serverEconomy.stake)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase text-muted-foreground">Multiplicador</div>
-              <div className="text-lg font-black tabular-nums text-foreground">
-                ×{serverEconomy.resultMultiplier.toFixed(2)}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div>
-              <div className="text-[9px] uppercase text-muted-foreground">Pagamento</div>
-              <div
-                className={`text-lg font-black tabular-nums ${
-                  serverEconomy.reachedTarget ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
-                }`}
-              >
-                {serverEconomy.reachedTarget ? "+" : ""}R$ {fmt(serverEconomy.payout)}
-              </div>
-            </div>
-            <div className="flex flex-col justify-center">
-              <div className="text-[9px] uppercase text-muted-foreground">
-                {serverEconomy.netResult >= 0 ? "Lucro" : "Prejuízo"}
-              </div>
-              <div
-                className={`text-lg font-black tabular-nums ${
-                  serverEconomy.netResult >= 0 ? "text-[hsl(140_90%_62%)]" : "text-destructive"
-                }`}
-              >
-                {serverEconomy.netResult >= 0 ? "+" : ""}
-                R$ {fmt(serverEconomy.netResult)}
-              </div>
-            </div>
-          </div>
-          <p className="text-[9px] text-center text-muted-foreground leading-relaxed px-1">
-            {serverEconomy.reachedTarget
-              ? "Você atingiu a meta de barreiras. Pagamento creditado no servidor."
-              : "Você precisa passar a meta de barreiras para ganhar. Sem isso, a entrada é perdida."}
+            {serverEconomy.netResult > 0
+              ? "Boa rodada! Quanto mais barreiras você passa, maior o multiplicador."
+              : "Cada barreira aumenta seu multiplicador. Continue tentando para chegar mais longe!"}
           </p>
         </div>
       )}
