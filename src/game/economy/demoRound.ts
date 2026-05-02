@@ -27,6 +27,12 @@ export type DemoBase = (typeof DEMO_BASE_OPTIONS)[number];
 export const DEMO_DEFAULT_BASE: DemoBase = 5;
 /** DEMO: número de barreiras necessárias para atingir a meta da base escolhida. */
 export const DEMO_GOAL_BARRIERS = 20;
+/**
+ * DEMO/SANDBOX: barreiras de "aquecimento" que NÃO contam para pagamento.
+ * Espelha o offset da curva real (`MULTIPLIER_CURVE_ANCHORS[1] = [7, 0]`).
+ * O ganho só começa a partir da 8ª barreira passada.
+ */
+export const DEMO_FREE_BARRIERS = 7;
 /** DEMO: duração máxima da rodada (sem limite real, mas o engine precisa de algo). */
 const DEMO_MAX_DURATION_SECONDS = 180;
 
@@ -45,13 +51,16 @@ export function isValidDemoBase(base: number): base is DemoBase {
 }
 
 /**
- * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreiras`.
+ * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreirasContáveis`,
+ * onde `barreirasContáveis = max(0, barreirasPassadas − DEMO_FREE_BARRIERS)`.
+ * As primeiras 7 barreiras são "aquecimento" (×0), igual ao jogo real.
  * Idêntico ao que o HUD do `GameCanvas` mostra durante a partida.
  */
 export function demoMultiplierFor(barriersPassed: number, base: number = DEMO_DEFAULT_BASE): number {
   const safeBase = isValidDemoBase(base) ? base : DEMO_DEFAULT_BASE;
   const safeBarriers = Math.max(0, Math.floor(barriersPassed));
-  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * safeBarriers;
+  const effective = Math.max(0, safeBarriers - DEMO_FREE_BARRIERS);
+  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * effective;
 }
 
 /**

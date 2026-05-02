@@ -7,6 +7,7 @@ import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import type { ServerEconomyPayload } from "@/game/economy/serverRound";
 import {
   DEMO_DEFAULT_BASE,
+  DEMO_FREE_BARRIERS,
   DEMO_MULTIPLIER_PER_BARRIER_FACTOR,
 } from "@/game/economy/demoRound";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
@@ -59,7 +60,8 @@ export const AdminSandbox = () => {
     summary: RoundSummaryOut,
   ) => {
     const barriers = summary.barriersPassed ?? 0;
-    const multiplier = DEMO_MULTIPLIER_PER_BARRIER_FACTOR * round.base * barriers;
+    const effective = Math.max(0, barriers - DEMO_FREE_BARRIERS);
+    const multiplier = DEMO_MULTIPLIER_PER_BARRIER_FACTOR * round.base * effective;
     let payout = Math.round(round.stake * multiplier * 100) / 100;
     if (payout > MAX_ROUND_PAYOUT) payout = MAX_ROUND_PAYOUT;
     const netResult = Math.round((payout - round.stake) * 100) / 100;

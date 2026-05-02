@@ -31,25 +31,33 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect(isValidDemoBase(0)).toBe(false);
   });
 
-  it("demoMultiplierFor: fórmula linear 0,05 × base × barreiras", () => {
-    // 20 barreiras × base 5 → 0.05 × 5 × 20 = 5 (atinge a meta da base)
-    expect(demoMultiplierFor(20, 5)).toBe(5);
-    // 20 barreiras × base 10 → atinge meta ×10
-    expect(demoMultiplierFor(20, 10)).toBe(10);
-    // 20 barreiras × base 20 → atinge meta ×20
-    expect(demoMultiplierFor(20, 20)).toBe(20);
-    // 10 barreiras × base 5 → metade da meta
-    expect(demoMultiplierFor(10, 5)).toBe(2.5);
+  it("demoMultiplierFor: primeiras 7 barreiras são aquecimento (×0)", () => {
+    expect(demoMultiplierFor(0, 5)).toBe(0);
+    expect(demoMultiplierFor(7, 5)).toBe(0);
+    expect(demoMultiplierFor(7, 20)).toBe(0);
+  });
+
+  it("demoMultiplierFor: ganho começa na 8ª barreira — 0,05 × base × (b - 7)", () => {
+    // 8 barreiras × base 5 → 0.05 × 5 × 1 = 0.25
+    expect(demoMultiplierFor(8, 5)).toBe(0.25);
+    // 27 barreiras × base 5 → 0.05 × 5 × 20 = 5 (atinge meta da base 5)
+    expect(demoMultiplierFor(27, 5)).toBe(5);
+    // 27 barreiras × base 10 → 0.05 × 10 × 20 = 10
+    expect(demoMultiplierFor(27, 10)).toBe(10);
+    // 27 barreiras × base 20 → 0.05 × 20 × 20 = 20
+    expect(demoMultiplierFor(27, 20)).toBe(20);
   });
 
   it("demoMultiplierFor: base afeta o multiplicador (não é ignorada)", () => {
-    expect(demoMultiplierFor(10, 10)).toBeGreaterThan(demoMultiplierFor(10, 5));
-    expect(demoMultiplierFor(10, 20)).toBe(demoMultiplierFor(10, 5) * 4);
+    expect(demoMultiplierFor(20, 10)).toBeGreaterThan(demoMultiplierFor(20, 5));
+    expect(demoMultiplierFor(20, 20)).toBe(demoMultiplierFor(20, 5) * 4);
   });
 
   it("demoMultiplierFor: continua crescendo após a meta (sem cap próprio)", () => {
-    expect(demoMultiplierFor(40, 5)).toBe(10);
-    expect(demoMultiplierFor(100, 10)).toBe(50);
+    // 47 barreiras × base 5 → 0.05 × 5 × 40 = 10
+    expect(demoMultiplierFor(47, 5)).toBe(10);
+    // 107 barreiras × base 10 → 0.05 × 10 × 100 = 50
+    expect(demoMultiplierFor(107, 10)).toBe(50);
   });
 
   it("startDemoRound debita a entrada e guarda a base escolhida", () => {
@@ -76,23 +84,33 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
-  it("settleDemoRound credita pagamento linear — 20 barreiras × base 10 = ×10", () => {
+  it("settleDemoRound credita pagamento — 27 barreiras × base 10 = ×10 (20 contáveis)", () => {
     const res = startDemoRound(10, 10);
     if (!res.ok) throw new Error("start failed");
-    // 0.05 × 10 × 20 = 10 → payout = 10 × 10 = 100; saldo: 150 - 10 + 100 = 240
-    const out = settleDemoRound(res.round, 20);
+    // 27 barreiras passadas → 20 contáveis → 0.05 × 10 × 20 = 10 → payout = 100
+    // saldo: 150 - 10 + 100 = 240
+    const out = settleDemoRound(res.round, 27);
     expect(out.multiplier).toBe(10);
     expect(out.payout).toBe(100);
     expect(out.netResult).toBe(90);
     expect(loadWallet().balance).toBe(240);
   });
 
-  it("settleDemoRound: base 5 com 10 barreiras = ×2.5", () => {
+  it("settleDemoRound: base 5 com 17 barreiras (10 contáveis) = ×2.5", () => {
     const res = startDemoRound(10, 5);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 10);
+    const out = settleDemoRound(res.round, 17);
     expect(out.multiplier).toBe(2.5);
     expect(out.payout).toBe(25);
+  });
+
+  it("settleDemoRound: 7 barreiras ainda é zona de aquecimento = ×0", () => {
+    const res = startDemoRound(10, 20);
+    if (!res.ok) throw new Error("start failed");
+    const out = settleDemoRound(res.round, 7);
+    expect(out.multiplier).toBe(0);
+    expect(out.payout).toBe(0);
+    expect(out.netResult).toBe(-10);
   });
 
   it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {
@@ -108,7 +126,6 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     saveWallet({ ...loadWallet(), balance: 1000 });
     const res = startDemoRound(50, 20);
     if (!res.ok) throw new Error("start failed");
-    // 50 × (0.05 × 20 × 1000) = 50 × 1000 = 50_000 → capa em MAX_ROUND_PAYOUT
     const out = settleDemoRound(res.round, 1000);
     expect(out.payout).toBeLessThanOrEqual(MAX_ROUND_PAYOUT);
     expect(out.payout).toBe(MAX_ROUND_PAYOUT);
