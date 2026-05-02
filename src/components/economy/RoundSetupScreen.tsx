@@ -1,8 +1,8 @@
-import { ArrowLeft, Target, TrendingUp, Users, Sparkles } from "lucide-react";
+import { ArrowLeft, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
-import { DEMO_BASE_OPTIONS, DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
+import { DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
 
 interface Props {
   balance: number;
@@ -24,11 +24,9 @@ function pseudoOnlinePlayers(): number {
 export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0 }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
-  // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
-  // multiplicador é resultado da curva e depende de quantas barreiras o jogador passa.
-  const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
+  // Demo: base do multiplicador agora é fixa (sem seletor). Live: usa default.
+  const meta = isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER;
   const online = pseudoOnlinePlayers();
-  const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
 
   const stats = useMemo(() => {
     if (bet <= 0) {
