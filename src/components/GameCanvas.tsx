@@ -108,12 +108,10 @@ export const GameCanvas = ({
   const demoCurrentMultiplier = isDemoMode
     ? DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * demoEffectiveBarriers
     : 0;
-  const demoCurrentWin = isDemoMode
-    ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
-    : 0;
+  // Demo/sandbox: sem teto de pagamento.
+  const demoCurrentWin = isDemoMode ? stake * demoCurrentMultiplier : 0;
   const demoReachedGoal = isDemoMode && demoEffectiveBarriers >= DEMO_GOAL_BARRIERS;
-  const demoAtPayoutCap =
-    isDemoMode && stake > 0 && stake * demoCurrentMultiplier >= MAX_ROUND_PAYOUT;
+  const demoAtPayoutCap = false;
   const demoPerBarrierValue = isDemoMode ? stake * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase : 0;
 
   // Popup ao passar cada barreira
@@ -124,7 +122,7 @@ export const GameCanvas = ({
       lastWinningsRef.current = passed;
       winIdRef.current += 1;
       const total = isDemoMode
-        ? Math.min(stake * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * Math.max(0, passed - DEMO_FREE_BARRIERS), MAX_ROUND_PAYOUT)
+        ? stake * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * Math.max(0, passed - DEMO_FREE_BARRIERS)
         : Math.min(stake * multiplierForBarriers(passed), MAX_ROUND_PAYOUT);
       const item: FloatingWin = {
         id: winIdRef.current,
