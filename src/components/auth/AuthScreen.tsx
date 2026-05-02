@@ -29,6 +29,19 @@ export const AuthScreen = ({ onPlayDemo, initialMode = "login" }: AuthScreenProp
         const { error } = await signIn(email.trim(), password);
         if (error) throw error;
         toast.success("Conectado.");
+        // Se for admin, redireciona direto para o painel
+        const { data: sessionData } = await supabase.auth.getUser();
+        const uid = sessionData.user?.id;
+        if (uid) {
+          const { data: isAdmin } = await supabase.rpc("has_role", {
+            _user_id: uid,
+            _role: "admin",
+          });
+          if (isAdmin) {
+            window.location.assign("/admin");
+            return;
+          }
+        }
       } else {
         if (!displayName.trim()) {
           toast.error("Escolha um apelido.");
