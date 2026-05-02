@@ -651,6 +651,7 @@ const Index = () => {
     setScreen("over");
 
     if (isDemo) {
+      markDemoPlayed();
       refreshDemoEconomy();
     } else {
       if (
