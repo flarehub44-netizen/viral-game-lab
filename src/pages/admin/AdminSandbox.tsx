@@ -38,21 +38,20 @@ function pseudoOnlinePlayers(): number {
 const fmt = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-interface SandboxResult {
-  stake: number;
-  payout: number;
-  net: number;
-  multiplier: number;
-  barriers: number;
-  score: number;
-  durationSeconds: number;
+interface OverState {
+  stats: PublicGameStats;
+  summary: RoundSummaryOut;
+  economy: ServerEconomyPayload;
+  progression: RoundResult | null;
+  bestScore: number;
+  isNewBest: boolean;
 }
 
 export const AdminSandbox = () => {
   const [bet, setBet] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [activeRound, setActiveRound] = useState<ActiveServerRound | null>(null);
-  const [result, setResult] = useState<SandboxResult | null>(null);
+  const [over, setOver] = useState<OverState | null>(null);
 
   // Admin tools
   const [toolsOpen, setToolsOpen] = useState(false);
