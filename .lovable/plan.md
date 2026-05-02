@@ -1,50 +1,53 @@
-Encontrei o problema principal: o PIX está sendo gerado, mas o webhook da SyncPay não está chegando ao backend. Não há nenhum log de chamada em `pix-webhook` e a tabela `webhook_events` está vazia. Por isso o depósito fica em `pending` / “Aguardando PIX” e o saldo não é creditado automaticamente.
+## Problemas identificados
 
-Também identifiquei uma falha importante na tentativa anterior de reconciliação: ela consultava um endpoint incorreto (`/cash-in/{id}`). A documentação atual da SyncPay mostra que o endpoint correto para consultar uma transação é:
-
-```text
-GET /api/partner/v1/transaction/{identifier}
+### 1. "Failed to send a request to the Edge Function" — `start-round`
+Os logs mostram o erro real:
 ```
+ERROR: LAYOUT_SIGNATURE_SECRET não configurado — impossível assinar layout.
+  at signLayout (start-round/index.ts:94)
+```
+A função `start-round` exige o secret `LAYOUT_SIGNATURE_SECRET` para assinar o resultado da rodada (HMAC-SHA256), mas ele **não existe** na configuração de Lovable Cloud (segredos atuais: apenas `LOVABLE_API_KEY`, `SYNC_PAY_*`). Sem ele, toda chamada a `start-round` falha com 500, e o frontend mostra "Failed to send a request to the Edge Function".
 
-Isso permite resolver o caso mesmo quando o webhook falha.
+### 2. Multiplicador travado em 20x
+Em `RoundSetupScreen.tsx`, no modo conta (`server`):
+- `canEditMeta = isDemo` (false no live) → todos os botões 5x/10x/15x/20x ficam `disabled`.
+- O frontend envia sempre `mode: "target_20x"` em `Index.tsx:422`, e o backend rejeita qualquer outro valor (`if (mode !== "target_20x") return invalid_mode`).
 
-Plano de correção:
+Ou seja, hoje só existe um modo no servidor (meta fixa em 20x), mas a UI exibe 4 botões dando a impressão errada de que dá pra escolher.
 
-1. Recuperar os PIX pagos que ficaram pendentes
-   - Consultar diretamente a SyncPay usando o endpoint correto `/api/partner/v1/transaction/{identifier}` para os depósitos pendentes.
-   - Se a SyncPay retornar `completed`, executar o crédito via função atômica `confirm_pix_deposit`.
-   - No caso atual, há um depósito recente de R$ 10,00 ainda `pending` com provider_ref `38ae9a72-5c53-4f6d-8a87-5e47735b6e0d`.
-   - Também vou revisar os últimos depósitos de R$ 10,00 para confirmar se existe outro pago que não foi creditado.
+## Plano
 
-2. Recriar a reconciliação automática usando o endpoint correto
-   - Criar uma função backend `reconcile-pix-deposit` protegida por autenticação.
-   - Ela receberá o `deposit_id`, validará que pertence ao usuário logado, buscará o status na SyncPay pelo `provider_ref` e, se estiver `completed`, chamará `confirm_pix_deposit`.
-   - Ela também tratará `failed`, `refunded` e `med` sem creditar indevidamente.
+### Passo 1 — Configurar o secret faltante
+Solicitar ao usuário, via `add_secret`, o `LAYOUT_SIGNATURE_SECRET` (string aleatória forte, ex.: 64 hex chars). Sem isso o backend não funciona. Vou gerar um valor sugerido e pedir confirmação para gravar.
 
-3. Tornar a tela de depósito resiliente
-   - Atualizar `usePixDepositPolling` para, enquanto o PIX estiver pendente, chamar a reconciliação periodicamente.
-   - Assim, se o webhook continuar sem chegar, o saldo ainda será creditado quando a SyncPay confirmar o pagamento.
+### Passo 2 — Desbloquear o seletor de meta no modo conta
+Atualizar `RoundSetupScreen.tsx`:
+- Permitir edição dos botões 5x/10x/15x/20x também no modo `server` (`canEditMeta = true` sempre).
+- Remover o texto "No modo conta, a meta é fixa em 20x".
+- Passar a `meta` selecionada para `onConfirm` (já passa).
 
-4. Corrigir o webhook para casar exatamente com a documentação SyncPay
-   - Aceitar status `completed` como pago.
-   - Ler `data.id` / `data.reference_id` / `identifier` com prioridade correta.
-   - Ler o tipo de evento também do header `event`, porque a SyncPay envia `event: cashin.update` no cabeçalho.
-   - Registrar logs úteis de payload recebido, referência desconhecida e resultado da confirmação.
+### Passo 3 — Aceitar múltiplos modos no backend
+Atualizar `supabase/functions/start-round/index.ts`:
+- Trocar a validação `mode !== "target_20x"` por whitelist `["target_5x","target_10x","target_15x","target_20x"]`.
+- Extrair `targetMultiplier` do `mode` e usá-lo como meta da rodada (`script.score_target` / `barriers_crossed_target`).
+- Persistir o `mode` em `game_rounds` para auditoria.
 
-5. Atualizar a biblioteca SyncPay compartilhada
-   - Substituir/remover a consulta antiga `/cash-in/{identifier}`.
-   - Implementar `syncPayGetTransaction(identifier)` usando `/api/partner/v1/transaction/{identifier}`.
-   - Normalizar a resposta, que vem dentro de `data`, com campos `reference_id`, `amount`, `status`, `pix_code`.
+### Passo 4 — Frontend envia o modo correto
+Atualizar `src/pages/Index.tsx` para mapear a meta escolhida (5/10/15/20) → `mode: target_${meta}x` ao chamar `start-round`.
 
-6. Corrigir a experiência da Carteira
-   - Adicionar botão “Atualizar status” nos PIX pendentes.
-   - Ao abrir a carteira, tentar reconciliar automaticamente os PIX pendentes recentes antes de mostrar “Aguardando PIX”.
-   - Atualizar saldo e histórico após reconciliação.
+### Passo 5 — Redeploy + teste
+Deploy de `start-round` e teste via `curl_edge_functions` com cada um dos 4 modos para confirmar que retorna 200 e debita o stake corretamente.
 
-7. Verificação final
-   - Conferir no banco se os depósitos pagos saíram de `pending` para `confirmed`.
-   - Conferir se o saldo passou a refletir a soma real.
-   - Verificar logs de `create-pix-deposit`, `pix-webhook` e da nova reconciliação.
-   - Manter a exigência de autenticação nas funções chamadas pelo app e manter o webhook sem JWT para permitir chamadas externas da SyncPay.
+## Detalhes técnicos
 
-Observação importante: como não há chamadas chegando em `pix-webhook`, ainda será necessário conferir se o webhook configurado na SyncPay aponta para a URL correta. Mas com a reconciliação pelo endpoint de transação, o saldo não dependerá exclusivamente do webhook.
+Arquivos alterados:
+- `src/components/economy/RoundSetupScreen.tsx` — habilitar seletor no live, remover legenda
+- `src/pages/Index.tsx` — enviar `mode` dinâmico baseado em `meta`
+- `supabase/functions/start-round/index.ts` — whitelist de modos, derivar `targetMultiplier`
+- Secret `LAYOUT_SIGNATURE_SECRET` adicionado em Lovable Cloud
+
+Tabela de RTP (`multiplierTable.ts`) **não muda** — ela é independente da meta visual; a meta só define quantas barreiras a animação revela antes de pagar.
+
+## Pergunta antes de implementar
+
+Confirma que quer permitir as 4 metas (5x/10x/15x/20x) no modo conta? Ou prefere manter apenas 20x e só remover os botões falsos da UI?
