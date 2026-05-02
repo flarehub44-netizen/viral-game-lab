@@ -67,7 +67,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </h2>
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
-              ? "Aposte e jogue até perder todas as bolas. Quanto mais barreiras passar, maior o pagamento."
+              ? "Quanto mais barreiras passar, maior o pagamento."
               : "Modo Demo: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
         </div>
