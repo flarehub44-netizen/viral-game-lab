@@ -26,7 +26,7 @@ export function GoalReachedPopup({ multiplier, barriers, onContinue }: GoalReach
         <div className="text-base text-foreground mb-2">Você ganhou um multiplicador de</div>
         <div className="text-4xl font-bold text-primary mb-2">{percent}%</div>
         <div className="text-xs text-muted-foreground mb-6">
-          ×{multiplier.toFixed(2)} • {barriers} barreiras
+          ×{multiplier.toFixed(2)}
         </div>
         <button
           type="button"
