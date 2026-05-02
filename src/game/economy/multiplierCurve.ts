@@ -39,15 +39,15 @@ export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> 
   [26, 5.0],
   [29, 10.0],
   [30, 20.0],
-  // ↓ Cauda pós-alvo (Fase 2) — achatada para reduzir RTP empírico (~70%).
-  [33, 22.0],
-  [38, 25.0],
-  [45, 28.0],
-  [60, 30.0],
+  // ↓ Cauda pós-alvo (Fase 2)
+  [33, 26.0],
+  [38, 32.0],
+  [45, 40.0],
+  [60, 50.0],
 ] as const;
 
 /** Cap absoluto da curva — `MAX_PAYOUT` continua limitando o payout final por stake. */
-export const MULTIPLIER_CURVE_HARD_CAP = 30;
+export const MULTIPLIER_CURVE_HARD_CAP = 50;
 
 /**
  * Multiplicador por barreira (interpolação linear entre âncoras).

@@ -31,9 +31,9 @@ export function hashSeed(s: string): number {
  * Parâmetros da escalada pós-alvo (Fase 2 — perfil "Médio"):
  * a cada barreira além do alvo o gap encolhe e a velocidade aumenta.
  */
-export const PHASE2_GAP_DECAY = 0.86;       // gap *= 0.86^extra (mais agressivo que antes)
-export const PHASE2_SPEED_STEP = 22;        // +22 px/s por barreira extra
-export const PHASE2_GAP_FLOOR = 0.02;       // piso de gap (impossibilidade absoluta)
+export const PHASE2_GAP_DECAY = 0.92;       // gap *= 0.92^extra
+export const PHASE2_SPEED_STEP = 15;        // +15 px/s por barreira extra
+export const PHASE2_GAP_FLOOR = 0.025;      // piso de gap (impossibilidade absoluta)
 export const PHASE2_SPEED_CEIL = 320;       // teto de velocidade
 
 /**

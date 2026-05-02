@@ -19,7 +19,7 @@ export interface MultiplierTier {
 export const MULTIPLIER_TIERS: MultiplierTier[] = [
   {
     multiplier: 0,
-    probability: 0.379,
+    probability: 0.3,
     visual: {
       barriers_crossed: 2,
       balls_count: 3,
@@ -30,7 +30,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 0.5,
-    probability: 0.25,
+    probability: 0.22,
     visual: {
       barriers_crossed: 5,
       balls_count: 5,
@@ -41,7 +41,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 0.8,
-    probability: 0.17,
+    probability: 0.16,
     visual: {
       barriers_crossed: 8,
       balls_count: 8,
@@ -52,7 +52,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1,
-    probability: 0.09,
+    probability: 0.11,
     visual: {
       barriers_crossed: 11,
       balls_count: 10,
@@ -63,7 +63,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1.2,
-    probability: 0.055,
+    probability: 0.07,
     visual: {
       barriers_crossed: 14,
       balls_count: 12,
@@ -74,7 +74,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1.5,
-    probability: 0.03,
+    probability: 0.05,
     visual: {
       barriers_crossed: 17,
       balls_count: 14,
@@ -85,7 +85,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 2,
-    probability: 0.015,
+    probability: 0.04,
     visual: {
       barriers_crossed: 20,
       balls_count: 16,
@@ -96,7 +96,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 3,
-    probability: 0.007,
+    probability: 0.025,
     visual: {
       barriers_crossed: 23,
       balls_count: 18,
@@ -107,7 +107,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 5,
-    probability: 0.003,
+    probability: 0.015,
     visual: {
       barriers_crossed: 26,
       balls_count: 22,
@@ -118,7 +118,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 10,
-    probability: 0.0008,
+    probability: 0.008,
     visual: {
       barriers_crossed: 29,
       balls_count: 26,
@@ -129,7 +129,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 20,
-    probability: 0.0002,
+    probability: 0.002,
     visual: {
       barriers_crossed: 30,
       balls_count: 28,
