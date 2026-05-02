@@ -87,7 +87,7 @@ type AdminBody =
   | { type: "ban_user"; user_id: string }
   | { type: "unban_user"; user_id: string }
   | { type: "set_feature_flag"; key: string; enabled: boolean; rollout_percent?: number | null }
-  | { type: "sandbox_round"; stake: number }
+  | { type: "sandbox_round"; stake: number; force_multiplier?: number; force_target_barrier?: number }
   | { type: "reset_sandbox" };
 
 Deno.serve(async (req) => {
