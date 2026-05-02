@@ -45,11 +45,13 @@ export function isValidDemoBase(base: number): base is DemoBase {
 }
 
 /**
- * Multiplicador atual do DEMO — agora idêntico ao modo online (curva pública m(b)).
- * O parâmetro `base` é ignorado para cálculo (mantido na assinatura por compatibilidade).
+ * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreiras`.
+ * Idêntico ao que o HUD do `GameCanvas` mostra durante a partida.
  */
-export function demoMultiplierFor(barriersPassed: number, _base?: number): number {
-  return multiplierForBarriers(barriersPassed);
+export function demoMultiplierFor(barriersPassed: number, base: number = DEMO_DEFAULT_BASE): number {
+  const safeBase = isValidDemoBase(base) ? base : DEMO_DEFAULT_BASE;
+  const safeBarriers = Math.max(0, Math.floor(barriersPassed));
+  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * safeBarriers;
 }
 
 /**
