@@ -73,6 +73,7 @@ export const WalletScreen = ({
   pixDeposits = [],
   pixWithdrawals = [],
   onReconcilePending,
+  bonusSlot,
 }: Props) => {
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
