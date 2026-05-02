@@ -147,6 +147,13 @@ const Index = () => {
   const isDemo = !user && guestDemoActive;
   const progressionProfile: ProgressionProfile = isDemo ? "demo" : "default";
 
+  // Online-only: bônus e login diário
+  const onlineUserId = !isDemo ? (user?.id ?? null) : null;
+  const { data: bonusInfo, refresh: refreshBonus } = useWalletBonus(onlineUserId);
+  const { state: welcomeState, refresh: refreshWelcome } = useWelcomeBonusState(onlineUserId);
+  const { status: dailyStatus, refresh: refreshDaily } = useDailyLoginStatus(onlineUserId);
+  const [showDailyPopup, setShowDailyPopup] = useState(false);
+
   const [hydrating, setHydrating] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
