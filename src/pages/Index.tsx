@@ -38,6 +38,7 @@ import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLay
 import { applyRound, type ProgressionProfile, type RoundResult } from "@/game/progression";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseExternal";
+import { trackMeta, trackMetaCustom } from "@/lib/metaPixel";
 import { toast } from "sonner";
 
 type ProfileRow = {
