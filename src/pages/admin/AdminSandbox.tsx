@@ -196,7 +196,7 @@ export const AdminSandbox = () => {
 
   // ============== Setup pré-jogo ==============
   return (
-    <div className="absolute inset-0 flex flex-col bg-gradient-to-b from-[hsl(280_45%_10%)] via-background to-background overflow-y-auto">
+    <div className="relative flex flex-col min-h-[calc(100vh-44px)] bg-gradient-to-b from-[hsl(280_45%_10%)] via-background to-background">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-border">
         <button
