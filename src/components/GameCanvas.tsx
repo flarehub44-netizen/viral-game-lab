@@ -5,6 +5,7 @@ import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { multiplierForBarriers } from "@/game/economy/multiplierCurve";
 
 
 interface FloatingWin {
@@ -90,17 +91,13 @@ export const GameCanvas = ({
 
   const isDemoMode = mode === "demo";
 
-  // ---- LIVE: meta de barreiras ----
-  const goalBarriers = targetBarrier ?? 0;
-  const reachedGoal = !isDemoMode && goalBarriers > 0 && passedNow >= goalBarriers;
-  const remainingBarriers = Math.max(0, goalBarriers - passedNow);
-
-  // Multiplicador-alvo da rodada (LIVE: já sorteado pelo servidor)
-  const liveRoundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
-
-  // Pagamento garantido SE atingir meta (LIVE).
-  const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
-  const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
+  // ---- LIVE: ganho proporcional em tempo real (curva contínua) ----
+  const liveCurrentMultiplier = !isDemoMode ? multiplierForBarriers(passedNow) : 0;
+  const liveCurrentWin = !isDemoMode
+    ? Math.min(stake * liveCurrentMultiplier, MAX_ROUND_PAYOUT)
+    : 0;
+  const liveAtPayoutCap =
+    !isDemoMode && stake > 0 && stake * liveCurrentMultiplier >= MAX_ROUND_PAYOUT;
 
   // ---- DEMO: ganho proporcional em tempo real ----
   // Multiplicador atual = 0.05 × base × barreiras (sem teto próprio; só MAX_ROUND_PAYOUT)
@@ -128,11 +125,10 @@ export const GameCanvas = ({
       winIdRef.current += 1;
       const total = isDemoMode
         ? Math.min(stake * DEMO_PER_BARRIER_FACTOR * demoBase * passed, MAX_ROUND_PAYOUT)
-        : livePotentialPayout;
-      const justReached = !isDemoMode && goalBarriers > 0 && passed === goalBarriers;
+        : Math.min(stake * multiplierForBarriers(passed), MAX_ROUND_PAYOUT);
       const item: FloatingWin = {
         id: winIdRef.current,
-        delta: justReached ? livePotentialPayout : 0,
+        delta: 0,
         total,
         barrier: passed,
         createdAt: performance.now(),
@@ -142,7 +138,7 @@ export const GameCanvas = ({
       lastBarriersRef.current = 0;
       lastWinningsRef.current = 0;
     }
-  }, [stats.barriersPassed, livePotentialPayout, stake, goalBarriers, isDemoMode]);
+  }, [stats.barriersPassed, stake, isDemoMode, demoBase]);
 
   // Auto-purga popups antigos
   useEffect(() => {
@@ -366,47 +362,27 @@ export const GameCanvas = ({
           <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
             <div
               className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
-                reachedGoal
-                  ? "border-[hsl(140_90%_55%)] bg-[hsl(140_55%_10%/0.85)] shadow-[0_0_24px_hsl(140_90%_55%/0.55)] pulse-glow"
+                liveCurrentWin > 0
+                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
                   : "border-border bg-card/70"
               }`}
             >
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                {reachedGoal ? "Meta batida! Ganho garantido" : "Meta da rodada"}
+                Ganho atual
               </div>
-              {(() => {
-                const displayMeta = targetMultiplier ?? 0;
-                const displayPayout = Math.min(stake * displayMeta, MAX_ROUND_PAYOUT);
-                const displayCapped = stake * displayMeta >= MAX_ROUND_PAYOUT && stake > 0;
-                return (
-                  <>
-                    <div
-                      className={`text-2xl font-black tabular-nums leading-tight ${
-                        reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                      }`}
-                      style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
-                    >
-                      {reachedGoal ? `+R$ ${formatBRL(displayPayout)}` : `R$ ${formatBRL(displayPayout)}`}
-                    </div>
-                    <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                      ×{displayMeta.toFixed(2)} · Entrada R$ {formatBRL(stake)}
-                      {displayCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-            {goalBarriers > 0 && (
               <div
-                className={`mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold ${
-                  reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
+                className={`text-2xl font-black tabular-nums leading-tight ${
+                  liveCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
                 }`}
+                style={{ textShadow: liveCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
               >
-                {reachedGoal
-                  ? `${passedNow}/${goalBarriers} barreiras ✓`
-                  : `${passedNow}/${goalBarriers} · faltam ${remainingBarriers}`}
+                R$ {formatBRL(liveCurrentWin)}
               </div>
-            )}
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                ×{liveCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
+                {liveAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+              </div>
+            </div>
           </div>
         )}
 
@@ -459,41 +435,23 @@ export const GameCanvas = ({
         </div>
       )}
 
-      {/* Popups por barreira: DEMO mostra ganho corrente; LIVE mostra meta/faltantes */}
+      {/* Popups por barreira: ganho corrente em R$ */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
         {floatingWins.map((w) => {
-          const justReachedGoal = !isDemoMode && goalBarriers > 0 && w.barrier === goalBarriers;
-          const remaining = Math.max(0, goalBarriers - w.barrier);
+          const popupMult = isDemoMode
+            ? DEMO_PER_BARRIER_FACTOR * demoBase * w.barrier
+            : multiplierForBarriers(w.barrier);
           return (
             <div
               key={w.id}
-              className={`float-up rounded-lg border px-3 py-1 text-center ${
-                justReachedGoal
-                  ? "border-[hsl(140_90%_55%)] bg-[hsl(140_55%_10%/0.92)] shadow-[0_0_20px_hsl(140_90%_55%/0.55)]"
-                  : "border-border bg-card/85"
-              }`}
+              className="float-up rounded-lg border px-3 py-1 text-center border-border bg-card/85"
             >
-              <div
-                className={`text-base font-black tabular-nums leading-none ${
-                  justReachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                }`}
-              >
-                {isDemoMode
-                  ? `+R$ ${formatBRL(w.total)}`
-                  : justReachedGoal
-                    ? `META! +R$ ${formatBRL(w.total)}`
-                    : `Barreira ${w.barrier}`}
+              <div className="text-base font-black tabular-nums leading-none text-foreground">
+                +R$ {formatBRL(w.total)}
               </div>
-              {!isDemoMode && !justReachedGoal && goalBarriers > 0 && (
-                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
-                  Faltam {remaining} para R$ {formatBRL(w.total)}
-                </div>
-              )}
-              {isDemoMode && (
-                <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
-                  Barreira {w.barrier}
-                </div>
-              )}
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
+                Barreira {w.barrier} · ×{popupMult.toFixed(2)}
+              </div>
             </div>
           );
         })}

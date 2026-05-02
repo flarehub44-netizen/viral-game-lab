@@ -1,53 +1,77 @@
-## Monte Carlo "skilled" — validação empírica do RTP da cauda (Fase 2)
+# Remover "Meta da rodada" do HUD e mostrar só o ganho atual
 
-### Objetivo
-Validar, via simulação determinística, que a cauda de payout introduzida na Fase 2 (âncoras [22,26] → [40,50]) não estoura o RTP empírico mesmo quando o jogador é hábil e sobrevive bastante além do `target_barrier` do tier sorteado. Critério: RTP agregado fica em ~88–92% no perfil "skilled" (orçamento de cauda 6–8% acima do RTP teórico de ~85,7%).
+## Contexto
 
-### Por que é necessário
-Hoje o `rtpSimulation.test.ts` só amostra `sampleMultiplier` puro — assume que o jogador sempre morre exatamente no `target_barrier` do tier sorteado, então valida apenas o RTP teórico (85,7%). Isso ignora completamente a cauda da Fase 2: jogadores que passam do alvo ganham mais do que a tabela teórica prevê, e precisamos provar que a escalada de dificuldade (`gap × 0.92^extra`, `speed + 15·extra`, spawn `× 0.95^extra`) compensa esse bônus.
+O card central do HUD durante a partida (no modo **live**) ainda mostra:
 
-### Modelo de jogador (probabilístico, sem física)
-Em vez de simular Canvas/colisão, modelo a sobrevivência por barreira como uma probabilidade que depende apenas de skill e dificuldade efetiva:
-
-```text
-P(passa barreira i | passou i-1) = clamp(skillFactor / dificuldade(i), 0, 0.995)
+```
+META DA RODADA
+R$ 20,00
+×20.00 · Entrada R$ 1,00
+0/9 · FALTAM 9
 ```
 
-Onde:
-- `dificuldade(i)` é uma função decrescente em `gapSize(i)` e crescente em `speed(i)` — ambos extraídos diretamente de `buildLayoutRow(i, target, rng)` (mesma fonte de verdade do engine).
-- `skillFactor` define o perfil:
-  - `casual` ≈ 1.0 (morre próximo ao alvo)
-  - `skilled` ≈ 1.4 (frequentemente passa do alvo)
-  - `expert` ≈ 1.8 (vai longe na cauda)
+Isso é resquício do modelo antigo (meta fixa em N barreiras). Com a curva contínua atual, o jogador ganha de forma incremental e perde quando acabam as bolas — não existe mais "meta" nem contador "faltam X". O HUD precisa refletir o que realmente está acontecendo: **quanto o jogador está ganhando agora**.
 
-A rodada termina na primeira barreira `i` em que o jogador falha. Payout = `multiplierForBarriers(i-1) × stake`, capado por `MAX_ROUND_PAYOUT`.
+O modo demo já faz isso corretamente (card "Ganho atual" verde com o valor atualizado por barreira). Vamos aplicar o mesmo padrão no live, mas usando a curva real (`multiplierForBarriers`) em vez do cálculo simplificado do demo.
 
-### Calibração
-1. Rodar 100k rodadas com `casual` e ajustar `skillFactor` para que o RTP empírico bata o teórico (~85,7%) — confirma que o modelo está alinhado com o desenho da Fase 1.
-2. Com a calibração travada, medir RTP de `skilled` e `expert` para ver onde a cauda pousa.
+## Mudanças
 
-### Mudanças por arquivo
+**Arquivo único:** `src/components/GameCanvas.tsx`
 
-**Novo: `src/test/skilledRtpSimulation.test.ts`**
-- Função `simulateSkilledRound(seed, skillFactor)`:
-  - Sorteia tier via `sampleMultiplier` para obter `target_barrier` (do `MULTIPLIER_TIERS[k].visual.barriers_crossed`).
-  - Itera `i = 1..80`, gerando `buildLayoutRow(i, target, rng)`.
-  - Calcula `dificuldade(i) = (1 / gapSize) × (speed / 80)` (normalizado pela baseline).
-  - Em cada barreira amostra Bernoulli com a probabilidade acima; para na primeira falha.
-  - Retorna `min(MAX_ROUND_PAYOUT, multiplierForBarriers(i-1)) × stake`.
-- Três suites:
-  - `casual`: 100k rodadas em 10 seeds → RTP ∈ [83%, 88%] (sanity check da calibração).
-  - `skilled`: 100k rodadas → RTP ∈ [85%, 92%].
-  - `expert`: 100k rodadas → RTP ∈ [86%, 94%] (margem maior, mas ainda abaixo do teto operacional).
-- Reporta também distribuição de barreiras alcançadas (p50, p90, p99) como diagnóstico via `console.log` no teste.
+### 1. Calcular ganho ao vivo usando a curva oficial
 
-**Atualizar: `.lovable/plan.md`**
-- Marcar item de Monte Carlo como concluído na seção Validação.
+- Importar `multiplierForBarriers` de `@/game/economy/multiplierCurve`.
+- Em modo live, calcular a cada render:
+  - `liveCurrentMultiplier = multiplierForBarriers(passedNow)`
+  - `liveCurrentWin = min(stake * liveCurrentMultiplier, MAX_ROUND_PAYOUT)`
+  - `liveAtPayoutCap = stake * liveCurrentMultiplier >= MAX_ROUND_PAYOUT`
+- Remover as variáveis hoje obsoletas no escopo live: `goalBarriers`, `reachedGoal`, `remainingBarriers`, `livePotentialPayout`, `liveIsCapped`. (Mantenho `liveRoundMultiplier` apenas se ainda for usado em outro lugar — verificarei na hora.)
 
-### Fora de escopo
-- Simulação física real (Canvas + colisão de bolas) — desnecessária para a métrica de RTP.
-- Mudanças na curva ou no layout — este passo é só validação. Se o teste falhar, abro um plano separado para ajustar âncoras (ex.: trocar `[30,40]` por `[30,35]` conforme o plano da Fase 2 já antecipava).
-- Ajuste do rótulo do HUD do demo (item separado, fica para depois).
+### 2. Substituir o bloco do HUD live (linhas ~365-411)
 
-### Critério de aceite
-- Os três blocos (`casual`/`skilled`/`expert`) passam dentro das bandas declaradas em pelo menos 9 de 10 seeds, e o RTP agregado das 100k rodadas de cada perfil cai dentro da banda. Se `expert` estourar 94%, ajusto a calibração ou abro plano de tuning das âncoras.
+Trocar todo o card "Meta da rodada" por uma versão equivalente ao card do demo, mostrando:
+
+- Label: **"Ganho atual"**
+- Valor grande: `R$ {liveCurrentWin}` (verde quando > 0, com glow)
+- Linha secundária: `×{multiplicador atual} · {passedNow} barreiras` + tag `(máx)` quando atinge `MAX_ROUND_PAYOUT`
+
+Sem barra de progresso (não há meta), sem contagem "X/Y barreiras", sem "faltam".
+
+### 3. Ajustar popups flutuantes por barreira (linhas ~462-500)
+
+Hoje, no live, cada popup mostra "Barreira N" + "Faltam X para R$ Y". Substituir por algo simétrico ao demo:
+
+- `+R$ {ganho acumulado naquela barreira}`
+- Subtítulo: `Barreira N · ×{mult}`
+
+E remover a lógica `justReachedGoal` / "META!" — não há mais meta a bater.
+
+### 4. Atualizar o `useEffect` de popups (linhas 122-145)
+
+- Remover dependência de `goalBarriers` e `livePotentialPayout`.
+- Para live, `total` passa a ser `min(stake * multiplierForBarriers(passed), MAX_ROUND_PAYOUT)`.
+
+### 5. Limpeza
+
+- Remover comentários e código morto referentes a "meta de barreiras" no live.
+- Manter o modo **demo** intacto (continua usando seu card próprio).
+- Não tocar em props da interface (`targetBarrier`, `targetMultiplier`, `resultMultiplier` continuam sendo recebidas — só não são mais usadas para renderizar a "meta" no live; podem ser úteis para debug/QA futuro).
+
+## Fora de escopo
+
+- Edge functions, tabela de tiers, lógica de settlement: nada muda.
+- `RoundSetupScreen` (já foi limpo na etapa anterior).
+- Tela de game over / resumo da rodada.
+
+## Resultado esperado
+
+Durante uma partida live, o jogador vê apenas:
+
+```
+Ganho atual
+R$ 0,12
+×0.12 · 3 barreiras
+```
+
+…que sobe a cada barreira passada, em vez do confuso "META R$ 20,00 · 0/9 FALTAM 9".
