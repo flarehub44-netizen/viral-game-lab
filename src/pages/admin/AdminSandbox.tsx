@@ -8,8 +8,6 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  Trophy,
-  TriangleAlert,
   Users,
   Zap,
 } from "lucide-react";
