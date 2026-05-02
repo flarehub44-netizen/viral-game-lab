@@ -18,6 +18,8 @@ interface Props {
   playMode: "demo" | "online";
   progressionProfile: ProgressionProfile;
   onSignIn?: () => void;
+  /** Slot opcional para banners (ex: bônus de boas-vindas). Renderizado abaixo do feed de ganhadores. */
+  extraSlot?: React.ReactNode;
 }
 
 /** Contagem estável “social proof” por dia (não é tempo real). */
