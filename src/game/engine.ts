@@ -407,6 +407,9 @@ export class GameEngine {
     // Cor única (verde neon) para todas as barreiras — nada de cor por zona.
     const NEON_HUE = 140;
 
+    // Índice global desta barreira na rodada (0-based).
+    const globalIdx = this.barriersPassedCount + this.barriers.length;
+
     if (this.mode === "live" && this.layoutPlan) {
       // Pega a próxima linha do plano OU gera proceduralmente para suportar
       // jogadores que excederem o tamanho do `layoutPlan` (Fase 2 — continuidade infinita).
@@ -426,19 +429,19 @@ export class GameEngine {
         hue: NEON_HUE,
         passed: false,
         speed: Math.min(PHASE2_SPEED_CEIL, row.speed),
+        barrierIndex: globalIdx,
       });
       return;
     }
 
     // DEMO skill puro: barreiras fáceis e generosas (gap 30-50%, vel 50-170).
     if (this.mode === "demo") {
-      const idx = this.barriersPassedCount + this.barriers.length;
-      const difficulty = Math.min(0.40, 0.15 + idx * 0.008);
+      const difficulty = Math.min(0.40, 0.15 + globalIdx * 0.008);
       // gap entre 50% (fácil) e 30% (médio)
       const t = difficulty / 0.40;
       const gapSize = 0.50 - (0.50 - 0.30) * t;
       const start = Math.max(0.01, Math.random() * (1 - gapSize));
-      const speed = Math.min(170, 50 + idx * 1.2);
+      const speed = Math.min(170, 50 + globalIdx * 1.2);
       this.barriers.push({
         y: this.height + 20,
         height: 18,
@@ -446,6 +449,7 @@ export class GameEngine {
         hue: NEON_HUE,
         passed: false,
         speed,
+        barrierIndex: globalIdx,
       });
       return;
     }
@@ -462,6 +466,7 @@ export class GameEngine {
       hue: NEON_HUE,
       passed: false,
       speed,
+      barrierIndex: globalIdx,
     });
   }
 
