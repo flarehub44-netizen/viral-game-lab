@@ -57,35 +57,41 @@ const AdminPage = () => {
     return <NotFound />;
   }
 
+  // Ocultar o header/menu admin na página /admin/sandbox para deixar a
+  // experiência de jogo igual ao demo (sem barra de navegação no topo).
+  const hideHeader = location.pathname.startsWith("/admin/sandbox");
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-8">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur px-3 py-2 flex items-center gap-2 flex-wrap">
-        <NavLink
-          to="/"
-          className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground shrink-0"
-          aria-label="Voltar ao app"
-        >
-          <ArrowLeft size={18} />
-        </NavLink>
-        <span className="text-sm font-black uppercase tracking-wide">Admin</span>
-        <nav className="flex flex-wrap gap-1.5 ml-auto">
-          <NavLink to="/admin/overview" className={tabClass}>
-            Visão
+      {!hideHeader && (
+        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur px-3 py-2 flex items-center gap-2 flex-wrap">
+          <NavLink
+            to="/"
+            className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground shrink-0"
+            aria-label="Voltar ao app"
+          >
+            <ArrowLeft size={18} />
           </NavLink>
-          <NavLink to="/admin/sandbox" className={tabClass}>
-            Sandbox
-          </NavLink>
-          <NavLink to="/admin/users" className={tabClass}>
-            Usuários
-          </NavLink>
-          <NavLink to="/admin/flags" className={tabClass}>
-            Flags
-          </NavLink>
-          <NavLink to="/admin/fraud" className={tabClass}>
-            Fraude
-          </NavLink>
-        </nav>
-      </header>
+          <span className="text-sm font-black uppercase tracking-wide">Admin</span>
+          <nav className="flex flex-wrap gap-1.5 ml-auto">
+            <NavLink to="/admin/overview" className={tabClass}>
+              Visão
+            </NavLink>
+            <NavLink to="/admin/sandbox" className={tabClass}>
+              Sandbox
+            </NavLink>
+            <NavLink to="/admin/users" className={tabClass}>
+              Usuários
+            </NavLink>
+            <NavLink to="/admin/flags" className={tabClass}>
+              Flags
+            </NavLink>
+            <NavLink to="/admin/fraud" className={tabClass}>
+              Fraude
+            </NavLink>
+          </nav>
+        </header>
+      )}
       <Outlet />
     </div>
   );
