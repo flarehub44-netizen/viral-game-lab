@@ -478,7 +478,7 @@ export const AdminSandbox = () => {
       </div>
 
       {/* CTA fixo */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
+      <div className="sticky bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
         <div className="max-w-4xl xl:max-w-6xl mx-auto">
           <button
             type="button"
