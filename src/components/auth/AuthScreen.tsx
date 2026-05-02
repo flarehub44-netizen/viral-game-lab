@@ -5,11 +5,12 @@ import { toast } from "sonner";
 
 interface AuthScreenProps {
   onPlayDemo?: () => void;
+  initialMode?: "login" | "register";
 }
 
-export const AuthScreen = ({ onPlayDemo }: AuthScreenProps) => {
+export const AuthScreen = ({ onPlayDemo, initialMode = "login" }: AuthScreenProps) => {
   const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
