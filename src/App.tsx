@@ -24,6 +24,9 @@ const AdminFlags = lazy(() =>
 const AdminFraud = lazy(() =>
   import("./pages/admin/AdminFraud.tsx").then((m) => ({ default: m.AdminFraud })),
 );
+const AdminWithdrawals = lazy(() =>
+  import("./pages/admin/AdminWithdrawals.tsx").then((m) => ({ default: m.AdminWithdrawals })),
+);
 
 const queryClient = new QueryClient();
 
@@ -50,6 +53,7 @@ const App = () => (
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="flags" element={<AdminFlags />} />
                 <Route path="fraud" element={<AdminFraud />} />
+                <Route path="withdrawals" element={<AdminWithdrawals />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
