@@ -55,8 +55,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const canPlay = bet > 0 && balance >= bet && !busy;
-  const insufficient = bet > 0 && balance < bet;
+  const hasFreeSpin = economySource === "server" && freeSpinsRemaining > 0;
+  const usingFreeSpin = hasFreeSpin && bet === 1;
+  // Free spin não exige saldo
+  const canPlay = bet > 0 && (usingFreeSpin || balance >= bet) && !busy;
+  const insufficient = bet > 0 && !usingFreeSpin && balance < bet;
 
   return (
     <div className="absolute inset-0 flex flex-col bg-gradient-to-b from-[hsl(270_45%_10%)] via-background to-background overflow-y-auto">
