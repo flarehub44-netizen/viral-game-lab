@@ -362,47 +362,27 @@ export const GameCanvas = ({
           <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
             <div
               className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
-                reachedGoal
-                  ? "border-[hsl(140_90%_55%)] bg-[hsl(140_55%_10%/0.85)] shadow-[0_0_24px_hsl(140_90%_55%/0.55)] pulse-glow"
+                liveCurrentWin > 0
+                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
                   : "border-border bg-card/70"
               }`}
             >
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                {reachedGoal ? "Meta batida! Ganho garantido" : "Meta da rodada"}
+                Ganho atual
               </div>
-              {(() => {
-                const displayMeta = targetMultiplier ?? 0;
-                const displayPayout = Math.min(stake * displayMeta, MAX_ROUND_PAYOUT);
-                const displayCapped = stake * displayMeta >= MAX_ROUND_PAYOUT && stake > 0;
-                return (
-                  <>
-                    <div
-                      className={`text-2xl font-black tabular-nums leading-tight ${
-                        reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                      }`}
-                      style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
-                    >
-                      {reachedGoal ? `+R$ ${formatBRL(displayPayout)}` : `R$ ${formatBRL(displayPayout)}`}
-                    </div>
-                    <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                      ×{displayMeta.toFixed(2)} · Entrada R$ {formatBRL(stake)}
-                      {displayCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-            {goalBarriers > 0 && (
               <div
-                className={`mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold ${
-                  reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
+                className={`text-2xl font-black tabular-nums leading-tight ${
+                  liveCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
                 }`}
+                style={{ textShadow: liveCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
               >
-                {reachedGoal
-                  ? `${passedNow}/${goalBarriers} barreiras ✓`
-                  : `${passedNow}/${goalBarriers} · faltam ${remainingBarriers}`}
+                R$ {formatBRL(liveCurrentWin)}
               </div>
-            )}
+              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                ×{liveCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
+                {liveAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+              </div>
+            </div>
           </div>
         )}
 
