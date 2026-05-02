@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlaskConical } from "lucide-react";
+
 import { GameCanvas } from "@/components/GameCanvas";
 import { GameOverScreen } from "@/components/GameOverScreen";
 import { RoundSetupScreen } from "@/components/economy/RoundSetupScreen";
