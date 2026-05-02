@@ -1,7 +1,11 @@
 /**
- * Tabela oficial MVP — RTP teórico ≈ 85,7% (discreto).
- * RTP empírico esperado pós-alongamento da curva: ~75-80% (curva 1.5x mais longa).
+ * Tabela oficial — perfil "casino" (RTP teórico ≈ 53%).
+ * RTP empírico esperado (com curva pós-alvo achatada e dificuldade Fase 2 mais agressiva): ~70%.
  * Espelhado em supabase/functions/_shared/multiplierTable.ts para a Edge Function.
+ *
+ * Histórico: a tabela anterior tinha RTP teórico ~85,7% e empírico ~78%. Os tiers
+ * altos (×3, ×5, ×10, ×20) foram drasticamente reduzidos para que multiplicadores
+ * grandes virem eventos raros de verdade.
  */
 
 export interface VisualResult {
@@ -22,7 +26,7 @@ export interface MultiplierTier {
 export const MULTIPLIER_TIERS: MultiplierTier[] = [
   {
     multiplier: 0,
-    probability: 0.3,
+    probability: 0.38,
     visual: {
       barriers_crossed: 2,
       balls_count: 3,
@@ -33,7 +37,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 0.5,
-    probability: 0.22,
+    probability: 0.25,
     visual: {
       barriers_crossed: 5,
       balls_count: 5,
@@ -44,7 +48,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 0.8,
-    probability: 0.16,
+    probability: 0.17,
     visual: {
       barriers_crossed: 8,
       balls_count: 8,
@@ -55,7 +59,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1,
-    probability: 0.11,
+    probability: 0.09,
     visual: {
       barriers_crossed: 11,
       balls_count: 10,
@@ -66,7 +70,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1.2,
-    probability: 0.07,
+    probability: 0.055,
     visual: {
       barriers_crossed: 14,
       balls_count: 12,
@@ -77,7 +81,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 1.5,
-    probability: 0.05,
+    probability: 0.03,
     visual: {
       barriers_crossed: 17,
       balls_count: 14,
@@ -88,7 +92,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 2,
-    probability: 0.04,
+    probability: 0.015,
     visual: {
       barriers_crossed: 20,
       balls_count: 16,
@@ -99,7 +103,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 3,
-    probability: 0.025,
+    probability: 0.007,
     visual: {
       barriers_crossed: 23,
       balls_count: 18,
@@ -110,7 +114,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 5,
-    probability: 0.015,
+    probability: 0.003,
     visual: {
       barriers_crossed: 26,
       balls_count: 22,
@@ -121,7 +125,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 10,
-    probability: 0.008,
+    probability: 0.0008,
     visual: {
       barriers_crossed: 29,
       balls_count: 26,
@@ -132,7 +136,7 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
   },
   {
     multiplier: 20,
-    probability: 0.002,
+    probability: 0.0002,
     visual: {
       barriers_crossed: 30,
       balls_count: 28,
