@@ -1,8 +1,8 @@
-import { ArrowLeft, Target, TrendingUp, Users, Sparkles } from "lucide-react";
+import { ArrowLeft, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
-import { DEMO_BASE_OPTIONS, DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
+import { DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
 
 interface Props {
   balance: number;
@@ -24,11 +24,9 @@ function pseudoOnlinePlayers(): number {
 export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0 }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
-  // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
-  // multiplicador é resultado da curva e depende de quantas barreiras o jogador passa.
-  const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
+  // Demo: base do multiplicador agora é fixa (sem seletor). Live: usa default.
+  const meta = isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER;
   const online = pseudoOnlinePlayers();
-  const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
 
   const stats = useMemo(() => {
     if (bet <= 0) {
@@ -89,44 +87,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               ? "Aposte e jogue até perder todas as bolas. Quanto mais barreiras passar, maior o pagamento."
               : "Modo Demo: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
-          {isDemo ? (
-            <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Escolha sua <strong>base ×{meta},00</strong>
-            </div>
-          ) : null}
         </div>
-
-        {/* Seletor de base — apenas no Demo. No Live, o multiplicador é resultado da curva. */}
-        {isDemo ? (
-          <div>
-            <div className="flex flex-wrap justify-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
-                <Target size={12} />
-                Base ×{meta}
-              </span>
-            </div>
-
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
-              Base do multiplicador
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {demoMetaOptions.map((amount) => (
-                <button
-                  key={`meta-${amount}`}
-                  type="button"
-                  onClick={() => setMeta(amount)}
-                  className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
-                    meta === amount
-                      ? "border-secondary bg-secondary/20 text-secondary"
-                      : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {amount}x
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         <div>
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">

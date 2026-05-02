@@ -1,100 +1,68 @@
+
 ## Objetivo
 
-Hoje `/admin/sandbox` é uma "tela técnica" (input de stake + botão verde + simulação RTP). O jogo real começa pelo **RoundSetupScreen** (com seletor de stake, "online players", saldo, multiplicador máximo, CTA grande "JOGAR") e abre o **GameCanvas** com HUD completo. Vamos fazer o sandbox seguir o mesmo fluxo, mantendo o que é específico de admin (sorteio enviesado, simulação RTP, reset DB).
+1. **`/admin/sandbox`** — Igualar visualmente à tela "Iniciar partida" do jogo real e **remover o teto visual de R$ 400** no card *Pagamento máximo* (mostrar entrada × 50 puro).
+2. **Página demo** (`RoundSetupScreen` em modo `demo`) — **remover o seletor de multiplicador** (Base ×2/×5/×10/×20) e os elementos relacionados.
 
-## O que melhorar
+---
 
-### 1. Pré-jogo igual ao real
-Substituir o input numérico cru por uma versão do `RoundSetupScreen`:
-- Botões de stake (`BET_AMOUNTS`: 1, 2, 5, 10, 20, 50) em vez de `<input>`.
-- Card "Entrada selecionada R$ X,XX" grande.
-- Cards "Multiplicador máximo" e "Pagamento máximo" (entrada × 50).
-- Pílula "X online" (mesmo `pseudoOnlinePlayers`).
-- CTA inferior fixo "JOGAR" no mesmo verde neon do real.
-- Header com botão voltar e título "Sandbox · Preview do jogo".
+## Mudanças
 
-### 2. Faixa de admin sempre visível
-Banner discreto no topo deixando claro que é sandbox:
-- "Modo Sandbox · não movimenta carteira · 80% vitória forçada"
-- Badge com o multiplicador sorteado **depois** que o jogador termina (não antes, pra não estragar o reveal).
+### 1) `src/pages/admin/AdminSandbox.tsx`
 
-### 3. Saldo "fake" coerente
-Hoje não mostra saldo. Adicionar saldo simulado (ex.: R$ 1.000 fixo, só visual) para o card "Saldo atual" parecer real, sem nunca tocar a wallet do admin.
+- **Pagamento máximo sem teto R$ 400**: substituir
+  ```ts
+  const maxPayout = bet > 0 ? Math.min(bet * MULTIPLIER_CURVE_HARD_CAP, MAX_ROUND_PAYOUT) : 0;
+  ```
+  por
+  ```ts
+  const maxPayout = bet > 0 ? bet * MULTIPLIER_CURVE_HARD_CAP : 0;
+  ```
+  Remover o import não-usado de `MAX_ROUND_PAYOUT`.
+  
+  Resultado visual: aposta R$ 50 → mostra **R$ 2.500,00** (em vez de R$ 400,00).
 
-### 4. Controles de admin agrupados
-Mover para uma seção colapsável "Ferramentas de admin" abaixo do setup:
-- Forçar resultado: dropdown com `MULTIPLIER_TIERS` (×0, ×0.2, … ×20) + opção "Aleatório enviesado (padrão)".
-- Forçar `target_barrier` específica (override do mapeamento atual) — útil pra testar layouts longos.
-- Simulação RTP (já existe, só recolher).
-- Limpar rodadas sandbox (já existe).
+- **Texto de rodapé**: adicionar a mesma frase do jogo real abaixo do card de saldo simulado:
+  > "Pagamento: entrada × multiplicador da curva."
+  
+  E o aviso 18+:
+  > "Jogue com responsabilidade. Proibido para menores de 18 anos."
 
-### 5. Tela de jogo com painel overlay
-No `GameCanvas` ativo, adicionar overlay `position: absolute` no canto (top-left, fora da área de toque) mostrando:
-- "SANDBOX" badge.
-- Multiplicador alvo da rodada (já sorteado): `×{result_multiplier}`.
-- Target barrier e duração máxima.
-- Botão "Sair" pequeno (hoje o `onExit` existe mas a UX pode ser mais clara).
+- O resto (header, banner sandbox, seletor de stakes, card de entrada, grid mult/payout, ferramentas admin) já espelha a tela real e fica como está.
 
-### 6. Pós-jogo: tela de resultado real
-Hoje o resultado é só um `toast.message`. O jogo real mostra `GameOverScreen` com score, multiplicador final, payout. Reusar o mesmo componente em modo "sandbox" (sem botão de "rejogar com saldo") para o admin ver exatamente o que o jogador veria.
+> **Nota importante**: o teto continua existindo no backend (`MAX_PAYOUT = 400` no edge function `admin-action`). A mudança é **apenas visual** conforme pedido. Se quiser remover o teto também no servidor para sandbox, sinalize — mantenho como está por segurança.
 
-### 7. Atalhos de teste rápido
-Linha de "presets" no setup: 3 botões pequenos
-- "Vitória grande" → força ×10/×20
-- "Vitória média" → força ×2/×3
-- "Derrota" → força ×0/×0.2
+---
 
-Cada um já dispara `startPlay` com o resultado override.
+### 2) `src/components/economy/RoundSetupScreen.tsx` (modo demo)
 
-## Mudanças técnicas
+Remover do bloco `isDemo`:
 
-### Frontend
-- Reescrever `src/pages/admin/AdminSandbox.tsx`:
-  - Extrair pré-jogo num componente `SandboxSetup` baseado em `RoundSetupScreen` (sem props de demo, sem free spins, sem seletor de meta).
-  - Componente `SandboxAdminTools` (collapsible) com presets, override de multiplicador e RTP sim.
-  - Overlay `SandboxHUD` no modo `activeRound`.
-  - Reusar `GameOverScreen` ao invés de `toast`.
+- O bloco inteiro do **seletor "Base do multiplicador"** (linhas ~100-129): chip "Base ×N", título e botões 2x/5x/10x/20x.
+- A barra/banner verde "🎯 Escolha sua **base ×N,00**" (linhas ~92-96).
+- Fixar `meta` em um valor padrão constante (`DEMO_DEFAULT_BASE`) — sem `useState` para meta no demo, só no live continua usando `DEFAULT_META_MULTIPLIER`.
+- Manter o card **"META / R$ X / base ×N,00"** e a fórmula de `perBarrier` calculados com a base default (a economia demo continua igual; só a UI de escolha some).
 
-### Backend (edge function `admin-action`)
-- Estender `sandbox_round` para aceitar parâmetros opcionais:
-  - `force_multiplier?: number` — pula o sorteio enviesado e usa esse valor exato (validado contra `MULTIPLIER_TIERS`).
-  - `force_target_barrier?: number` — override do `mapMultiplierToLayout`.
-- Manter comportamento padrão (sorteio 80/20) quando não vierem.
-- Validar que `force_multiplier` está em `MULTIPLIER_TIERS` para não burlar a tabela de RTP.
-
-### Sem mudanças
-- DB: `admin_sandbox_round` RPC já aceita os parâmetros necessários.
-- `GameCanvas`, `GameOverScreen`: reusados como estão.
-- Layout signature, idempotência, logging: inalterados.
-
-## Layout final (referência)
-
+Antes/depois (esquema):
 ```text
-┌────────────────────────────────────┐
-│  [←] Sandbox · Preview do jogo     │
-│  ⚠ Não movimenta carteira          │
-├────────────────────────────────────┤
-│  ● 412 online                      │
-│  Iniciar partida (sandbox)         │
-│  Entrada (R$): [1][2][5][10][20]…  │
-│  ┌───── Entrada selecionada ─────┐ │
-│  │        R$ 5,00                │ │
-│  └───────────────────────────────┘ │
-│  [Mult máx 50×] [Pagamento R$250]  │
-│  Saldo atual: R$ 1.000,00 (fake)   │
-│                                    │
-│  ▼ Ferramentas de admin            │
-│    Preset: [Win+] [Win] [Loss]     │
-│    Forçar mult: [×──── select]     │
-│    Sim RTP: [N=5000] [Rodar]       │
-│    [Limpar sandbox DB]             │
-│                                    │
-│  ┌──────── JOGAR ─────────┐        │
-│  └────────────────────────┘        │
-└────────────────────────────────────┘
+DEMO antes:                       DEMO depois:
+[Iniciar partida]                 [Iniciar partida]
+[Banner: Escolha sua base ×N]     [Valor de entrada]
+[Chip Base ×N]                    [Botões 1/2/5/10/20/50]
+[Botões 2/5/10/20]                [Card entrada]
+[Valor de entrada]                [Por barreira | META]
+[Botões 1/2/5/10/20/50]           [Saldo + fórmula]
+[Card entrada]                    [Botão JOGAR]
+[Por barreira | META]
+[Saldo + fórmula]
+[Botão JOGAR]
 ```
 
-## Fora de escopo
-- Trocar a engine ou física do jogo.
-- Mudar o RTP teórico ou a tabela de multiplicadores.
-- Métricas/analytics novas.
+---
+
+## Arquivos editados
+
+- `src/pages/admin/AdminSandbox.tsx`
+- `src/components/economy/RoundSetupScreen.tsx`
+
+Sem mudanças em backend, migrations ou edge functions.
