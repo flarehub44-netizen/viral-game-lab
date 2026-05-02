@@ -772,6 +772,7 @@ const Index = () => {
                     await refreshEconomy();
                   }
             }
+            bonusSlot={!isDemo && bonusInfo ? <BonusWalletCard info={bonusInfo} /> : null}
           />
         )}
 
