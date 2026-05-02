@@ -17,6 +17,7 @@ import { MissionsPanel } from "@/components/MissionsPanel";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 import { WelcomeBonusBanner } from "@/components/economy/WelcomeBonusBanner";
 import { DailyLoginPopup } from "@/components/economy/DailyLoginPopup";
+import { DemoLimitPopup } from "@/components/economy/DemoLimitPopup";
 import { BonusWalletCard } from "@/components/economy/BonusWalletCard";
 import {
   useWalletBonus,
@@ -85,6 +86,23 @@ type Screen =
 
 const PLAY_MODE_KEY = "ns_play_mode";
 const DEMO_NICK_KEY = "ns_demo_nickname";
+const DEMO_PLAYED_KEY = "ns_demo_played_v1";
+
+function hasPlayedDemo(): boolean {
+  try {
+    return localStorage.getItem(DEMO_PLAYED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markDemoPlayed() {
+  try {
+    localStorage.setItem(DEMO_PLAYED_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 function readGuestDemoFlag(): boolean {
   // Demo é a experiência padrão para visitantes não autenticados.
@@ -125,12 +143,17 @@ const Index = () => {
     setGuestDemoActive(true);
   }, []);
 
-  const leaveDemoToAuth = useCallback(() => {
+  const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("login");
+  const [showDemoLimit, setShowDemoLimit] = useState(false);
+
+  const leaveDemoToAuth = useCallback((mode: "login" | "register" = "login") => {
     try {
       sessionStorage.setItem(PLAY_MODE_KEY, "auth");
     } catch {
       /* ignore */
     }
+    setAuthInitialMode(mode);
+    setShowDemoLimit(false);
     setGuestDemoActive(false);
   }, []);
 
@@ -411,6 +434,10 @@ const Index = () => {
     : nickname.trim() || profile?.display_name?.trim() || "Player";
 
   const openRoundSetup = () => {
+    if (isDemo && hasPlayedDemo()) {
+      setShowDemoLimit(true);
+      return;
+    }
     setLastStats(null);
     setLastSummary(null);
     setLastProgression(null);
@@ -624,6 +651,7 @@ const Index = () => {
     setScreen("over");
 
     if (isDemo) {
+      markDemoPlayed();
       refreshDemoEconomy();
     } else {
       if (
@@ -729,6 +757,10 @@ const Index = () => {
   };
 
   const handleRetry = () => {
+    if (isDemo && hasPlayedDemo()) {
+      setShowDemoLimit(true);
+      return;
+    }
     setServerEconomy(null);
     openRoundSetup();
   };
@@ -745,7 +777,7 @@ const Index = () => {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
         <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
-          <AuthScreen onPlayDemo={enterDemo} />
+          <AuthScreen onPlayDemo={enterDemo} initialMode={authInitialMode} />
         </div>
       </main>
     );
@@ -929,6 +961,13 @@ const Index = () => {
             current={displayNickname}
             onSave={handleSaveNick}
             onCancel={() => setShowNickDialog(false)}
+          />
+        )}
+
+        {showDemoLimit && (
+          <DemoLimitPopup
+            onCreateAccount={() => leaveDemoToAuth("register")}
+            onLogin={() => leaveDemoToAuth("login")}
           />
         )}
 
