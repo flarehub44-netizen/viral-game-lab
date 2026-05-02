@@ -7,10 +7,15 @@ import {
 import { MAX_ROUND_PAYOUT, MIN_STAKE, MAX_STAKE } from "./constants";
 import { pushDemoHistoryRow } from "./demoHistory";
 import type { ActiveServerRound } from "./serverRound";
+import { multiplierForBarriers } from "./multiplierCurve";
 
-/** DEMO: fator linear por barreira aplicado sobre a base escolhida. */
-export const DEMO_MULTIPLIER_PER_BARRIER_FACTOR = 0.05;
-/** DEMO: bases de multiplicador disponíveis ao jogador. */
+/**
+ * DEMO usa a MESMA curva pública `m(b)` do modo online (Fase 1 payout dinâmico).
+ * O parâmetro `base` permanece como referência visual ("alvo do jogador") mas não
+ * altera mais o ganho — assim a experiência demo prepara o jogador para a real.
+ */
+
+/** DEMO: bases de multiplicador disponíveis ao jogador (referência visual). */
 export const DEMO_BASE_OPTIONS = [2, 5, 10, 20] as const;
 export type DemoBase = (typeof DEMO_BASE_OPTIONS)[number];
 /** DEMO: base padrão se nada for selecionado. */
@@ -35,17 +40,11 @@ export function isValidDemoBase(base: number): base is DemoBase {
 }
 
 /**
- * Calcula o multiplicador atual do DEMO a partir do número de barreiras passadas
- * e da base escolhida pelo jogador.
- *
- * Fórmula linear (sem teto próprio): `0.05 × base × barreiras`.
- * Atinge exatamente ×base em 20 barreiras (meta). Continua crescendo depois.
+ * Multiplicador atual do DEMO — agora idêntico ao modo online (curva pública m(b)).
+ * O parâmetro `base` é ignorado para cálculo (mantido na assinatura por compatibilidade).
  */
-export function demoMultiplierFor(barriersPassed: number, base: number): number {
-  if (!Number.isFinite(barriersPassed) || barriersPassed <= 0) return 0;
-  if (!Number.isFinite(base) || base <= 0) return 0;
-  const raw = DEMO_MULTIPLIER_PER_BARRIER_FACTOR * base * barriersPassed;
-  return Math.round(raw * 100) / 100;
+export function demoMultiplierFor(barriersPassed: number, _base?: number): number {
+  return multiplierForBarriers(barriersPassed);
 }
 
 /**
