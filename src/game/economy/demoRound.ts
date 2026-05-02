@@ -15,6 +15,9 @@ import { multiplierForBarriers } from "./multiplierCurve";
  * altera mais o ganho — assim a experiência demo prepara o jogador para a real.
  */
 
+/** @deprecated Mantido para compatibilidade com a UI; não afeta mais o cálculo de ganho. */
+export const DEMO_MULTIPLIER_PER_BARRIER_FACTOR = 0.05;
+
 /** DEMO: bases de multiplicador disponíveis ao jogador (referência visual). */
 export const DEMO_BASE_OPTIONS = [2, 5, 10, 20] as const;
 export type DemoBase = (typeof DEMO_BASE_OPTIONS)[number];
