@@ -885,7 +885,9 @@ export class GameEngine {
 
       // Etiqueta R$ — somente se houver aposta e valor previsto > 0
       if (this.stakeCredits > 0 && style.multiplier > 0) {
-        const value = Math.min(this.stakeCredits * style.multiplier, MAX_ROUND_PAYOUT);
+        // Demo/sandbox não aplicam o teto de MAX_ROUND_PAYOUT — só o live tem teto.
+        const rawValue = this.stakeCredits * style.multiplier;
+        const value = this.mode === "live" ? Math.min(rawValue, MAX_ROUND_PAYOUT) : rawValue;
         const label = `R$ ${value.toLocaleString("pt-BR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,

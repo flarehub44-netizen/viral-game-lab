@@ -4,14 +4,14 @@ import {
   saveWallet,
   type PersistedWallet,
 } from "./walletStore";
-import { MAX_ROUND_PAYOUT, MIN_STAKE, MAX_STAKE } from "./constants";
+import { MIN_STAKE, MAX_STAKE } from "./constants";
 import { pushDemoHistoryRow } from "./demoHistory";
 import type { ActiveServerRound } from "./serverRound";
 
 /**
  * DEMO usa fórmula linear baseada na BASE escolhida pelo jogador (×2/×5/×10/×20):
  *   multiplicador = 0,05 × base × barreiras
- *   pagamento     = entrada × multiplicador (capado em MAX_ROUND_PAYOUT)
+ *   pagamento     = entrada × multiplicador (sem teto — créditos fictícios)
  *
  * Isto é INTENCIONALMENTE diferente da curva pública `m(b)` do modo live —
  * mantém a consistência com o HUD que o jogador vê durante a partida demo.
@@ -134,7 +134,8 @@ export function startDemoRound(stake: number, base: number = DEMO_DEFAULT_BASE):
 /**
  * Liquida a rodada demo:
  * - Multiplicador final = `0,05 × base × barreiras` (sem teto próprio).
- * - Pagamento = `stake × multiplicador` (capado em MAX_ROUND_PAYOUT por segurança).
+ * - Pagamento = `stake × multiplicador` (SEM teto — demo/sandbox são créditos
+ *   fictícios, então não aplicamos o cap MAX_ROUND_PAYOUT do modo live).
  * - Sempre credita o pagamento (mesmo se 0).
  */
 export function settleDemoRound(
@@ -148,8 +149,7 @@ export function settleDemoRound(
 } {
   const base = round.target_multiplier > 0 ? round.target_multiplier : DEMO_DEFAULT_BASE;
   const multiplier = demoMultiplierFor(barriersPassed, base);
-  let payout = Math.round(round.stake_amount * multiplier * 100) / 100;
-  if (payout > MAX_ROUND_PAYOUT) payout = MAX_ROUND_PAYOUT;
+  const payout = Math.round(round.stake_amount * multiplier * 100) / 100;
 
   let wallet = loadWallet();
 

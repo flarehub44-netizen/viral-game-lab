@@ -10,7 +10,7 @@ import {
   DEMO_FREE_BARRIERS,
   DEMO_MULTIPLIER_PER_BARRIER_FACTOR,
 } from "@/game/economy/demoRound";
-import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+
 import { applyRound, type RoundResult } from "@/game/progression";
 
 /**
@@ -62,8 +62,8 @@ export const AdminSandbox = () => {
     const barriers = summary.barriersPassed ?? 0;
     const effective = Math.max(0, barriers - DEMO_FREE_BARRIERS);
     const multiplier = DEMO_MULTIPLIER_PER_BARRIER_FACTOR * round.base * effective;
-    let payout = Math.round(round.stake * multiplier * 100) / 100;
-    if (payout > MAX_ROUND_PAYOUT) payout = MAX_ROUND_PAYOUT;
+    // Sandbox não aplica teto MAX_ROUND_PAYOUT — créditos fictícios.
+    const payout = Math.round(round.stake * multiplier * 100) / 100;
     const netResult = Math.round((payout - round.stake) * 100) / 100;
 
     setFakeBalance((b) => Math.round((b + payout) * 100) / 100);
