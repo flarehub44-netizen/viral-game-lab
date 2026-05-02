@@ -692,6 +692,7 @@ export class GameEngine {
 
       if (bar.y + bar.height < this.height * 0.25 - 20 && !bar.passed) {
         bar.passed = true;
+        bar.passedAt = ts;
         this.barriersPassedCount += 1;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
