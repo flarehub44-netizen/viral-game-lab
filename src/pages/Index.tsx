@@ -176,6 +176,28 @@ const Index = () => {
   const kycReturnRef = useRef<"deposit" | "withdraw" | null>(null);
 
   const [screen, setScreen] = useState<Screen>("lobby");
+
+  // Meta Pixel: dispara ViewContent quando muda de tela.
+  useEffect(() => {
+    const map: Record<Screen, { name: string; category: string }> = {
+      lobby: { name: "Lobby", category: "navigation" },
+      wallet: { name: "Wallet", category: "wallet" },
+      deposit: { name: "Deposit", category: "wallet" },
+      withdraw: { name: "Withdraw", category: "wallet" },
+      kycIdentity: { name: "KYC Identity", category: "compliance" },
+      roundSetup: { name: "Round Setup", category: "game" },
+      playing: { name: "Playing", category: "game" },
+      over: { name: "Game Over", category: "game" },
+      leaderboard: { name: "Leaderboard", category: "navigation" },
+      rules: { name: "Rules", category: "navigation" },
+      missions: { name: "Missions", category: "engagement" },
+      achievements: { name: "Achievements", category: "engagement" },
+    };
+    const m = map[screen];
+    if (m) {
+      void trackMeta("ViewContent", { content_name: m.name, content_category: m.category });
+    }
+  }, [screen]);
   const [nickname, setNickname] = useState("");
   const [demoNickname, setDemoNickname] = useState(() => {
     try {
