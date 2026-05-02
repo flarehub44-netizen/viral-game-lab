@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildVisualResult, MULTIPLIER_TIERS } from "../_shared/multiplierTable.ts";
+import { syncPayCreateCashOut } from "../_shared/syncpay.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
