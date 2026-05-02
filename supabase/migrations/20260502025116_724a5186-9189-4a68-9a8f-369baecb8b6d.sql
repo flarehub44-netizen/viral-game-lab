@@ -1,0 +1,2 @@
+ALTER TABLE public.game_rounds DROP CONSTRAINT IF EXISTS game_rounds_result_multiplier_check;
+ALTER TABLE public.game_rounds ADD CONSTRAINT game_rounds_result_multiplier_check CHECK (result_multiplier >= 0 AND result_multiplier <= 50);
