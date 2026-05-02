@@ -208,9 +208,8 @@ export const AdminSandbox = () => {
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="text-[11px] font-black uppercase tracking-widest text-[hsl(280_90%_75%)] flex items-center gap-1.5">
-          <FlaskConical size={13} />
-          Sandbox · preview
+        <div className="text-[11px] font-black uppercase tracking-widest text-foreground flex items-center gap-1.5">
+          INICIAR PARTIDA
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card/50 border border-border text-[10px] text-muted-foreground">
           <span className="w-1.5 h-1.5 rounded-full bg-[hsl(140_90%_55%)] animate-pulse" />
@@ -219,14 +218,7 @@ export const AdminSandbox = () => {
         </div>
       </div>
 
-      {/* Banner sandbox */}
-      <div className="mx-4 mt-3 rounded-xl border border-[hsl(280_70%_50%/0.5)] bg-[hsl(280_30%_12%/0.6)] px-3 py-2 text-[11px] text-[hsl(280_90%_80%)] flex items-start gap-2 leading-snug">
-        <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-        <div>
-          Modo <strong>Sandbox</strong> — não movimenta carteira. Sorteio padrão é{" "}
-          <strong>80% vitória / 20% derrota</strong>. Use as ferramentas abaixo para forçar resultados.
-        </div>
-      </div>
+      {"\n"}
 
       {/* Conteúdo */}
       <div className="flex-1 px-5 py-5 space-y-6 pb-36">
@@ -289,9 +281,9 @@ export const AdminSandbox = () => {
 
         {/* Saldo fake */}
         <p className="text-[11px] text-center text-muted-foreground bg-muted/40 rounded-xl px-3 py-2 border border-border">
-          Saldo (simulado):{" "}
+          Saldo atual:{" "}
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(FAKE_BALANCE)}</span>.{" "}
-          Pagamento: entrada × multiplicador da curva. Carteira real não é tocada.
+          Pagamento: entrada × multiplicador
         </p>
 
         <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
@@ -364,11 +356,10 @@ export const AdminSandbox = () => {
           <button
             type="button"
             onClick={() => setToolsOpen((o) => !o)}
-            className="w-full px-3 py-2.5 flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-[hsl(280_90%_75%)]"
+            className="w-full px-3 py-2.5 flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-muted-foreground/30"
           >
             <span className="flex items-center gap-2">
-              <FlaskConical size={13} />
-              Ferramentas de admin
+              {"\n"}
             </span>
             {toolsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
@@ -495,7 +486,7 @@ export const AdminSandbox = () => {
                 : "bg-muted border-border text-muted-foreground cursor-not-allowed"
             }`}
           >
-            {busy ? "Iniciando..." : !bet ? "Selecione um valor" : "JOGAR (sandbox)"}
+            {busy ? "Iniciando..." : !bet ? "Selecione um valor" : "JOGAR"}
           </button>
         </div>
       </div>
