@@ -309,81 +309,39 @@ export const GameCanvas = ({
           </div>
         </div>
 
-        {/* Centro: HUD principal — DEMO mostra ganho atual proporcional, LIVE mostra meta */}
-        {stake > 0 && isDemoMode && (
-          <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
-            <div
-              className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
-                demoCurrentWin > 0
-                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
-                  : "border-border bg-card/70"
-              }`}
-            >
-              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                Ganho atual
-              </div>
+        {/* Centro: HUD principal — visual unificado entre DEMO, SANDBOX e LIVE */}
+        {stake > 0 && (() => {
+          const currentWin = isDemoMode ? demoCurrentWin : liveCurrentWin;
+          const currentMult = isDemoMode ? demoCurrentMultiplier : liveCurrentMultiplier;
+          const atCap = isDemoMode ? demoAtPayoutCap : liveAtPayoutCap;
+          return (
+            <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
               <div
-                className={`text-2xl font-black tabular-nums leading-tight ${
-                  demoCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
+                  currentWin > 0
+                    ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
+                    : "border-border bg-card/70"
                 }`}
-                style={{ textShadow: demoCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
               >
-                R$ {formatBRL(demoCurrentWin)}
-              </div>
-              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
-                {demoAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-              </div>
-              {/* Barra de progresso até a meta da base (20 barreiras) */}
-              <div className="mt-1 flex items-center gap-1.5">
-                <div className="flex-1 h-1.5 rounded-full bg-card/80 border border-border overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-200 ease-out ${
-                      demoReachedGoal
-                        ? "bg-[hsl(140_90%_55%)] shadow-[0_0_8px_hsl(140_90%_50%/0.7)]"
-                        : "bg-[hsl(190_90%_55%)] shadow-[0_0_6px_hsl(190_90%_50%/0.55)]"
-                    }`}
-                    style={{ width: `${Math.min(passedNow / DEMO_GOAL_BARRIERS, 1) * 100}%` }}
-                  />
+                <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
+                  Ganho atual
                 </div>
-                <span className="text-[8px] font-bold tracking-wide text-secondary tabular-nums">
-                  base ×{demoBase},00
-                </span>
+                <div
+                  className={`text-2xl font-black tabular-nums leading-tight ${
+                    currentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                  }`}
+                  style={{ textShadow: currentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
+                >
+                  R$ {formatBRL(currentWin)}
+                </div>
+                <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                  ×{currentMult.toFixed(2)} · {passedNow} barreiras
+                  {atCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+                </div>
               </div>
             </div>
-            <div className="mt-1 text-[10px] uppercase tracking-widest tabular-nums font-bold text-muted-foreground">
-              Base ×{demoBase},00 · R$ {formatBRL(demoPerBarrierValue)} por barreira
-            </div>
-          </div>
-        )}
-
-        {stake > 0 && !isDemoMode && (
-          <div className="flex-1 flex flex-col items-center pointer-events-none" aria-live="polite">
-            <div
-              className={`rounded-xl border backdrop-blur px-3 py-1.5 min-w-[140px] text-center transition-colors ${
-                liveCurrentWin > 0
-                  ? "border-[hsl(140_60%_45%/0.7)] bg-[hsl(140_30%_8%/0.85)]"
-                  : "border-border bg-card/70"
-              }`}
-            >
-              <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
-                Ganho atual
-              </div>
-              <div
-                className={`text-2xl font-black tabular-nums leading-tight ${
-                  liveCurrentWin > 0 ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                }`}
-                style={{ textShadow: liveCurrentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
-              >
-                R$ {formatBRL(liveCurrentWin)}
-              </div>
-              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                ×{liveCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
-                {liveAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Direita: bolinhas + mute */}
         <div className="pointer-events-auto flex items-start gap-2">
