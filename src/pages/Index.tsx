@@ -733,6 +733,17 @@ const Index = () => {
             playMode={isDemo ? "demo" : "online"}
             progressionProfile={progressionProfile}
             onSignIn={isDemo ? leaveDemoToAuth : undefined}
+            extraSlot={
+              !isDemo && welcomeState === "available" ? (
+                <WelcomeBonusBanner
+                  onClaimed={() => {
+                    refreshWelcome();
+                    refreshBonus();
+                    refreshEconomy();
+                  }}
+                />
+              ) : null
+            }
           />
         )}
 
