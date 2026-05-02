@@ -125,11 +125,10 @@ export const GameCanvas = ({
       winIdRef.current += 1;
       const total = isDemoMode
         ? Math.min(stake * DEMO_PER_BARRIER_FACTOR * demoBase * passed, MAX_ROUND_PAYOUT)
-        : livePotentialPayout;
-      const justReached = !isDemoMode && goalBarriers > 0 && passed === goalBarriers;
+        : Math.min(stake * multiplierForBarriers(passed), MAX_ROUND_PAYOUT);
       const item: FloatingWin = {
         id: winIdRef.current,
-        delta: justReached ? livePotentialPayout : 0,
+        delta: 0,
         total,
         barrier: passed,
         createdAt: performance.now(),
@@ -139,7 +138,7 @@ export const GameCanvas = ({
       lastBarriersRef.current = 0;
       lastWinningsRef.current = 0;
     }
-  }, [stats.barriersPassed, livePotentialPayout, stake, goalBarriers, isDemoMode]);
+  }, [stats.barriersPassed, stake, isDemoMode, demoBase]);
 
   // Auto-purga popups antigos
   useEffect(() => {
