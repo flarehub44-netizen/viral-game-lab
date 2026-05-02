@@ -122,12 +122,15 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect(loadWallet().balance).toBe(140);
   });
 
-  it("payout nunca excede MAX_ROUND_PAYOUT mesmo com base alta e muitas barreiras", () => {
+  it("demo não aplica teto MAX_ROUND_PAYOUT — créditos fictícios", () => {
     saveWallet({ ...loadWallet(), balance: 1000 });
     const res = startDemoRound(50, 20);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 1000);
-    expect(out.payout).toBeLessThanOrEqual(MAX_ROUND_PAYOUT);
-    expect(out.payout).toBe(MAX_ROUND_PAYOUT);
+    const barriers = 1000;
+    const effective = barriers - 7; // DEMO_FREE_BARRIERS
+    const expected = Math.round(50 * 0.05 * 20 * effective * 100) / 100;
+    const out = settleDemoRound(res.round, barriers);
+    expect(out.payout).toBe(expected);
+    expect(out.payout).toBeGreaterThan(MAX_ROUND_PAYOUT);
   });
 });
