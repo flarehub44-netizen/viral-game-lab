@@ -6,6 +6,7 @@ import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
 import { multiplierForBarriers } from "@/game/economy/multiplierCurve";
+import { DEMO_FREE_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR, DEMO_GOAL_BARRIERS } from "@/game/economy/demoRound";
 
 
 interface FloatingWin {
