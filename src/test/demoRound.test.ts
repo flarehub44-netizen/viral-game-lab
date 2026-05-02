@@ -76,23 +76,23 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
-  it("settleDemoRound credita pagamento da curva — 37 barreiras = ×1.0", () => {
+  it("settleDemoRound credita pagamento linear — 20 barreiras × base 10 = ×10", () => {
     const res = startDemoRound(10, 10);
     if (!res.ok) throw new Error("start failed");
-    // 37 barreiras → ×1.0 → payout 10 → saldo 150 - 10 + 10 = 150
-    const out = settleDemoRound(res.round, 37);
-    expect(out.multiplier).toBe(1);
-    expect(out.payout).toBe(10);
-    expect(out.netResult).toBe(0);
-    expect(loadWallet().balance).toBe(150);
+    // 0.05 × 10 × 20 = 10 → payout = 10 × 10 = 100; saldo: 150 - 10 + 100 = 240
+    const out = settleDemoRound(res.round, 20);
+    expect(out.multiplier).toBe(10);
+    expect(out.payout).toBe(100);
+    expect(out.netResult).toBe(90);
+    expect(loadWallet().balance).toBe(240);
   });
 
-  it("settleDemoRound 67 barreiras paga ×2.0", () => {
-    const res = startDemoRound(10, 2);
+  it("settleDemoRound: base 5 com 10 barreiras = ×2.5", () => {
+    const res = startDemoRound(10, 5);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 67);
-    expect(out.multiplier).toBe(2);
-    expect(out.payout).toBe(20);
+    const out = settleDemoRound(res.round, 10);
+    expect(out.multiplier).toBe(2.5);
+    expect(out.payout).toBe(25);
   });
 
   it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {
