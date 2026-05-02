@@ -10,30 +10,33 @@ const script: RoundScript = {
   finish_type: "test",
 };
 
-describe("shouldTerminateScriptRound", () => {
-  it("does not terminate in demo mode when script termination is disabled", () => {
-    const should = shouldTerminateScriptRound({
-      script,
-      allowScriptTerminate: false,
-      state: "playing",
-      aliveAfter: 5,
-      elapsedSec: 25,
-      barriersPassedCount: 4,
-      score: 120,
-    });
-    expect(should).toBe(false);
+describe("shouldTerminateScriptRound (deprecated, Fase 1 do payout dinâmico)", () => {
+  it("never terminates by script — game over só quando todas as bolas morrem", () => {
+    // Mesmo com todas as condições antigas batidas (alvo, score, duração) → false.
+    expect(
+      shouldTerminateScriptRound({
+        script,
+        allowScriptTerminate: true,
+        state: "playing",
+        aliveAfter: 2,
+        elapsedSec: 25,
+        barriersPassedCount: 99,
+        score: 9999,
+      }),
+    ).toBe(false);
   });
 
-  it("keeps server reveal behavior in online mode", () => {
-    const should = shouldTerminateScriptRound({
-      script,
-      allowScriptTerminate: true,
-      state: "playing",
-      aliveAfter: 2,
-      elapsedSec: 25,
-      barriersPassedCount: 1,
-      score: 50,
-    });
-    expect(should).toBe(true);
+  it("returns false when script is null", () => {
+    expect(
+      shouldTerminateScriptRound({
+        script: null,
+        allowScriptTerminate: true,
+        state: "playing",
+        aliveAfter: 5,
+        elapsedSec: 0,
+        barriersPassedCount: 0,
+        score: 0,
+      }),
+    ).toBe(false);
   });
 });
