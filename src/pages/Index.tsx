@@ -457,7 +457,15 @@ const Index = () => {
       activeRoundRef.current = roundPayload;
       setActiveRound(roundPayload);
       await refreshEconomy();
-      setScreen("playing");
+      const mult = roundPayload.result_multiplier ?? 0;
+      if (mult > 0) {
+        setPrePlayPopup({
+          multiplier: mult,
+          barriers: roundPayload.target_barrier ?? 0,
+        });
+      } else {
+        setScreen("playing");
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Falha ao iniciar rodada");
