@@ -1,4 +1,4 @@
-import { ArrowLeft, Target, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
@@ -11,6 +11,7 @@ interface Props {
   /** Valor da entrada (R$ / saldo servidor). */
   onConfirm: (stake: number, targetMultiplier: number) => void;
   economySource: "demo" | "server";
+  freeSpinsRemaining?: number;
 }
 
 function pseudoOnlinePlayers(): number {
