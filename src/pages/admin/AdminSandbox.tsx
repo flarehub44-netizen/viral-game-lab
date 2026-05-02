@@ -7,6 +7,7 @@ import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import type { ServerEconomyPayload } from "@/game/economy/serverRound";
 import {
   DEMO_DEFAULT_BASE,
+  DEMO_FREE_BARRIERS,
   DEMO_MULTIPLIER_PER_BARRIER_FACTOR,
 } from "@/game/economy/demoRound";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
