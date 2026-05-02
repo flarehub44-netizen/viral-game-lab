@@ -177,15 +177,39 @@ export const AdminSandbox = () => {
           targetBarrier={activeRound.target_barrier}
           layoutPlan={layoutPlan}
           onGameOver={(stats: PublicGameStats, summary: RoundSummaryOut) => {
-            setResult({
-              stake: activeRound.stake_amount,
-              payout: activeRound.payout_amount,
-              net: activeRound.net_result,
-              multiplier: activeRound.result_multiplier,
-              barriers: summary.barriersPassed ?? 0,
-              score: stats.score,
-              durationSeconds: stats.durationSeconds,
+            const round = activeRound;
+            const economy: ServerEconomyPayload = {
+              stake: round.stake_amount,
+              resultMultiplier: round.result_multiplier,
+              payout: round.payout_amount,
+              netResult: round.net_result,
+              reachedTarget: round.payout_amount > 0,
+              barriersPassed: summary.barriersPassed ?? 0,
+              targetBarrier: round.target_barrier ?? 0,
+              mode: "live",
+            };
+            const progression = applyRound(
+              {
+                score: summary.score,
+                durationSeconds: summary.durationSeconds,
+                maxCombo: summary.maxCombo,
+                maxAlive: summary.maxAlive,
+                splits: summary.splits,
+                powerupsCollected: summary.powerupsCollected,
+                barriersPassed: summary.barriersPassed,
+                finalMultiplier: round.result_multiplier,
+              },
+              "default",
+            );
+            setOver({
+              stats,
+              summary,
+              economy,
+              progression,
+              bestScore: stats.score,
+              isNewBest: false,
             });
+            setActiveRound(null);
           }}
           onExit={exitPlay}
           stakeCredits={activeRound.stake_amount}
