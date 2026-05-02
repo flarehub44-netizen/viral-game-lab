@@ -17,6 +17,7 @@ import { MissionsPanel } from "@/components/MissionsPanel";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 import { WelcomeBonusBanner } from "@/components/economy/WelcomeBonusBanner";
 import { DailyLoginPopup } from "@/components/economy/DailyLoginPopup";
+import { DemoLimitPopup } from "@/components/economy/DemoLimitPopup";
 import { BonusWalletCard } from "@/components/economy/BonusWalletCard";
 import {
   useWalletBonus,
