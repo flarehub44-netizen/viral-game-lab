@@ -36,24 +36,22 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect(demoMultiplierFor(0, 20)).toBe(0);
   });
 
-  // Tabela: ganho = entrada × 0,05 × base × barreiras → multiplicador = 0,05 × base × barreiras
-  it("demoMultiplierFor: base ×2 atinge meta em 20 barreiras (×2,00) e segue", () => {
+  // Curva pública m(b) — independente da base. Pontos âncora: (5,0.5), (11,1.0), (20,2.0), (30,20).
+  it("demoMultiplierFor: âncoras da curva pública (base ignorada)", () => {
     expect(demoMultiplierFor(5, 2)).toBe(0.5);
-    expect(demoMultiplierFor(10, 2)).toBe(1);
-    expect(demoMultiplierFor(20, 2)).toBe(2); // META
-    expect(demoMultiplierFor(30, 2)).toBe(3);
+    expect(demoMultiplierFor(11, 2)).toBe(1);
+    expect(demoMultiplierFor(20, 2)).toBe(2);
+    expect(demoMultiplierFor(30, 2)).toBe(20);
   });
 
-  it("demoMultiplierFor: base ×10 atinge meta em 20 barreiras (×10,00) e segue", () => {
-    expect(demoMultiplierFor(5, 10)).toBe(2.5);
-    expect(demoMultiplierFor(10, 10)).toBe(5);
-    expect(demoMultiplierFor(20, 10)).toBe(10); // META
-    expect(demoMultiplierFor(30, 10)).toBe(15);
+  it("demoMultiplierFor: base é ignorada — mesmo valor para qualquer base", () => {
+    expect(demoMultiplierFor(11, 10)).toBe(demoMultiplierFor(11, 2));
+    expect(demoMultiplierFor(20, 20)).toBe(demoMultiplierFor(20, 5));
   });
 
-  it("demoMultiplierFor: base ×20 atinge meta em 20 barreiras (×20,00) e segue", () => {
-    expect(demoMultiplierFor(20, 20)).toBe(20); // META
-    expect(demoMultiplierFor(30, 20)).toBe(30);
+  it("demoMultiplierFor: cap em 50 acima da última âncora (60)", () => {
+    expect(demoMultiplierFor(60, 10)).toBe(50);
+    expect(demoMultiplierFor(100, 10)).toBe(50);
   });
 
   it("startDemoRound debita a entrada e guarda a base escolhida", () => {
@@ -80,23 +78,23 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
-  it("settleDemoRound credita pagamento proporcional × base ×10", () => {
+  it("settleDemoRound credita pagamento da curva — 11 barreiras = ×1.0", () => {
     const res = startDemoRound(10, 10);
     if (!res.ok) throw new Error("start failed");
-    // 20 barreiras × base 10 → ×10 → payout 100 → saldo 150 - 10 + 100 = 240
-    const out = settleDemoRound(res.round, 20);
-    expect(out.multiplier).toBe(10);
-    expect(out.payout).toBe(100);
-    expect(out.netResult).toBe(90);
-    expect(loadWallet().balance).toBe(240);
+    // 11 barreiras → ×1.0 → payout 10 → saldo 150 - 10 + 10 = 150
+    const out = settleDemoRound(res.round, 11);
+    expect(out.multiplier).toBe(1);
+    expect(out.payout).toBe(10);
+    expect(out.netResult).toBe(0);
+    expect(loadWallet().balance).toBe(150);
   });
 
-  it("settleDemoRound base ×2 com 30 barreiras paga ×3,00", () => {
+  it("settleDemoRound 20 barreiras paga ×2.0", () => {
     const res = startDemoRound(10, 2);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 30);
-    expect(out.multiplier).toBe(3);
-    expect(out.payout).toBe(30);
+    const out = settleDemoRound(res.round, 20);
+    expect(out.multiplier).toBe(2);
+    expect(out.payout).toBe(20);
   });
 
   it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {

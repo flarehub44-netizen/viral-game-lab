@@ -1,5 +1,6 @@
 /**
- * Tabela oficial MVP — RTP ≈ 85,7% (discreto).
+ * Tabela oficial MVP — RTP teórico ≈ 85,7% (discreto).
+ * RTP empírico esperado pós-alongamento da curva: ~75-80% (curva 1.5x mais longa).
  * Espelhado em supabase/functions/_shared/multiplierTable.ts para a Edge Function.
  */
 
@@ -23,10 +24,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 0,
     probability: 0.3,
     visual: {
-      barriers_crossed: 1,
+      barriers_crossed: 2,
       balls_count: 3,
       score_target: 18,
-      duration_seconds: 6,
+      duration_seconds: 9,
       finish_type: "lose_early",
     },
   },
@@ -34,10 +35,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 0.5,
     probability: 0.22,
     visual: {
-      barriers_crossed: 3,
+      barriers_crossed: 5,
       balls_count: 5,
       score_target: 42,
-      duration_seconds: 12,
+      duration_seconds: 18,
       finish_type: "recover_partial",
     },
   },
@@ -45,10 +46,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 0.8,
     probability: 0.16,
     visual: {
-      barriers_crossed: 5,
+      barriers_crossed: 8,
       balls_count: 8,
       score_target: 68,
-      duration_seconds: 16,
+      duration_seconds: 24,
       finish_type: "almost_even",
     },
   },
@@ -56,10 +57,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 1,
     probability: 0.11,
     visual: {
-      barriers_crossed: 7,
+      barriers_crossed: 11,
       balls_count: 10,
       score_target: 88,
-      duration_seconds: 20,
+      duration_seconds: 30,
       finish_type: "break_even",
     },
   },
@@ -67,10 +68,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 1.2,
     probability: 0.07,
     visual: {
-      barriers_crossed: 9,
+      barriers_crossed: 14,
       balls_count: 12,
       score_target: 105,
-      duration_seconds: 24,
+      duration_seconds: 36,
       finish_type: "win_small",
     },
   },
@@ -78,10 +79,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 1.5,
     probability: 0.05,
     visual: {
-      barriers_crossed: 11,
+      barriers_crossed: 17,
       balls_count: 14,
       score_target: 128,
-      duration_seconds: 28,
+      duration_seconds: 42,
       finish_type: "win_good",
     },
   },
@@ -89,10 +90,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 2,
     probability: 0.04,
     visual: {
-      barriers_crossed: 13,
+      barriers_crossed: 20,
       balls_count: 16,
       score_target: 155,
-      duration_seconds: 32,
+      duration_seconds: 48,
       finish_type: "win_medium",
     },
   },
@@ -100,10 +101,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 3,
     probability: 0.025,
     visual: {
-      barriers_crossed: 15,
+      barriers_crossed: 23,
       balls_count: 18,
       score_target: 195,
-      duration_seconds: 38,
+      duration_seconds: 57,
       finish_type: "win_special",
     },
   },
@@ -111,10 +112,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 5,
     probability: 0.015,
     visual: {
-      barriers_crossed: 17,
+      barriers_crossed: 26,
       balls_count: 22,
       score_target: 250,
-      duration_seconds: 45,
+      duration_seconds: 68,
       finish_type: "win_large",
     },
   },
@@ -122,10 +123,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 10,
     probability: 0.008,
     visual: {
-      barriers_crossed: 19,
+      barriers_crossed: 29,
       balls_count: 26,
       score_target: 380,
-      duration_seconds: 52,
+      duration_seconds: 78,
       finish_type: "super_round",
     },
   },
@@ -133,10 +134,10 @@ export const MULTIPLIER_TIERS: MultiplierTier[] = [
     multiplier: 20,
     probability: 0.002,
     visual: {
-      barriers_crossed: 20,
+      barriers_crossed: 30,
       balls_count: 28,
       score_target: 520,
-      duration_seconds: 58,
+      duration_seconds: 87,
       finish_type: "meta_max",
     },
   },

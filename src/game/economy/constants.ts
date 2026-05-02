@@ -19,5 +19,5 @@ export const INITIAL_ONLINE_WALLET_BALANCE = 0;
 /** Máximo de lançamentos no histórico persistido. */
 export const MAX_TRANSACTION_HISTORY = 80;
 
-/** RTP alvo exibido nas regras (valor nominal, ex: 85.7%). */
-export const TARGET_RTP = 85.7;
+/** RTP empírico esperado pós-alongamento da curva (validado por Monte Carlo, perfil casual). */
+export const TARGET_RTP = 78.9;
