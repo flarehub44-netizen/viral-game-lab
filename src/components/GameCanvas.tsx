@@ -371,18 +371,27 @@ export const GameCanvas = ({
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground leading-none">
                 {reachedGoal ? "Meta batida! Ganho garantido" : "Meta da rodada"}
               </div>
-              <div
-                className={`text-2xl font-black tabular-nums leading-tight ${
-                  reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
-                }`}
-                style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
-              >
-                {reachedGoal ? `+R$ ${formatBRL(livePotentialPayout)}` : `R$ ${formatBRL(livePotentialPayout)}`}
-              </div>
-              <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
-                ×{liveRoundMultiplier.toFixed(2)} · Entrada R$ {formatBRL(stake)}
-                {liveIsCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
-              </div>
+              {(() => {
+                const displayMeta = targetMultiplier ?? 0;
+                const displayPayout = Math.min(stake * displayMeta, MAX_ROUND_PAYOUT);
+                const displayCapped = stake * displayMeta >= MAX_ROUND_PAYOUT && stake > 0;
+                return (
+                  <>
+                    <div
+                      className={`text-2xl font-black tabular-nums leading-tight ${
+                        reachedGoal ? "text-[hsl(140_90%_62%)]" : "text-foreground"
+                      }`}
+                      style={{ textShadow: reachedGoal ? "0 0 12px hsl(140 90% 50% / 0.7)" : undefined }}
+                    >
+                      {reachedGoal ? `+R$ ${formatBRL(displayPayout)}` : `R$ ${formatBRL(displayPayout)}`}
+                    </div>
+                    <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
+                      ×{displayMeta.toFixed(2)} · Entrada R$ {formatBRL(stake)}
+                      {displayCapped && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             {goalBarriers > 0 && (
               <div
