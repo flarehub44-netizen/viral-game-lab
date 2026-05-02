@@ -10,6 +10,8 @@ import {
   PHASE2_SPEED_CEIL,
   type LayoutBarrier,
 } from "./economy/liveDeterministicLayout";
+import { styleForBarrier, predictedMultiplier } from "./economy/barrierVisual";
+import { MAX_ROUND_PAYOUT } from "./economy/constants";
 
 // Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
@@ -62,6 +64,10 @@ interface Barrier {
   hue: number;
   passed: boolean;
   speed: number;
+  /** Posição global desta barreira (0-indexed) na sequência da rodada. */
+  barrierIndex: number;
+  /** Timestamp (performance.now) em que foi marcada como passada — usado para o flash. */
+  passedAt?: number;
 }
 
 interface Particle {
