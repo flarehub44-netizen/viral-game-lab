@@ -10,7 +10,7 @@ import {
   DEMO_FREE_BARRIERS,
   DEMO_MULTIPLIER_PER_BARRIER_FACTOR,
 } from "@/game/economy/demoRound";
-import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+
 import { applyRound, type RoundResult } from "@/game/progression";
 
 /**

@@ -4,14 +4,14 @@ import {
   saveWallet,
   type PersistedWallet,
 } from "./walletStore";
-import { MAX_ROUND_PAYOUT, MIN_STAKE, MAX_STAKE } from "./constants";
+import { MIN_STAKE, MAX_STAKE } from "./constants";
 import { pushDemoHistoryRow } from "./demoHistory";
 import type { ActiveServerRound } from "./serverRound";
 
 /**
  * DEMO usa fórmula linear baseada na BASE escolhida pelo jogador (×2/×5/×10/×20):
  *   multiplicador = 0,05 × base × barreiras
- *   pagamento     = entrada × multiplicador (capado em MAX_ROUND_PAYOUT)
+ *   pagamento     = entrada × multiplicador (sem teto — créditos fictícios)
  *
  * Isto é INTENCIONALMENTE diferente da curva pública `m(b)` do modo live —
  * mantém a consistência com o HUD que o jogador vê durante a partida demo.
