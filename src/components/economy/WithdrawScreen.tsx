@@ -297,7 +297,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
 
         <button
           type="button"
-          disabled={busy || !over18 || !kycApproved}
+          disabled={busy || !over18 || !kycApproved || (rollover ? !rollover.eligible : false)}
           onClick={() => void submit()}
           className="w-full py-3.5 rounded-2xl bg-[hsl(195_80%_42%)] hover:bg-[hsl(195_80%_36%)] text-background font-black uppercase tracking-widest text-sm disabled:opacity-40"
         >
