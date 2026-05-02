@@ -33,14 +33,16 @@ export function predictedMultiplier(
   mode: "live" | "demo",
   demoBase: number,
 ): number {
+  // `barrierIndex` é 0-based no engine (1ª barreira = 0). O HUD/popup usa
+  // `barriersPassedCount` (1-based: vira 1 após cruzar a 1ª). A etiqueta R$
+  // numa barreira deve refletir o ganho que o jogador terá APÓS cruzá-la,
+  // então convertemos: `passedAfter = barrierIndex + 1`.
+  const passedAfter = Math.max(0, Math.floor(barrierIndex)) + 1;
   if (mode === "demo") {
-    // Espelha o offset de aquecimento de `demoMultiplierFor`: as primeiras
-    // DEMO_FREE_BARRIERS barreiras valem 0 (não pagam), então também não
-    // devem mostrar etiqueta R$ nem cor de "premiada" no canvas.
-    const effective = Math.max(0, Math.floor(barrierIndex) - DEMO_FREE_BARRIERS);
+    const effective = Math.max(0, passedAfter - DEMO_FREE_BARRIERS);
     return DEMO_PER_BARRIER_FACTOR * demoBase * effective;
   }
-  return multiplierForBarriers(barrierIndex);
+  return multiplierForBarriers(passedAfter);
 }
 
 export function styleForMultiplier(m: number): BarrierVisualStyle {

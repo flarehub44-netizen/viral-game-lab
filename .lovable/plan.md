@@ -1,37 +1,48 @@
-## Ajustes em Demo e Sandbox
+# Plano
 
-Dois problemas no `RoundSetupScreen` (demo/sandbox) e na renderização das barreiras (engine):
+## Problema 1 — Saldo da bolinha vs. ganho atual divergem (demo e sandbox)
 
-### 1. Card de stats em demo/sandbox igual ao live (imagem 1 → imagem 2)
+**Causa raiz**: existe um off-by-one entre o índice da barreira e a contagem do HUD.
 
-Hoje, em modo demo/sandbox, `RoundSetupScreen` mostra dois cards inferiores: **"POR BARREIRA"** e **"META"**. No live, mostra **"MULTIPLICADOR MÁXIMO"** (50×) e **"PAGAMENTO MÁXIMO"** (R$).
+- `barrierIndex` em `engine.ts` é **0-based** (a 1ª barreira tem `barrierIndex = 0`, a 37ª tem `barrierIndex = 36`).
+- `barriersPassedCount` é uma **contagem** (1-based: vira 1 após passar a 1ª barreira).
+- O HUD/popup "Ganho atual" usa `barriersPassed` direto na fórmula `0,05 × base × max(0, count − 7)`.
+- As **etiquetas R$** desenhadas em cada barreira usam `predictedMultiplier(barrierIndex, …)` em `barrierVisual.ts`, que aplica `max(0, idx − 7)` sobre o índice 0-based.
 
-**Mudança em `src/components/economy/RoundSetupScreen.tsx`:**
+Resultado: a etiqueta R$ desenhada **na própria barreira que o jogador vai cruzar** mostra o valor de **uma barreira a menos** do que o HUD exibe depois de cruzá-la. Isso é exatamente o que aparece na imagem 1 (HUD R$375 enquanto as próximas barreiras mostram R$412,50 / R$425 / R$437,50 / R$450 — sequência deslocada).
 
-- Remover o branch `else` que renderiza os cards "Por barreira" / "META".
-- Sempre renderizar o bloco do live (multiplicador máximo + pagamento máximo), independente de `economySource`.
-- No cálculo de `stats`, sempre computar `maxPayout = bet × MULTIPLIER_CURVE_HARD_CAP` (já capado no display por `MAX_ROUND_PAYOUT` do live? — manter como hoje no live, sem alteração de cap, já que demo nunca paga isso de fato; é só rótulo visual coerente).
-- Manter o parágrafo de explicação inferior diferenciado por modo (demo continua dizendo "entrada × 0,05 × base × barreiras"), pois descreve a fórmula real.
+**Correção**: alinhar `predictedMultiplier` para usar a mesma semântica do HUD (contagem 1-based). Como a etiqueta numa barreira deve representar o valor que o jogador terá **após cruzá-la**, basta tratar `barrierIndex` como `barrierIndex + 1`.
 
-### 2. Etiquetas R$ visuais nas barreiras em demo/sandbox (imagem 3)
+```ts
+// src/game/economy/barrierVisual.ts
+export function predictedMultiplier(
+  barrierIndex: number,
+  mode: "live" | "demo",
+  demoBase: number,
+): number {
+  // barrierIndex é 0-based no engine; para alinhar com o HUD (que usa
+  // barriersPassedCount, 1-based), usamos a contagem equivalente após
+  // cruzar esta barreira.
+  const passedAfter = Math.floor(barrierIndex) + 1;
+  if (mode === "demo") {
+    const effective = Math.max(0, passedAfter - DEMO_FREE_BARRIERS);
+    return DEMO_PER_BARRIER_FACTOR * demoBase * effective;
+  }
+  return multiplierForBarriers(passedAfter);
+}
+```
 
-Hoje, em demo/sandbox, todas as barreiras a partir da 1ª já mostram um valor R$ (R$ 12,50, R$ 25,00, ...), mas a contagem que paga só começa na 8ª barreira (`DEMO_FREE_BARRIERS = 7`). Fica enganoso.
+Isso conserta os 3 lugares afetados: cor/glow da barreira, etiqueta R$ na barreira, e mantém o HUD coerente com o que vai entrar no saldo. Aplica-se igualmente a demo, sandbox e live (mesma fonte de verdade visual).
 
-**Mudança em `src/game/economy/barrierVisual.ts`:**
+Também simplifico/alinho os popups flutuantes em `GameCanvas.tsx` que recalculam o multiplicador localmente: já estão corretos (usam `barriersPassed`), só vou conferir que a fórmula bate (não muda nada substantivo).
 
-- Em `predictedMultiplier`, no branch `mode === "demo"`, aplicar o mesmo offset que `demoMultiplierFor` usa:
-  ```
-  const effective = Math.max(0, barrierIndex - DEMO_FREE_BARRIERS);
-  return DEMO_PER_BARRIER_FACTOR * demoBase * effective;
-  ```
-- Importar `DEMO_FREE_BARRIERS` de `./demoRound` (já está em `src/game/economy/`).
-- Resultado: as 7 primeiras barreiras ficam com `multiplier = 0` → `styleForMultiplier` retorna o estilo neutro (cinza, sem glow) e a etiqueta R$ não é desenhada (engine já tem guard `style.multiplier > 0` na linha 887). A 8ª barreira passa a ser a primeira com valor visível, batendo com o que efetivamente paga.
+## Problema 2 — Remover badge "SANDBOX" do canto superior esquerdo
 
-Modo live não muda — usa a curva oficial `multiplierForBarriers` que já tem o offset embutido.
+Em `src/pages/admin/AdminSandbox.tsx` (linhas ~125–134) há uma `div` que renderiza a tag roxa "SANDBOX" sobre o canvas durante o jogo (a da imagem 2). Vou removê-la por completo.
 
-### Arquivos editados
+## Arquivos a alterar
 
-- `src/components/economy/RoundSetupScreen.tsx` — unificar cards de stats.
-- `src/game/economy/barrierVisual.ts` — aplicar offset de aquecimento no demo.
+- `src/game/economy/barrierVisual.ts` — corrigir `predictedMultiplier` (off-by-one).
+- `src/pages/admin/AdminSandbox.tsx` — remover o bloco do badge SANDBOX no canvas.
 
-### Sem migrações, sem mudanças de backend, sem mudança de fórmula de pagamento. Apenas alinhamento visual.
+Sem mudanças em backend, schema ou testes (a fórmula do `demoMultiplierFor` que liquida a rodada continua usando `barriersPassed` 1-based, então o saldo creditado já corresponderá ao valor anunciado pela última etiqueta cruzada).
