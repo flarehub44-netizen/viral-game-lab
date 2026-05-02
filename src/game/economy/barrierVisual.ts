@@ -9,6 +9,7 @@
  *   - "demo": uses the demo formula `0.05 × demoBase × index`.
  */
 import { multiplierForBarriers } from "./multiplierCurve";
+import { DEMO_FREE_BARRIERS } from "./demoRound";
 
 const DEMO_PER_BARRIER_FACTOR = 0.05;
 
@@ -33,7 +34,11 @@ export function predictedMultiplier(
   demoBase: number,
 ): number {
   if (mode === "demo") {
-    return DEMO_PER_BARRIER_FACTOR * demoBase * Math.max(0, barrierIndex);
+    // Espelha o offset de aquecimento de `demoMultiplierFor`: as primeiras
+    // DEMO_FREE_BARRIERS barreiras valem 0 (não pagam), então também não
+    // devem mostrar etiqueta R$ nem cor de "premiada" no canvas.
+    const effective = Math.max(0, Math.floor(barrierIndex) - DEMO_FREE_BARRIERS);
+    return DEMO_PER_BARRIER_FACTOR * demoBase * effective;
   }
   return multiplierForBarriers(barrierIndex);
 }
