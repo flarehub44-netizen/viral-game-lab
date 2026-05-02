@@ -24,8 +24,8 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
   const isDemo = economySource === "demo";
   const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
   const online = pseudoOnlinePlayers();
-  // Live: meta server-side é fixa em 20x. Demo: jogador escolhe a base (2/5/10/20).
-  const canEditMeta = isDemo;
+  // Demo: jogador escolhe a base (2/5/10/20). Live: jogador escolhe a meta (5/10/15/20).
+  const canEditMeta = true;
   const liveMetaOptions = [5, 10, 15, 20];
   const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
   const metaOptions = isDemo ? demoMetaOptions : liveMetaOptions;
@@ -129,11 +129,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               </button>
             ))}
           </div>
-          {!canEditMeta ? (
-            <p className="text-[10px] text-center text-muted-foreground mt-2">
-              No modo conta, a meta é fixa em 20x
-            </p>
-          ) : null}
+          {null}
         </div>
 
         <div>

@@ -416,10 +416,12 @@ const Index = () => {
     setStartingRound(true);
     try {
       const idempotency_key = crypto.randomUUID();
+      const allowedMetas = [5, 10, 15, 20];
+      const meta = allowedMetas.includes(targetMultiplier) ? targetMultiplier : 20;
       const { data, error } = await supabase.functions.invoke("start-round", {
         body: {
           stake_amount: stake,
-          mode: "target_20x",
+          mode: `target_${meta}x`,
           idempotency_key,
         },
       });
