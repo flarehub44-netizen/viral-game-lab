@@ -132,7 +132,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               Pagamento máximo
             </div>
             <div className="text-sm font-black tabular-nums text-secondary">
-              R$ {fmt(bet > 0 ? bet * MULTIPLIER_CURVE_HARD_CAP : 0)}
+              R$ {fmt(stats.maxPayout)}
             </div>
             <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">{"\n"}</div>
           </div>
