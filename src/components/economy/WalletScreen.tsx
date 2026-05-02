@@ -30,6 +30,8 @@ interface Props {
   pixDeposits?: PixDepositRow[];
   pixWithdrawals?: PixWithdrawalRow[];
   onReconcilePending?: (depositId?: string) => Promise<void> | void;
+  /** Slot opcional renderizado abaixo do saldo (ex: saldo bônus + rollover). */
+  bonusSlot?: React.ReactNode;
 }
 
 function pixStatusLabel(kind: "dep" | "wd", status: string): string {
