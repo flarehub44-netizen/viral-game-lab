@@ -82,13 +82,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </h2>
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
-              ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar — caso contrário, perde a entrada. Sem cashout durante a partida."
+              ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar - caso contrário, perde a entrada."
               : "Modo Demo: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
           {economySource === "server" ? (
-            <div className="mt-3 mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200 text-center leading-snug">
-              ⚠️ Skill puro: o multiplicador só vira pagamento <strong>se você passar a meta de barreiras</strong>. Errou antes da meta = perde a entrada.
-            </div>
+            "\n"
           ) : (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
               🎯 Escolha sua <strong>base ×{meta},00</strong>
@@ -133,7 +131,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </div>
           {!canEditMeta ? (
             <p className="text-[10px] text-center text-muted-foreground mt-2">
-              No modo conta, a meta é fixa em 20x (definida no servidor).
+              No modo conta, a meta é fixa em 20x
             </p>
           ) : null}
         </div>
@@ -213,7 +211,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           Saldo atual:{" "}
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
-            ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
+            ? "Pagamento: entrada × multiplicador."
             : `Pagamento: entrada × 0,05 × base × barreiras.`}
         </p>
 
