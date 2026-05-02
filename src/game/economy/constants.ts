@@ -20,4 +20,4 @@ export const INITIAL_ONLINE_WALLET_BALANCE = 0;
 export const MAX_TRANSACTION_HISTORY = 80;
 
 /** RTP empírico alvo (perfil casual) após rebalanço — tiers altos raros + cauda achatada. */
-export const TARGET_RTP = 70.0;
+export const TARGET_RTP = 52.0;
