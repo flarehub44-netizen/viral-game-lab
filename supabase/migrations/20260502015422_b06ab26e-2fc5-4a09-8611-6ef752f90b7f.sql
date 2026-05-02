@@ -1,0 +1,1 @@
+ALTER FUNCTION public.compute_multiplier_for_barrier(integer) SET search_path = public;
