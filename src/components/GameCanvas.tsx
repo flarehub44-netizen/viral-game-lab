@@ -5,6 +5,7 @@ import { unlockAudio, isMuted, setMuted } from "@/game/audio";
 import { Volume2, VolumeX, Menu, Shield, Ghost } from "lucide-react";
 import type { LayoutBarrier } from "@/game/economy/liveDeterministicLayout";
 import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { multiplierForBarriers } from "@/game/economy/multiplierCurve";
 
 
 interface FloatingWin {
