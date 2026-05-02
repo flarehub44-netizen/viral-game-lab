@@ -46,7 +46,7 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
     }
     if (pollStatus === "confirmed") {
       toast.success("Depósito confirmado! Seu saldo foi atualizado.");
-      void onConfirmed();
+      void onConfirmed(amountNum);
       setDepositId(null);
       setQrCode("");
       setExpiresAt(null);
