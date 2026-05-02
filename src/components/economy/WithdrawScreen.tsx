@@ -47,8 +47,40 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
   const [pixKey, setPixKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [rollover, setRollover] = useState<RolloverInfo | null>(null);
+  const [rolloverLoading, setRolloverLoading] = useState(true);
 
   const amountNum = Math.round(Number(amountStr.replace(",", ".")) * 100) / 100;
+
+  const loadRollover = async () => {
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) return;
+      const { data, error } = await supabase.rpc("get_withdrawal_rollover", { p_user_id: uid });
+      if (error || !data || !Array.isArray(data) || data.length === 0) return;
+      const row = data[0] as {
+        deposited: number | string;
+        wagered: number | string;
+        required: number | string;
+        remaining: number | string;
+        eligible: boolean;
+      };
+      setRollover({
+        deposited: Number(row.deposited),
+        wagered: Number(row.wagered),
+        required: Number(row.required),
+        remaining: Number(row.remaining),
+        eligible: Boolean(row.eligible),
+      });
+    } finally {
+      setRolloverLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRollover();
+  }, []);
 
   const submit = async () => {
     if (!over18) {
@@ -57,6 +89,10 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
     }
     if (!kycApproved) {
       toast.error("Saque disponível após aprovação do KYC na plataforma.");
+      return;
+    }
+    if (rollover && !rollover.eligible) {
+      toastPixEdgeError("rollover_not_met");
       return;
     }
     if (!Number.isFinite(amountNum) || amountNum < 5 || amountNum > 5000) {
@@ -87,6 +123,9 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
       const errCode = await parsePixInvokeError(data, error);
       if (errCode) {
         toastPixEdgeError(errCode);
+        if (errCode === "rollover_not_met") {
+          await loadRollover();
+        }
         return;
       }
       const d = data as { ok?: boolean; provider_ref?: string };
