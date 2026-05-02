@@ -418,6 +418,11 @@ const Index = () => {
     setIsNewBest(false);
     setPrePlayPopup(null);
     setScreen("roundSetup");
+    void trackMeta("InitiateCheckout", {
+      content_name: "round_setup_open",
+      content_category: "game",
+      currency: "BRL",
+    });
   };
 
   const exitPlaying = () => {
