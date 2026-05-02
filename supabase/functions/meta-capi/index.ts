@@ -2,7 +2,11 @@
 // Pixel ID is hard-coded; access token comes from META_CAPI_ACCESS_TOKEN secret.
 // Public function (verify_jwt = false) — events may fire pre-login.
 
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 
 const PIXEL_ID = "1234167135525222";
 const GRAPH_URL = `https://graph.facebook.com/v21.0/${PIXEL_ID}/events`;
