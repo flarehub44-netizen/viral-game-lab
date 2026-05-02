@@ -364,8 +364,12 @@ const Index = () => {
     });
   }, [refreshEconomy]);
 
-  const handlePixWithdrawRequested = useCallback(async () => {
+  const handlePixWithdrawRequested = useCallback(async (amount?: number) => {
     await refreshEconomy();
+    trackMetaCustom("WithdrawRequested", {
+      value: typeof amount === "number" ? amount : 0,
+      currency: "BRL",
+    });
   }, [refreshEconomy]);
 
   useEffect(() => {
