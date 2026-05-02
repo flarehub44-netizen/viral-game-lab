@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseExternal";
+import { trackMeta, setMetaUserIdentity } from "@/lib/metaPixel";
 
 interface AuthContextValue {
   session: Session | null;
