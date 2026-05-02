@@ -777,7 +777,7 @@ const Index = () => {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
         <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
-          <AuthScreen onPlayDemo={enterDemo} />
+          <AuthScreen onPlayDemo={enterDemo} initialMode={authInitialMode} />
         </div>
       </main>
     );
