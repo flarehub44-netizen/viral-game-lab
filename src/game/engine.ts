@@ -192,6 +192,8 @@ export class GameEngine {
   private currentClimbMultiplier = 0;
   private layoutPlan: LayoutBarrier[] | null = null;
   private layoutCursor = 0;
+  private layoutSeed: string | null = null;
+  private proceduralRng: (() => number) | null = null;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
