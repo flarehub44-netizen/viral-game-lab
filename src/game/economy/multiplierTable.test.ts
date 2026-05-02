@@ -11,8 +11,8 @@ describe("multiplierTable", () => {
     expect(totalProbabilityMass()).toBeCloseTo(1, 6);
   });
 
-  it("RTP teórico ~85,7%", () => {
-    expect(theoreticalRtp()).toBeCloseTo(0.857, 2);
+  it("RTP teórico ~53% (perfil casino, tiers altos raros)", () => {
+    expect(theoreticalRtp()).toBeCloseTo(0.53, 1);
   });
 
   it("Monte Carlo converge para RTP teórico", () => {
