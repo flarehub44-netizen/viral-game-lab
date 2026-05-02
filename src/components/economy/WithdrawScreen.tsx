@@ -254,6 +254,9 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
             placeholder="Ex: 50"
             className="w-full rounded-xl border border-border bg-background/80 px-3 py-3 text-lg font-black tabular-nums"
           />
+          <span className="block text-[10px] text-muted-foreground">
+            Mínimo R$ 30,00 — máximo R$ 5.000,00
+          </span>
         </label>
 
         <div className="space-y-2">
