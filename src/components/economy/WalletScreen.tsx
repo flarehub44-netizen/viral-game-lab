@@ -160,6 +160,8 @@ export const WalletScreen = ({
           {loading && <div className="text-[10px] text-muted-foreground">Atualizando...</div>}
         </div>
 
+        {bonusSlot}
+
         {variant === "online" && onDeposit && onWithdraw && (
           <div className="grid grid-cols-2 gap-3">
             <button
