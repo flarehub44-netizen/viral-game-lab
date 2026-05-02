@@ -14,13 +14,15 @@ import {
   Zap,
 } from "lucide-react";
 import { GameCanvas } from "@/components/GameCanvas";
+import { GameOverScreen } from "@/components/GameOverScreen";
 import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import { MULTIPLIER_TIERS, sampleMultiplier, theoreticalRtp } from "@/game/economy/multiplierTable";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
-import type { ActiveServerRound } from "@/game/economy/serverRound";
+import type { ActiveServerRound, ServerEconomyPayload } from "@/game/economy/serverRound";
 import { invokeAdminAction } from "@/lib/adminAction";
 import { BET_AMOUNTS } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
+import { applyRound, type RoundResult } from "@/game/progression";
 
 const MULTS = MULTIPLIER_TIERS.map((t) => t.multiplier);
 
