@@ -95,8 +95,8 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
       toastPixEdgeError("rollover_not_met");
       return;
     }
-    if (!Number.isFinite(amountNum) || amountNum < 5 || amountNum > 5000) {
-      toast.error("Valor entre R$ 5,00 e R$ 5.000,00.");
+    if (!Number.isFinite(amountNum) || amountNum < 30 || amountNum > 5000) {
+      toast.error("Valor entre R$ 30,00 e R$ 5.000,00.");
       return;
     }
     if (amountNum > walletBalance + 1e-6) {
@@ -254,6 +254,9 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
             placeholder="Ex: 50"
             className="w-full rounded-xl border border-border bg-background/80 px-3 py-3 text-lg font-black tabular-nums"
           />
+          <span className="block text-[10px] text-muted-foreground">
+            Mínimo R$ 30,00 — máximo R$ 5.000,00
+          </span>
         </label>
 
         <div className="space-y-2">

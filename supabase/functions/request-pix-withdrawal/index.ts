@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
   const idempotencyHeader = req.headers.get("idempotency-key")?.trim() ?? "";
   const idempotencyBody = typeof body.idempotency_key === "string" ? body.idempotency_key.trim() : "";
   const idempotencyKey = (idempotencyBody || idempotencyHeader).slice(0, 64);
-  if (!Number.isFinite(amount) || amount < 5 || amount > 5000) return json(400, { error: "invalid_amount" });
+  if (!Number.isFinite(amount) || amount < 30 || amount > 5000) return json(400, { error: "invalid_amount" });
   if (!pixKey || !["cpf", "email", "phone", "evp"].includes(pixKeyType)) {
     return json(400, { error: "invalid_pix_key" });
   }
