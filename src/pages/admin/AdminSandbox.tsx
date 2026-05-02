@@ -486,7 +486,7 @@ export const AdminSandbox = () => {
                 : "bg-muted border-border text-muted-foreground cursor-not-allowed"
             }`}
           >
-            {busy ? "Iniciando..." : !bet ? "Selecione um valor" : "JOGAR (sandbox)"}
+            {busy ? "Iniciando..." : !bet ? "Selecione um valor" : "JOGAR"}
           </button>
         </div>
       </div>
