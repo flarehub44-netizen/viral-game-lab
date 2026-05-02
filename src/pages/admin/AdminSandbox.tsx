@@ -77,7 +77,7 @@ export const AdminSandbox = () => {
       return;
     }
     setBusy(true);
-    setResult(null);
+    setOver(null);
     try {
       const payload: Parameters<typeof invokeAdminAction>[0] = {
         type: "sandbox_round",
