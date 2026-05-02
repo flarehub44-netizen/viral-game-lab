@@ -355,7 +355,6 @@ const Index = () => {
     setLastProgression(null);
     setServerEconomy(null);
     setIsNewBest(false);
-    setGoalPopup(null);
     setPrePlayPopup(null);
     setScreen("roundSetup");
   };
