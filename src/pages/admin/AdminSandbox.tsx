@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlaskConical } from "lucide-react";
+
 import { GameCanvas } from "@/components/GameCanvas";
 import { GameOverScreen } from "@/components/GameOverScreen";
 import { RoundSetupScreen } from "@/components/economy/RoundSetupScreen";
@@ -123,16 +123,6 @@ export const AdminSandbox = () => {
   if (activeRound) {
     return (
       <div className="absolute inset-0 z-50 bg-background">
-        {/* Badge SANDBOX no canto */}
-        <div className="pointer-events-none absolute top-2 left-2 z-[60]">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[hsl(280_50%_15%/0.9)] border border-[hsl(280_70%_50%)] backdrop-blur-sm">
-            <FlaskConical size={11} className="text-[hsl(280_90%_75%)]" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-[hsl(280_90%_75%)]">
-              Sandbox
-            </span>
-          </div>
-        </div>
-
         <GameCanvas
           roundId={activeRound.roundId}
           visualScript={null}
