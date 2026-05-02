@@ -233,6 +233,7 @@ export class GameEngine {
     targetBarrier?: number;
     finalMultiplier?: number;
     layoutPlan?: LayoutBarrier[] | null;
+    layoutSeed?: string | null;
   }) {
     this.script = opts?.script ?? null;
     this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
@@ -242,6 +243,11 @@ export class GameEngine {
     this.currentClimbMultiplier = 0;
     this.layoutPlan = opts?.layoutPlan ?? null;
     this.layoutCursor = 0;
+    this.layoutSeed = opts?.layoutSeed ?? null;
+    // RNG procedural para a Fase 2 (quando o jogador excede o `layoutPlan`).
+    this.proceduralRng = this.layoutSeed
+      ? mulberry32(hashSeed(`${this.layoutSeed}::phase2`))
+      : null;
     this.reset();
     this.spawnInitialBall();
     this.nextSpawnIn = 1.2;
