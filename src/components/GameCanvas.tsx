@@ -396,7 +396,7 @@ export const GameCanvas = ({
       <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1 z-20">
         {floatingWins.map((w) => {
           const popupMult = isDemoMode
-            ? DEMO_PER_BARRIER_FACTOR * demoBase * w.barrier
+            ? DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * Math.max(0, w.barrier - DEMO_FREE_BARRIERS)
             : multiplierForBarriers(w.barrier);
           return (
             <div
