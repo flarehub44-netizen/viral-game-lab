@@ -1,50 +1,39 @@
-Você está certo: na sandbox e no demo deveria contabilizar no momento em que a bolinha passa pela barrinha/linha da barreira. O motivo de não estar acontecendo assim é uma diferença entre o valor visual da barreira e a contagem oficial usada pelo HUD.
+# Corrigir página /admin não aparecendo na Vercel
 
-Do I know what the issue is? Sim.
+## Causa
 
-O problema exato:
-- A contagem oficial do jogo (`barriersPassedCount`) só aumenta quando a barreira sobe até passar de uma linha fixa no topo da área de jogo (`height * 0.25 - 20`).
-- Mas as bolinhas ficam jogando mais abaixo, perto do meio da área útil.
-- Então, visualmente, a bolinha já atravessou a barreira R$ 100,00, mas o código ainda não considera aquela barreira como “passada” até ela subir mais.
-- Por isso o HUD ainda mostra R$ 37,50 / 10 barreiras enquanto a tela já exibe uma barreira de R$ 100,00 ou R$ 112,50 sendo atravessada.
-- Isso aparece no sandbox/demo porque há várias barreiras visíveis ao mesmo tempo e a fórmula demo cresce rápido. No live, o layout/ritmo atual acaba ficando alinhado o suficiente, então não vamos mexer nele.
+O projeto é uma SPA (React Router com `BrowserRouter`). Quando você acessa diretamente `https://seu-dominio.vercel.app/admin` (ou recarrega a página estando nela), a Vercel procura um arquivo físico em `/admin` no build. Como esse arquivo não existe — a rota `/admin` só existe dentro do JavaScript do React Router — a Vercel devolve **404**.
 
-Plano de correção apenas para sandbox/demo:
+No Lovable isso funciona porque a infraestrutura tem fallback SPA automático. A Vercel **não** tem esse fallback por padrão; precisa de um arquivo de configuração.
 
-1. Manter o live intacto
-   - Não alterar o modo live, curva live, payout live, teto live ou layout live.
-   - A correção será condicional para `mode === "demo"`, que também é usado pelo sandbox.
+> Observação: hoje o projeto não tem `vercel.json` na raiz (acabei de verificar), por isso o sintoma.
 
-2. Alterar o ponto de contabilização no demo/sandbox
-   - No demo/sandbox, a barreira será contabilizada quando ela cruzar a zona real das bolinhas, não só quando passar da linha fixa do topo.
-   - Usar como referência a área onde as bolinhas se estabilizam (`playZoneTop`/`playZoneBottom`), para que o HUD avance assim que a bolinha efetivamente passou pela barrinha.
+## O que fazer
 
-3. Evitar contabilização antecipada indevida
-   - A barreira só será marcada como passada uma vez (`!bar.passed`).
-   - A contagem seguirá sequencial e continuará alimentando:
-     - “Ganho atual”;
-     - popup `+R$`;
-     - saldo final do demo;
-     - saldo final do sandbox.
+Criar um arquivo `vercel.json` na raiz do projeto com uma regra de rewrite que faz qualquer rota servir o `index.html`. O React Router então assume e renderiza a página correta (incluindo `/admin`, `/admin/overview`, `/admin/users`, etc.).
 
-4. Corrigir a etiqueta visual do demo/sandbox se necessário
-   - Conferir se o valor escrito na barreira corresponde à barreira que será contabilizada naquele momento.
-   - Se houver defasagem visual restante, ajustar apenas a previsão visual do demo/sandbox para que a etiqueta e o HUD avancem juntos.
+### Conteúdo do arquivo `vercel.json`
 
-5. Validar com o caso do print
-   - Quando a bolinha atravessar a barreira escrita “R$ 100,00”, o HUD deve atualizar para R$ 100,00 naquele momento, não continuar em R$ 37,50.
-   - Sandbox e demo continuam sem teto de R$ 400.
-   - A flag visual de sandbox continua removida.
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
 
-Arquivos previstos:
-- `src/game/engine.ts`
-- possivelmente `src/game/economy/barrierVisual.ts`, só se a etiqueta ainda precisar de ajuste fino no demo/sandbox
-- teste de regressão em `src/test/...` para garantir que demo/sandbox contabilizam no ponto correto
+Isso resolve **todas** as rotas profundas no deploy da Vercel, não só `/admin`.
 
-<lov-actions>
-  <lov-open-history>View History</lov-open-history>
-</lov-actions>
+## Depois de aplicar
 
-<lov-actions>
-<lov-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</lov-link>
-</lov-actions>
+1. Faça um novo deploy na Vercel (basta um novo commit ou clicar em "Redeploy").
+2. Acesse `https://seu-dominio.vercel.app/admin` — agora carregará o app.
+3. Faça login com a conta admin: o redirecionamento automático para `/admin` (que já implementamos) também passará a funcionar no domínio Vercel.
+
+## Lembrete importante sobre a conta admin
+
+A página `/admin` só renderiza se o usuário tiver a role `admin` na tabela `user_roles` do backend. Se após o fix de roteamento a página ainda mostrar "Não encontrado", é porque o usuário logado não tem a role atribuída — isso é independente do problema da Vercel.
+
+## Arquivo a ser criado
+
+- `vercel.json` (raiz do projeto)
