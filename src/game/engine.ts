@@ -1,7 +1,7 @@
 import { sfx, haptic, hapticPatterns } from "./audio";
 import type { RoundScript } from "./economy/multiplierTable";
 import { getDifficultySnapshot } from "./difficulty";
-import { multiplierForBarrier } from "./GravityClimb";
+import { multiplierForBarriers } from "./economy/multiplierCurve";
 import { calculateZones } from "./economy/zoneCalculator";
 import type { LayoutBarrier } from "./economy/liveDeterministicLayout";
 
@@ -107,16 +107,13 @@ interface ScriptTerminateInputs {
   score: number;
 }
 
-export function shouldTerminateScriptRound(input: ScriptTerminateInputs): boolean {
-  if (!input.script) return false;
-  if (!input.allowScriptTerminate) return false;
-  if (input.state !== "playing") return false;
-  if (input.aliveAfter <= 0) return false;
-  return (
-    input.barriersPassedCount >= input.script.barriers_crossed ||
-    input.score >= input.script.score_target ||
-    input.elapsedSec >= input.script.duration_seconds
-  );
+/**
+ * @deprecated Fase 1 do payout dinâmico: o engine não termina mais a rodada por
+ * meta de barreiras/score/tempo. Game over agora só ocorre quando todas as bolas morrem.
+ * Mantido como no-op para compatibilidade com testes existentes.
+ */
+export function shouldTerminateScriptRound(_input: ScriptTerminateInputs): boolean {
+  return false;
 }
 
 export class GameEngine {
@@ -707,38 +704,12 @@ export class GameEngine {
     // Track maxAlive
     let aliveAfter = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
     if (aliveAfter > this.maxAlive) this.maxAlive = aliveAfter;
-    if (this.finalMultiplier > 0 && this.targetBarrier > 0) {
-      this.currentClimbMultiplier = multiplierForBarrier(
-        this.barriersPassedCount,
-        this.finalMultiplier,
-        this.targetBarrier,
-      );
-    }
+    // Multiplicador efetivo da rodada — vem da curva pública m(b).
+    // Tier sorteado e targetBarrier viram só referência informativa.
+    this.currentClimbMultiplier = multiplierForBarriers(this.barriersPassedCount);
 
-    // DEMO: encerrar a rodada quando a meta de 20 barreiras for atingida.
-    if (
-      this.mode === "demo" &&
-      this.state === "playing" &&
-      this.barriersPassedCount >= 20
-    ) {
-      this.forceTerminateRound(ts);
-      aliveAfter = 0;
-    }
-
-    if (
-      shouldTerminateScriptRound({
-        script: this.script,
-        allowScriptTerminate: this.allowScriptTerminate,
-        state: this.state,
-        aliveAfter,
-        elapsedSec: this.elapsedMs / 1000,
-        barriersPassedCount: this.barriersPassedCount,
-        score: this.score,
-      })
-    ) {
-      this.forceTerminateRound(ts);
-      aliveAfter = 0;
-    }
+    // Sem terminação forçada — Fase 1 do payout dinâmico.
+    // Game over só quando todas as bolas morrem (verificado abaixo).
 
     if (aliveAfter === 0) {
       this.state = "over";
