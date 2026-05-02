@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { usePixDepositPolling } from "@/hooks/usePixDepositPolling";
 import { parsePixInvokeError, toastPixEdgeError } from "@/lib/pixEdgeErrors";
 import { supabase } from "@/lib/supabaseExternal";
+import { trackMeta } from "@/lib/metaPixel";
 
 interface Props {
   onBack: () => void;
-  onConfirmed: () => void | Promise<void>;
+  onConfirmed: (amount?: number) => void | Promise<void>;
 }
 
 const PRESETS = [10, 25, 50, 100];
