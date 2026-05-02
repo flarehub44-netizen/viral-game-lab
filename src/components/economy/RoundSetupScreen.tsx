@@ -132,21 +132,37 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
             Valor de entrada (R$)
           </div>
+          {hasFreeSpin && (
+            <div className="mb-3 mx-auto max-w-md rounded-xl border border-[hsl(45_95%_55%/0.5)] bg-[hsl(45_60%_15%/0.3)] px-3 py-2 text-[11px] text-[hsl(45_90%_75%)] text-center leading-snug flex items-center justify-center gap-1.5">
+              <Sparkles size={12} />
+              Você tem <strong>{freeSpinsRemaining} giro{freeSpinsRemaining > 1 ? "s" : ""} grátis</strong> — escolha R$ 1 para usar
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 justify-center">
-            {BET_AMOUNTS.map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                onClick={() => setBet(amount)}
-                className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
-                  bet === amount
-                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)]"
-                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {amount}
-              </button>
-            ))}
+            {BET_AMOUNTS.map((amount) => {
+              const isFreeOption = hasFreeSpin && amount === 1;
+              return (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => setBet(amount)}
+                  className={`relative min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
+                    bet === amount
+                      ? "border-primary bg-primary/20 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)]"
+                      : isFreeOption
+                        ? "border-[hsl(45_95%_55%)] bg-[hsl(45_60%_15%/0.4)] text-[hsl(45_95%_70%)]"
+                        : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {amount}
+                  {isFreeOption && (
+                    <span className="absolute -top-1.5 -right-1.5 text-[8px] bg-[hsl(45_95%_55%)] text-background rounded-full px-1 font-black">
+                      FREE
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
