@@ -159,6 +159,7 @@ export type Database = {
       }
       game_rounds: {
         Row: {
+          barriers_passed_actual: number | null
           client_report: Json
           created_at: string
           ended_at: string | null
@@ -179,6 +180,7 @@ export type Database = {
           visual_result: Json
         }
         Insert: {
+          barriers_passed_actual?: number | null
           client_report?: Json
           created_at?: string
           ended_at?: string | null
@@ -199,6 +201,7 @@ export type Database = {
           visual_result?: Json
         }
         Update: {
+          barriers_passed_actual?: number | null
           client_report?: Json
           created_at?: string
           ended_at?: string | null
@@ -675,6 +678,10 @@ export type Database = {
       }
       close_stale_open_rounds: {
         Args: { p_grace_seconds?: number }
+        Returns: number
+      }
+      compute_multiplier_for_barrier: {
+        Args: { p_barriers: number }
         Returns: number
       }
       confirm_age_18: { Args: never; Returns: string }
