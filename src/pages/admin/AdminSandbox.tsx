@@ -8,19 +8,19 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  Trophy,
-  TriangleAlert,
   Users,
   Zap,
 } from "lucide-react";
 import { GameCanvas } from "@/components/GameCanvas";
+import { GameOverScreen } from "@/components/GameOverScreen";
 import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import { MULTIPLIER_TIERS, sampleMultiplier, theoreticalRtp } from "@/game/economy/multiplierTable";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
-import type { ActiveServerRound } from "@/game/economy/serverRound";
+import type { ActiveServerRound, ServerEconomyPayload } from "@/game/economy/serverRound";
 import { invokeAdminAction } from "@/lib/adminAction";
 import { BET_AMOUNTS } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
+import { applyRound, type RoundResult } from "@/game/progression";
 
 const MULTS = MULTIPLIER_TIERS.map((t) => t.multiplier);
 
@@ -36,21 +36,20 @@ function pseudoOnlinePlayers(): number {
 const fmt = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-interface SandboxResult {
-  stake: number;
-  payout: number;
-  net: number;
-  multiplier: number;
-  barriers: number;
-  score: number;
-  durationSeconds: number;
+interface OverState {
+  stats: PublicGameStats;
+  summary: RoundSummaryOut;
+  economy: ServerEconomyPayload;
+  progression: RoundResult | null;
+  bestScore: number;
+  isNewBest: boolean;
 }
 
 export const AdminSandbox = () => {
   const [bet, setBet] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [activeRound, setActiveRound] = useState<ActiveServerRound | null>(null);
-  const [result, setResult] = useState<SandboxResult | null>(null);
+  const [over, setOver] = useState<OverState | null>(null);
 
   // Admin tools
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -76,7 +75,7 @@ export const AdminSandbox = () => {
       return;
     }
     setBusy(true);
-    setResult(null);
+    setOver(null);
     try {
       const payload: Parameters<typeof invokeAdminAction>[0] = {
         type: "sandbox_round",
@@ -134,6 +133,31 @@ export const AdminSandbox = () => {
     }
   };
 
+  // ============== Tela de fim de jogo (igual live) ==============
+  if (over && !activeRound) {
+    return (
+      <div className="absolute inset-0 z-50 bg-background overflow-y-auto">
+        <GameOverScreen
+          stats={over.stats}
+          isNewBest={over.isNewBest}
+          bestScore={over.bestScore}
+          onRetry={() => {
+            setOver(null);
+            void startPlay();
+          }}
+          onMenu={() => setOver(null)}
+          onLeaderboard={() => setOver(null)}
+          progression={over.progression}
+          maxCombo={over.summary.maxCombo}
+          serverEconomy={over.economy}
+          economySource="server"
+          onChangeStake={() => setOver(null)}
+          barriersPassed={over.summary.barriersPassed}
+        />
+      </div>
+    );
+  }
+
   // ============== Tela de jogo ativo ==============
   if (activeRound) {
     return (
@@ -176,15 +200,39 @@ export const AdminSandbox = () => {
           targetBarrier={activeRound.target_barrier}
           layoutPlan={layoutPlan}
           onGameOver={(stats: PublicGameStats, summary: RoundSummaryOut) => {
-            setResult({
-              stake: activeRound.stake_amount,
-              payout: activeRound.payout_amount,
-              net: activeRound.net_result,
-              multiplier: activeRound.result_multiplier,
-              barriers: summary.barriersPassed ?? 0,
-              score: stats.score,
-              durationSeconds: stats.durationSeconds,
+            const round = activeRound;
+            const economy: ServerEconomyPayload = {
+              stake: round.stake_amount,
+              resultMultiplier: round.result_multiplier,
+              payout: round.payout_amount,
+              netResult: round.net_result,
+              reachedTarget: round.payout_amount > 0,
+              barriersPassed: summary.barriersPassed ?? 0,
+              targetBarrier: round.target_barrier ?? 0,
+              mode: "live",
+            };
+            const progression = applyRound(
+              {
+                score: summary.score,
+                durationSeconds: summary.durationSeconds,
+                maxCombo: summary.maxCombo,
+                maxAlive: summary.maxAlive,
+                splits: summary.splits,
+                powerupsCollected: summary.powerupsCollected,
+                barriersPassed: summary.barriersPassed,
+                finalMultiplier: round.result_multiplier,
+              },
+              "default",
+            );
+            setOver({
+              stats,
+              summary,
+              economy,
+              progression,
+              bestScore: stats.score,
+              isNewBest: false,
             });
+            setActiveRound(null);
           }}
           onExit={exitPlay}
           stakeCredits={activeRound.stake_amount}
@@ -290,66 +338,6 @@ export const AdminSandbox = () => {
           Jogue com responsabilidade. Proibido para menores de 18 anos.
         </p>
 
-        {/* Resultado da última rodada sandbox */}
-        {result && (
-          <div
-            className={`rounded-2xl border-2 p-4 space-y-3 animate-fade-in ${
-              result.net > 0
-                ? "border-[hsl(140_80%_45%/0.7)] bg-[hsl(140_25%_8%/0.55)] shadow-[0_0_18px_hsl(140_80%_40%/0.25)]"
-                : result.net === 0
-                  ? "border-border bg-card/40"
-                  : "border-destructive/40 bg-card/30"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-1.5">
-                <Trophy size={12} /> Última rodada sandbox
-              </span>
-              <span
-                className={`text-[10px] font-black tabular-nums px-2 py-0.5 rounded-full ${
-                  result.multiplier > 1
-                    ? "bg-[hsl(140_80%_15%)] text-[hsl(140_90%_70%)]"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                ×{result.multiplier}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
-                <div className="text-sm font-bold tabular-nums">R$ {fmt(result.stake)}</div>
-              </div>
-              <div>
-                <div className="text-[9px] uppercase text-muted-foreground">Pagamento</div>
-                <div
-                  className={`text-sm font-black tabular-nums ${
-                    result.payout > 0 ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
-                  }`}
-                >
-                  R$ {fmt(result.payout)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] uppercase text-muted-foreground">Saldo</div>
-                <div
-                  className={`text-sm font-black tabular-nums ${
-                    result.net > 0
-                      ? "text-[hsl(140_90%_62%)]"
-                      : result.net === 0
-                        ? "text-foreground"
-                        : "text-destructive/90"
-                  }`}
-                >
-                  {result.net > 0 ? "+" : ""}R$ {fmt(result.net)}
-                </div>
-              </div>
-            </div>
-            <div className="text-[10px] text-muted-foreground text-center tabular-nums">
-              {result.barriers} barreiras · {result.score} pts · {result.durationSeconds}s
-            </div>
-          </div>
-        )}
 
         {/* Ferramentas de admin */}
         <div className="rounded-xl border border-border bg-card/20 overflow-hidden">
