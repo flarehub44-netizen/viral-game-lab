@@ -223,7 +223,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               ? "Selecione um valor"
               : insufficient
                 ? "Saldo insuficiente"
-                : "Travar entrada e jogar"}
+                : "JOGAR"}
         </button>
       </div>
     </div>
