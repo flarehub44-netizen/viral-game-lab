@@ -15,6 +15,14 @@ import { Leaderboard, invalidateLeaderboardCache } from "@/components/Leaderboar
 import { NicknameDialog } from "@/components/NicknameDialog";
 import { MissionsPanel } from "@/components/MissionsPanel";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
+import { WelcomeBonusBanner } from "@/components/economy/WelcomeBonusBanner";
+import { DailyLoginPopup } from "@/components/economy/DailyLoginPopup";
+import { BonusWalletCard } from "@/components/economy/BonusWalletCard";
+import {
+  useWalletBonus,
+  useWelcomeBonusState,
+  useDailyLoginStatus,
+} from "@/hooks/useBonusWallet";
 import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import type {
   ActiveServerRound,
