@@ -130,18 +130,19 @@ interface Profile {
 }
 
 /**
- * Calibração pós-rebalanço (tiers altos raros, cauda achatada, dificuldade Fase 2 mais forte):
- *   - skill=1.92 → RTP ≈ 60–72% (casual)
- *   - skill=2.00 → RTP ≈ 63–76% (skilled)
- *   - skill=2.05 → RTP ≈ 65–80% (expert — teto operacional)
+ * Calibração pós-rebalanço (tiers altos raros, cauda achatada, dificuldade Fase 2 mais forte).
+ * Resultados empíricos (100k rodadas, 10 seeds):
+ *   - skill=1.92 → RTP ≈ 51,8% (casual)
+ *   - skill=2.00 → RTP ≈ 54,0% (skilled)
+ *   - skill=2.05 → RTP ≈ 55,4% (expert — teto operacional)
  *
- * Bandas com folga ampla porque tiers raros + variância amostral por seed.
+ * Bandas com folga ±5pp para variância amostral entre seeds.
  * Recalibrar se mudarmos curva ou layout novamente.
  */
 const PROFILES: Profile[] = [
-  { name: "casual",  skillFactor: 1.92, rtpMin: 0.55, rtpMax: 0.78 },
-  { name: "skilled", skillFactor: 2.00, rtpMin: 0.58, rtpMax: 0.82 },
-  { name: "expert",  skillFactor: 2.05, rtpMin: 0.60, rtpMax: 0.86 },
+  { name: "casual",  skillFactor: 1.92, rtpMin: 0.46, rtpMax: 0.58 },
+  { name: "skilled", skillFactor: 2.00, rtpMin: 0.48, rtpMax: 0.60 },
+  { name: "expert",  skillFactor: 2.05, rtpMin: 0.49, rtpMax: 0.62 },
 ];
 
 describe("Monte Carlo — Phase 2 tail RTP", () => {

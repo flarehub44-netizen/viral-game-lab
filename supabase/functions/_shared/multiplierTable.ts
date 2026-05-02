@@ -19,7 +19,7 @@ export interface MultiplierTier {
 export const MULTIPLIER_TIERS: MultiplierTier[] = [
   {
     multiplier: 0,
-    probability: 0.38,
+    probability: 0.379,
     visual: {
       barriers_crossed: 2,
       balls_count: 3,
