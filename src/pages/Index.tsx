@@ -15,6 +15,14 @@ import { Leaderboard, invalidateLeaderboardCache } from "@/components/Leaderboar
 import { NicknameDialog } from "@/components/NicknameDialog";
 import { MissionsPanel } from "@/components/MissionsPanel";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
+import { WelcomeBonusBanner } from "@/components/economy/WelcomeBonusBanner";
+import { DailyLoginPopup } from "@/components/economy/DailyLoginPopup";
+import { BonusWalletCard } from "@/components/economy/BonusWalletCard";
+import {
+  useWalletBonus,
+  useWelcomeBonusState,
+  useDailyLoginStatus,
+} from "@/hooks/useBonusWallet";
 import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import type {
   ActiveServerRound,
@@ -138,6 +146,24 @@ const Index = () => {
   const isOnline = Boolean(user && session);
   const isDemo = !user && guestDemoActive;
   const progressionProfile: ProgressionProfile = isDemo ? "demo" : "default";
+
+  // Online-only: bônus e login diário
+  const onlineUserId = !isDemo ? (user?.id ?? null) : null;
+  const { data: bonusInfo, refresh: refreshBonus } = useWalletBonus(onlineUserId);
+  const { state: welcomeState, refresh: refreshWelcome } = useWelcomeBonusState(onlineUserId);
+  const { status: dailyStatus, refresh: refreshDaily } = useDailyLoginStatus(onlineUserId);
+  const [showDailyPopup, setShowDailyPopup] = useState(false);
+  const dailyPromptedRef = useRef(false);
+
+  useEffect(() => {
+    if (dailyPromptedRef.current) return;
+    if (!onlineUserId) return;
+    if (!dailyStatus?.canClaim) return;
+    if (welcomeState !== "claimed") return;
+    dailyPromptedRef.current = true;
+    const t = setTimeout(() => setShowDailyPopup(true), 800);
+    return () => clearTimeout(t);
+  }, [onlineUserId, dailyStatus?.canClaim, welcomeState]);
 
   const [hydrating, setHydrating] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
@@ -707,6 +733,17 @@ const Index = () => {
             playMode={isDemo ? "demo" : "online"}
             progressionProfile={progressionProfile}
             onSignIn={isDemo ? leaveDemoToAuth : undefined}
+            extraSlot={
+              !isDemo && welcomeState === "available" ? (
+                <WelcomeBonusBanner
+                  onClaimed={() => {
+                    refreshWelcome();
+                    refreshBonus();
+                    refreshEconomy();
+                  }}
+                />
+              ) : null
+            }
           />
         )}
 
@@ -735,6 +772,7 @@ const Index = () => {
                     await refreshEconomy();
                   }
             }
+            bonusSlot={!isDemo && bonusInfo ? <BonusWalletCard info={bonusInfo} /> : null}
           />
         )}
 
@@ -838,6 +876,19 @@ const Index = () => {
               setPrePlayPopup(null);
               setScreen("playing");
             }}
+          />
+        )}
+
+        {showDailyPopup && dailyStatus && onlineUserId && (
+          <DailyLoginPopup
+            currentStreak={dailyStatus.currentStreak}
+            onClaimed={() => {
+              setShowDailyPopup(false);
+              refreshDaily();
+              refreshBonus();
+              refreshEconomy();
+            }}
+            onClose={() => setShowDailyPopup(false)}
           />
         )}
       </div>

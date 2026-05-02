@@ -18,6 +18,8 @@ interface Props {
   playMode: "demo" | "online";
   progressionProfile: ProgressionProfile;
   onSignIn?: () => void;
+  /** Slot opcional para banners (ex: bônus de boas-vindas). Renderizado abaixo do feed de ganhadores. */
+  extraSlot?: React.ReactNode;
 }
 
 /** Contagem estável “social proof” por dia (não é tempo real). */
@@ -76,6 +78,7 @@ export const LobbyScreen = ({
   playMode,
   progressionProfile,
   onSignIn,
+  extraSlot,
 }: Props) => {
   const prog = loadProgression(progressionProfile);
   const lvl = levelFromXp(prog.xp);
@@ -195,6 +198,8 @@ export const LobbyScreen = ({
             </div>
           </div>
         </section>
+
+        {extraSlot}
 
         <section className="text-center space-y-3 pt-2">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">

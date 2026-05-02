@@ -30,6 +30,8 @@ interface Props {
   pixDeposits?: PixDepositRow[];
   pixWithdrawals?: PixWithdrawalRow[];
   onReconcilePending?: (depositId?: string) => Promise<void> | void;
+  /** Slot opcional renderizado abaixo do saldo (ex: saldo bônus + rollover). */
+  bonusSlot?: React.ReactNode;
 }
 
 function pixStatusLabel(kind: "dep" | "wd", status: string): string {
@@ -71,6 +73,7 @@ export const WalletScreen = ({
   pixDeposits = [],
   pixWithdrawals = [],
   onReconcilePending,
+  bonusSlot,
 }: Props) => {
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -156,6 +159,8 @@ export const WalletScreen = ({
           <div className="text-4xl font-black tabular-nums text-white">R$ {fmt(balance)}</div>
           {loading && <div className="text-[10px] text-muted-foreground">Atualizando...</div>}
         </div>
+
+        {bonusSlot}
 
         {variant === "online" && onDeposit && onWithdraw && (
           <div className="grid grid-cols-2 gap-3">

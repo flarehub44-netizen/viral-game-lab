@@ -68,6 +68,93 @@ export type Database = {
         }
         Relationships: []
       }
+      bonus_grants: {
+        Row: {
+          amount: number
+          granted_at: string
+          id: string
+          kind: string
+          meta: Json
+          rollover_added: number
+          rollover_multiplier: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          granted_at?: string
+          id?: string
+          kind: string
+          meta?: Json
+          rollover_added?: number
+          rollover_multiplier?: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          granted_at?: string
+          id?: string
+          kind?: string
+          meta?: Json
+          rollover_added?: number
+          rollover_multiplier?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_logins: {
+        Row: {
+          bonus_amount: number
+          claimed_at: string
+          id: string
+          login_date: string
+          streak_day: number
+          user_id: string
+        }
+        Insert: {
+          bonus_amount?: number
+          claimed_at?: string
+          id?: string
+          login_date: string
+          streak_day: number
+          user_id: string
+        }
+        Update: {
+          bonus_amount?: number
+          claimed_at?: string
+          id?: string
+          login_date?: string
+          streak_day?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_missions_claims: {
+        Row: {
+          bonus_amount: number
+          claimed_at: string
+          id: string
+          mission_id: string
+          mission_seed: string
+          user_id: string
+        }
+        Insert: {
+          bonus_amount?: number
+          claimed_at?: string
+          id?: string
+          mission_id: string
+          mission_seed: string
+          user_id: string
+        }
+        Update: {
+          bonus_amount?: number
+          claimed_at?: string
+          id?: string
+          mission_id?: string
+          mission_seed?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       data_access_audit: {
         Row: {
           action: string
@@ -498,16 +585,28 @@ export type Database = {
       wallets: {
         Row: {
           balance: number
+          bonus_balance: number
+          bonus_rollover_progress: number
+          bonus_rollover_required: number
+          free_spins_remaining: number
           updated_at: string
           user_id: string
         }
         Insert: {
           balance?: number
+          bonus_balance?: number
+          bonus_rollover_progress?: number
+          bonus_rollover_required?: number
+          free_spins_remaining?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           balance?: number
+          bonus_balance?: number
+          bonus_rollover_progress?: number
+          bonus_rollover_required?: number
+          free_spins_remaining?: number
           updated_at?: string
           user_id?: string
         }
@@ -543,6 +642,30 @@ export type Database = {
           provider_event_id?: string
           source_ip?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      welcome_bonus_claims: {
+        Row: {
+          claimed_at: string
+          device_fingerprint: string | null
+          id: string
+          ip_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          device_fingerprint?: string | null
+          id?: string
+          ip_hash?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -676,6 +799,13 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: undefined
       }
+      claim_daily_login: {
+        Args: { p_user_id: string }
+        Returns: {
+          bonus_amount: number
+          streak_day: number
+        }[]
+      }
       close_stale_open_rounds: {
         Args: { p_grace_seconds?: number }
         Returns: number
@@ -731,6 +861,16 @@ export type Database = {
           required: number
           wagered: number
         }[]
+      }
+      grant_bonus_atomic: {
+        Args: {
+          p_amount: number
+          p_kind: string
+          p_meta?: Json
+          p_rollover_multiplier: number
+          p_user_id: string
+        }
+        Returns: string
       }
       guard_request_rate: {
         Args: {
