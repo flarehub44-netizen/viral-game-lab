@@ -1,61 +1,53 @@
-## Fase 2 — Escalada pós-alvo (sutil, sem indicador visual)
+## Monte Carlo "skilled" — validação empírica do RTP da cauda (Fase 2)
 
 ### Objetivo
-Quando o jogador passar do `deathTargetBarrier`, o layout fica progressivamente mais difícil (gap menor, velocidade maior, spawn mais rápido) e a curva de payout ganha uma cauda controlada — sem cap forçado, sem aviso visual. O game over só acontece quando todas as bolas morrem.
+Validar, via simulação determinística, que a cauda de payout introduzida na Fase 2 (âncoras [22,26] → [40,50]) não estoura o RTP empírico mesmo quando o jogador é hábil e sobrevive bastante além do `target_barrier` do tier sorteado. Critério: RTP agregado fica em ~88–92% no perfil "skilled" (orçamento de cauda 6–8% acima do RTP teórico de ~85,7%).
 
-### Parâmetros (perfil "Médio" já aprovado)
-- `gap` × `0.92^extra` por barreira além do alvo (≈ −8% por barreira)
-- `speed` += `15 px/s` por barreira além do alvo
-- `spawnEvery` × `0.95^extra` (mínimo 0.45s) — acelera a cadência
-- Pisos de segurança: `gap ≥ 0.025`, `speed ≤ 320 px/s`
+### Por que é necessário
+Hoje o `rtpSimulation.test.ts` só amostra `sampleMultiplier` puro — assume que o jogador sempre morre exatamente no `target_barrier` do tier sorteado, então valida apenas o RTP teórico (85,7%). Isso ignora completamente a cauda da Fase 2: jogadores que passam do alvo ganham mais do que a tabela teórica prevê, e precisamos provar que a escalada de dificuldade (`gap × 0.92^extra`, `speed + 15·extra`, spawn `× 0.95^extra`) compensa esse bônus.
 
-### Curva de payout — cauda
-A curva `multiplierForBarriers` hoje satura em `b ≥ 20`. Vamos estender:
+### Modelo de jogador (probabilístico, sem física)
+Em vez de simular Canvas/colisão, modelo a sobrevivência por barreira como uma probabilidade que depende apenas de skill e dificuldade efetiva:
 
 ```text
-âncoras atuais  → ... [19, 10] [20, 20]
-nova cauda      →     [22, 26] [25, 32] [30, 40] [40, 50]  // crescimento côncavo
-HARD_CAP        →     50  (era 20)
+P(passa barreira i | passou i-1) = clamp(skillFactor / dificuldade(i), 0, 0.995)
 ```
 
-Crescimento côncavo (raiz) acima do alvo do tier 20×, contribuindo ~6–8% do RTP via "tail bonus". `MAX_PAYOUT=400` continua sendo o teto absoluto no settle.
+Onde:
+- `dificuldade(i)` é uma função decrescente em `gapSize(i)` e crescente em `speed(i)` — ambos extraídos diretamente de `buildLayoutRow(i, target, rng)` (mesma fonte de verdade do engine).
+- `skillFactor` define o perfil:
+  - `casual` ≈ 1.0 (morre próximo ao alvo)
+  - `skilled` ≈ 1.4 (frequentemente passa do alvo)
+  - `expert` ≈ 1.8 (vai longe na cauda)
+
+A rodada termina na primeira barreira `i` em que o jogador falha. Payout = `multiplierForBarriers(i-1) × stake`, capado por `MAX_ROUND_PAYOUT`.
+
+### Calibração
+1. Rodar 100k rodadas com `casual` e ajustar `skillFactor` para que o RTP empírico bata o teórico (~85,7%) — confirma que o modelo está alinhado com o desenho da Fase 1.
+2. Com a calibração travada, medir RTP de `skilled` e `expert` para ver onde a cauda pousa.
 
 ### Mudanças por arquivo
 
-**`src/game/economy/multiplierCurve.ts`** (+ espelho em `supabase/functions/_shared/multiplierCurve.ts`)
-- Adicionar âncoras de cauda; subir `MULTIPLIER_CURVE_HARD_CAP` para 50.
-- Manter `m(target_do_tier_X) === tier_X.multiplier` (RTP base intocado).
-- Atualizar testes de unidade da curva.
+**Novo: `src/test/skilledRtpSimulation.test.ts`**
+- Função `simulateSkilledRound(seed, skillFactor)`:
+  - Sorteia tier via `sampleMultiplier` para obter `target_barrier` (do `MULTIPLIER_TIERS[k].visual.barriers_crossed`).
+  - Itera `i = 1..80`, gerando `buildLayoutRow(i, target, rng)`.
+  - Calcula `dificuldade(i) = (1 / gapSize) × (speed / 80)` (normalizado pela baseline).
+  - Em cada barreira amostra Bernoulli com a probabilidade acima; para na primeira falha.
+  - Retorna `min(MAX_ROUND_PAYOUT, multiplierForBarriers(i-1)) × stake`.
+- Três suites:
+  - `casual`: 100k rodadas em 10 seeds → RTP ∈ [83%, 88%] (sanity check da calibração).
+  - `skilled`: 100k rodadas → RTP ∈ [85%, 92%].
+  - `expert`: 100k rodadas → RTP ∈ [86%, 94%] (margem maior, mas ainda abaixo do teto operacional).
+- Reporta também distribuição de barreiras alcançadas (p50, p90, p99) como diagnóstico via `console.log` no teste.
 
-**`src/game/economy/liveDeterministicLayout.ts`**
-- Subir `count` default de 50 → 80 (suporta jogadores que vão muito além).
-- Para `i > targetBarrier`, computar `extra = i - targetBarrier` e aplicar:
-  - `gapSize = max(0.025, baseExtremeGap × 0.92^extra)`
-  - `speed = min(320, baseSpeed + 15 × extra)`
-- Manter difficulty `"extreme"` no telemetry para essas linhas.
-
-**`src/game/engine.ts`**
-- No `spawnBarrier` (modo live), quando `layoutCursor >= layoutPlan.length`, gerar barreira procedural com a mesma fórmula de escalada (continuidade infinita em vez de cair no fallback antigo).
-- Acelerar `nextSpawnIn` quando `barriersPassedCount > targetBarrier`: multiplicar por `0.95^extra` com piso 0.45s.
-- Nada de mudança de cor/HUD: visibilidade da fase 2 é sutil (escolha aprovada).
-
-**`supabase/migrations/*` — função `compute_multiplier_for_barrier`**
-- Espelhar a nova curva (mesmas âncoras + cap 50). Sem mudança de schema.
-
-**`supabase/functions/_shared/multiplierTable.ts`**
-- Sem mudança nos tiers (RTP base preservado). Comentário explicando que a cauda é bônus de skill.
-
-### Validação
-- `multiplierCurve.test.ts`: novos casos para `b=22, 25, 30, 40, 50, 60` (satura no cap).
-- Novo `phase2Layout.test.ts`: confere que para `extra=1..10`, `gap` e `speed` respeitam piso/teto e a forma esperada.
-- Atualizar `rtpSimulation.test.ts` (Monte Carlo) com perfil de jogador "skilled" que sobrevive +N barreiras: confirma que RTP empírico fica em ~88–92% no pior caso (dentro do orçamento de cauda 6–8%).
+**Atualizar: `.lovable/plan.md`**
+- Marcar item de Monte Carlo como concluído na seção Validação.
 
 ### Fora de escopo
-- Nenhum indicador visual de fase 2 (decisão do usuário).
-- Sem mudança no fluxo `start-round` / `end-round` (continua Fase 1).
-- Nada no demo: ele já é "skill puro" sem alvo.
+- Simulação física real (Canvas + colisão de bolas) — desnecessária para a métrica de RTP.
+- Mudanças na curva ou no layout — este passo é só validação. Se o teste falhar, abro um plano separado para ajustar âncoras (ex.: trocar `[30,40]` por `[30,35]` conforme o plano da Fase 2 já antecipava).
+- Ajuste do rótulo do HUD do demo (item separado, fica para depois).
 
-### Risco e mitigação
-- **RTP runaway**: pisos de gap/speed + `MAX_PAYOUT=400` por rodada limitam dano. Monte Carlo valida.
-- **Cauda muito generosa**: se o teste mostrar RTP > 92%, ajustar âncoras para crescimento mais côncavo (ex.: `[30, 35]` em vez de `[30, 40]`).
-- **Performance**: subir `count` para 80 é trivial (rodada média não chega a 30).
+### Critério de aceite
+- Os três blocos (`casual`/`skilled`/`expert`) passam dentro das bandas declaradas em pelo menos 9 de 10 seeds, e o RTP agregado das 100k rodadas de cada perfil cai dentro da banda. Se `expert` estourar 94%, ajusto a calibração ou abro plano de tuning das âncoras.
