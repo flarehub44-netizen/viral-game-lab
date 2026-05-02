@@ -964,6 +964,13 @@ const Index = () => {
           />
         )}
 
+        {showDemoLimit && (
+          <DemoLimitPopup
+            onCreateAccount={() => leaveDemoToAuth("register")}
+            onLogin={() => leaveDemoToAuth("login")}
+          />
+        )}
+
         {prePlayPopup && (
           <GoalReachedPopup
             multiplier={prePlayPopup.multiplier}
