@@ -84,23 +84,33 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
-  it("settleDemoRound credita pagamento linear — 20 barreiras × base 10 = ×10", () => {
+  it("settleDemoRound credita pagamento — 27 barreiras × base 10 = ×10 (20 contáveis)", () => {
     const res = startDemoRound(10, 10);
     if (!res.ok) throw new Error("start failed");
-    // 0.05 × 10 × 20 = 10 → payout = 10 × 10 = 100; saldo: 150 - 10 + 100 = 240
-    const out = settleDemoRound(res.round, 20);
+    // 27 barreiras passadas → 20 contáveis → 0.05 × 10 × 20 = 10 → payout = 100
+    // saldo: 150 - 10 + 100 = 240
+    const out = settleDemoRound(res.round, 27);
     expect(out.multiplier).toBe(10);
     expect(out.payout).toBe(100);
     expect(out.netResult).toBe(90);
     expect(loadWallet().balance).toBe(240);
   });
 
-  it("settleDemoRound: base 5 com 10 barreiras = ×2.5", () => {
+  it("settleDemoRound: base 5 com 17 barreiras (10 contáveis) = ×2.5", () => {
     const res = startDemoRound(10, 5);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 10);
+    const out = settleDemoRound(res.round, 17);
     expect(out.multiplier).toBe(2.5);
     expect(out.payout).toBe(25);
+  });
+
+  it("settleDemoRound: 7 barreiras ainda é zona de aquecimento = ×0", () => {
+    const res = startDemoRound(10, 20);
+    if (!res.ok) throw new Error("start failed");
+    const out = settleDemoRound(res.round, 7);
+    expect(out.multiplier).toBe(0);
+    expect(out.payout).toBe(0);
+    expect(out.netResult).toBe(-10);
   });
 
   it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {
@@ -116,7 +126,6 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     saveWallet({ ...loadWallet(), balance: 1000 });
     const res = startDemoRound(50, 20);
     if (!res.ok) throw new Error("start failed");
-    // 50 × (0.05 × 20 × 1000) = 50 × 1000 = 50_000 → capa em MAX_ROUND_PAYOUT
     const out = settleDemoRound(res.round, 1000);
     expect(out.payout).toBeLessThanOrEqual(MAX_ROUND_PAYOUT);
     expect(out.payout).toBe(MAX_ROUND_PAYOUT);
