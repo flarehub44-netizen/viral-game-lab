@@ -806,6 +806,15 @@ export type Database = {
           streak_day: number
         }[]
       }
+      claim_mission_atomic: {
+        Args: {
+          p_amount: number
+          p_mission_id: string
+          p_mission_seed: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       close_stale_open_rounds: {
         Args: { p_grace_seconds?: number }
         Returns: number
