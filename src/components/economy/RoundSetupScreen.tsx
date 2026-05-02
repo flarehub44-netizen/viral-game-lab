@@ -21,7 +21,7 @@ function pseudoOnlinePlayers(): number {
   return 300 + (daySeed % 120);
 }
 
-export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource }: Props) => {
+export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0 }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
   // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
