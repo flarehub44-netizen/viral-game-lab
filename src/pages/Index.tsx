@@ -842,7 +842,10 @@ const Index = () => {
           <GoalReachedPopup
             multiplier={goalPopup.multiplier}
             barriers={goalPopup.barriers}
-            onContinue={() => setGoalPopup(null)}
+            onContinue={() => {
+              setGoalPopup(null);
+              if (screen !== "over") setScreen("over");
+            }}
           />
         )}
       </div>
