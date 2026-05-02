@@ -131,7 +131,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </div>
           {!canEditMeta ? (
             <p className="text-[10px] text-center text-muted-foreground mt-2">
-              No modo conta, a meta é fixa em 20x (definida no servidor).
+              No modo conta, a meta é fixa em 20x
             </p>
           ) : null}
         </div>
