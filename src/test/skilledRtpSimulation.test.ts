@@ -27,7 +27,7 @@ import { MAX_ROUND_PAYOUT } from "@/game/economy/constants";
 /** Baseline normalizadora: gap "easy" típico e speed inicial do engine. */
 const BASELINE_GAP = 0.40;
 const BASELINE_SPEED = 80;
-const MAX_BARRIERS_SIMULATED = 80;
+const MAX_BARRIERS_SIMULATED = 220;
 
 /**
  * Sorteia um tier e retorna o `target_barrier` correspondente
@@ -139,10 +139,19 @@ interface Profile {
  * Bandas com folga de ±3pp para variância amostral entre seeds.
  * Se mudarmos a curva ou o layout, recalibrar.
  */
+/**
+ * Calibração pós-extensão da curva (0→200 barreiras): RTP cai naturalmente
+ * (curva mais longa => morte estatística mais cedo em relação ao alvo do tier).
+ * Valores empíricos (100k rodadas, 10 seeds):
+ *   - skill=1.92 → ~61.8%   (casual)
+ *   - skill=2.00 → ~64.8%   (skilled)
+ *   - skill=2.05 → ~66.8%   (expert)
+ * Bandas com folga de ±3pp para variância amostral entre seeds.
+ */
 const PROFILES: Profile[] = [
-  { name: "casual",  skillFactor: 1.92, rtpMin: 0.76, rtpMax: 0.82 },
-  { name: "skilled", skillFactor: 2.00, rtpMin: 0.79, rtpMax: 0.86 },
-  { name: "expert",  skillFactor: 2.05, rtpMin: 0.81, rtpMax: 0.88 },
+  { name: "casual",  skillFactor: 1.92, rtpMin: 0.585, rtpMax: 0.650 },
+  { name: "skilled", skillFactor: 2.00, rtpMin: 0.615, rtpMax: 0.680 },
+  { name: "expert",  skillFactor: 2.05, rtpMin: 0.635, rtpMax: 0.700 },
 ];
 
 describe("Monte Carlo — Phase 2 tail RTP", () => {

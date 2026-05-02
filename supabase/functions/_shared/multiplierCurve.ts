@@ -1,26 +1,26 @@
 /**
  * ESPELHO de src/game/economy/multiplierCurve.ts — manter sincronizado.
- * Função pública e auditável: multiplicador como função do número de barreiras.
+ * Curva estendida (0 → 200 barreiras), teto ×50.
  */
 
 export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
-  [2, 0],
-  [5, 0.5],
-  [8, 0.8],
-  [11, 1.0],
-  [14, 1.2],
-  [17, 1.5],
-  [20, 2.0],
-  [23, 3.0],
-  [26, 5.0],
-  [29, 10.0],
-  [30, 20.0],
-  // Cauda pós-alvo (Fase 2)
-  [33, 26.0],
-  [38, 32.0],
-  [45, 40.0],
-  [60, 50.0],
+  [7, 0],
+  [17, 0.5],
+  [27, 0.8],
+  [37, 1.0],
+  [47, 1.2],
+  [57, 1.5],
+  [67, 2.0],
+  [77, 3.0],
+  [87, 5.0],
+  [97, 10.0],
+  [100, 20.0],
+  // Cauda pós-alvo (Fase 2) — escala estendida
+  [110, 26.0],
+  [127, 32.0],
+  [150, 40.0],
+  [200, 50.0],
 ] as const;
 
 export const MULTIPLIER_CURVE_HARD_CAP = 50;

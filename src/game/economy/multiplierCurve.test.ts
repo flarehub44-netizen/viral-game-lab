@@ -16,33 +16,33 @@ describe("multiplierForBarriers", () => {
   });
 
   it("interpolates linearly between anchors", () => {
-    // Between (5, 0.5) and (8, 0.8): at b=6.5 => 0.65
-    expect(multiplierForBarriers(6.5)).toBeCloseTo(0.65, 2);
-    // Between (17, 1.5) and (20, 2.0): at b=18.5 => 1.75
-    expect(multiplierForBarriers(18.5)).toBeCloseTo(1.75, 2);
+    // Between (17, 0.5) and (27, 0.8): at b=22 => 0.65
+    expect(multiplierForBarriers(22)).toBeCloseTo(0.65, 2);
+    // Between (57, 1.5) and (67, 2.0): at b=62 => 1.75
+    expect(multiplierForBarriers(62)).toBeCloseTo(1.75, 2);
   });
 
   it("saturates at the hard cap above the last anchor", () => {
-    expect(multiplierForBarriers(60)).toBe(50);
-    expect(multiplierForBarriers(80)).toBe(50);
+    expect(multiplierForBarriers(200)).toBe(50);
+    expect(multiplierForBarriers(300)).toBe(50);
     expect(multiplierForBarriers(1_000)).toBe(50);
   });
 
   it("phase-2 tail anchors hit exactly", () => {
-    expect(multiplierForBarriers(30)).toBeCloseTo(20, 2);
-    expect(multiplierForBarriers(33)).toBeCloseTo(26, 2);
-    expect(multiplierForBarriers(38)).toBeCloseTo(32, 2);
-    expect(multiplierForBarriers(45)).toBeCloseTo(40, 2);
+    expect(multiplierForBarriers(100)).toBeCloseTo(20, 2);
+    expect(multiplierForBarriers(110)).toBeCloseTo(26, 2);
+    expect(multiplierForBarriers(127)).toBeCloseTo(32, 2);
+    expect(multiplierForBarriers(150)).toBeCloseTo(40, 2);
   });
 
   it("phase-2 tail interpolates monotonically", () => {
-    const m30 = multiplierForBarriers(30);
-    const m32 = multiplierForBarriers(32);
-    const m35 = multiplierForBarriers(35);
-    const m40 = multiplierForBarriers(40);
-    expect(m32).toBeGreaterThan(m30);
-    expect(m35).toBeGreaterThan(m32);
-    expect(m40).toBeGreaterThan(m35);
+    const m100 = multiplierForBarriers(100);
+    const m115 = multiplierForBarriers(115);
+    const m130 = multiplierForBarriers(130);
+    const m160 = multiplierForBarriers(160);
+    expect(m115).toBeGreaterThan(m100);
+    expect(m130).toBeGreaterThan(m115);
+    expect(m160).toBeGreaterThan(m130);
   });
 
   it("anchors cover all multiplier tiers (preserves theoretical RTP)", () => {

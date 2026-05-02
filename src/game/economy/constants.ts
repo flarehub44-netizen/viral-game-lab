@@ -19,5 +19,5 @@ export const INITIAL_ONLINE_WALLET_BALANCE = 0;
 /** Máximo de lançamentos no histórico persistido. */
 export const MAX_TRANSACTION_HISTORY = 80;
 
-/** RTP empírico esperado pós-alongamento da curva (validado por Monte Carlo, perfil casual). */
-export const TARGET_RTP = 78.9;
+/** RTP empírico esperado pós-extensão da curva (0→200 barreiras, perfil casual). */
+export const TARGET_RTP = 61.8;
