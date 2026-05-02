@@ -16,7 +16,16 @@
  * aplicada nos DOIS arquivos (e na função SQL `compute_multiplier_for_barrier`).
  */
 
-/** Âncoras (barreira, multiplicador). Devem casar com MULTIPLIER_TIERS. */
+/**
+ * Âncoras (barreira, multiplicador). Devem casar com MULTIPLIER_TIERS até [20, 20].
+ *
+ * FASE 2 — Cauda pós-tier-máximo (b > 20):
+ *   Crescimento côncavo (sub-linear) que recompensa skill sem explodir o RTP.
+ *   Cada barreira extra acima do alvo do tier também enfrenta um layout mais
+ *   difícil (ver `liveDeterministicLayout`), então a probabilidade de chegar
+ *   nessas âncoras cai rápido — a cauda contribui ~6–8% do RTP no perfil "skilled".
+ *   `MAX_PAYOUT` continua sendo o teto absoluto por rodada no settle.
+ */
 export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
   [1, 0],
@@ -30,10 +39,15 @@ export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> 
   [17, 5.0],
   [19, 10.0],
   [20, 20.0],
+  // ↓ Cauda pós-alvo (Fase 2)
+  [22, 26.0],
+  [25, 32.0],
+  [30, 40.0],
+  [40, 50.0],
 ] as const;
 
-/** Cap absoluto da curva — bate no MAX_PAYOUT em conjunção com o stake. */
-export const MULTIPLIER_CURVE_HARD_CAP = 20;
+/** Cap absoluto da curva — `MAX_PAYOUT` continua limitando o payout final por stake. */
+export const MULTIPLIER_CURVE_HARD_CAP = 50;
 
 /**
  * Multiplicador por barreira (interpolação linear entre âncoras).
