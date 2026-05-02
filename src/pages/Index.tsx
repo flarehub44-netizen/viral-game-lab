@@ -356,6 +356,7 @@ const Index = () => {
     setServerEconomy(null);
     setIsNewBest(false);
     setGoalPopup(null);
+    setPrePlayPopup(null);
     setScreen("roundSetup");
   };
 
