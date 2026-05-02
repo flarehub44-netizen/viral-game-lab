@@ -29,26 +29,9 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
   const online = pseudoOnlinePlayers();
 
   const stats = useMemo(() => {
-    if (bet <= 0) {
-      return {
-        metaGain: 0,
-        perBarrier: 0,
-        platForMeta: 0,
-        maxPayout: 0,
-      };
-    }
-    if (isDemo) {
-      // Demo: ganho = entrada × 0,05 × base × barreiras
-      // Atinge a meta (×base) em DEMO_GOAL_BARRIERS barreiras.
-      const perBarrier = bet * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta;
-      const metaGain = bet * meta;
-      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS, maxPayout: 0 };
-    }
-    // Live: potencial bruto (entrada × multiplicador máximo da curva), sem aplicar o teto aqui.
-    // O teto R$ MAX_ROUND_PAYOUT é exibido como referência separada no card.
-    const maxPayout = bet * MULTIPLIER_CURVE_HARD_CAP;
-    return { metaGain: 0, perBarrier: 0, platForMeta: 0, maxPayout };
-  }, [bet, meta, isDemo]);
+    if (bet <= 0) return { maxPayout: 0 };
+    return { maxPayout: bet * MULTIPLIER_CURVE_HARD_CAP };
+  }, [bet]);
 
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
