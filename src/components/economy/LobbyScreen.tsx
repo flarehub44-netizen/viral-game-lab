@@ -78,6 +78,7 @@ export const LobbyScreen = ({
   playMode,
   progressionProfile,
   onSignIn,
+  extraSlot,
 }: Props) => {
   const prog = loadProgression(progressionProfile);
   const lvl = levelFromXp(prog.xp);
