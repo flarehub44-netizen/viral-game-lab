@@ -592,6 +592,19 @@ const Index = () => {
     }
     setServerEconomy(finalEconomy);
 
+    if (finalEconomy && !isDemo) {
+      const won = finalEconomy.payout > 0;
+      trackMetaCustom(won ? "RoundWin" : "RoundLoss", {
+        value: won ? finalEconomy.payout : finalEconomy.stake,
+        currency: "BRL",
+        stake: finalEconomy.stake,
+        payout: finalEconomy.payout,
+        net_result: finalEconomy.netResult,
+        result_multiplier: finalEconomy.resultMultiplier,
+        reached_target: finalEconomy.reachedTarget,
+      });
+    }
+
     const result = applyRound(
       {
         score: summary.score,
