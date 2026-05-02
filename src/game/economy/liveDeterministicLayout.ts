@@ -31,10 +31,13 @@ export function hashSeed(s: string): number {
  * Parâmetros da escalada pós-alvo (Fase 2 — perfil "Médio"):
  * a cada barreira além do alvo o gap encolhe e a velocidade aumenta.
  */
-export const PHASE2_GAP_DECAY = 0.92;       // gap *= 0.92^extra
-export const PHASE2_SPEED_STEP = 15;        // +15 px/s por barreira extra
+// Suavizados para a curva estendida (200 barreiras): jogador chega muito mais
+// longe, então o passo de aperto pós-alvo precisa ser menor para a cauda não
+// virar morte instantânea.
+export const PHASE2_GAP_DECAY = 0.96;       // gap *= 0.96^extra
+export const PHASE2_SPEED_STEP = 6;         // +6 px/s por barreira extra
 export const PHASE2_GAP_FLOOR = 0.025;      // piso de gap (impossibilidade absoluta)
-export const PHASE2_SPEED_CEIL = 320;       // teto de velocidade
+export const PHASE2_SPEED_CEIL = 300;       // teto de velocidade
 
 /**
  * Layout calibrado por distância ao alvo (LIVE):
@@ -46,7 +49,7 @@ export const PHASE2_SPEED_CEIL = 320;       // teto de velocidade
 export function generateDeterministicLayout(
   layoutSeed: string,
   targetBarrier: number,
-  count = 80,
+  count = 220,
 ): LayoutBarrier[] {
   const rng = mulberry32(hashSeed(layoutSeed));
   const rows: LayoutBarrier[] = [];
@@ -69,13 +72,14 @@ export function buildLayoutRow(
   let gapSize: number;
   let difficulty: ZoneDifficulty;
 
-  if (distanceToTarget > 10) {
+  // Limiares escalados ~3.3× para a curva estendida (alvo pode chegar a 100).
+  if (distanceToTarget > 33) {
     gapSize = 0.35 + rng() * 0.10;
     difficulty = "easy";
-  } else if (distanceToTarget > 5) {
+  } else if (distanceToTarget > 17) {
     gapSize = 0.22 + rng() * 0.10;
     difficulty = "medium";
-  } else if (distanceToTarget > 2) {
+  } else if (distanceToTarget > 7) {
     gapSize = 0.15 + rng() * 0.05;
     difficulty = "hard";
   } else if (distanceToTarget > 0) {
@@ -86,7 +90,8 @@ export function buildLayoutRow(
     difficulty = "extreme";
   }
 
-  let speed = 80 + Math.min(100, index * 2.0);
+  // Speed ramp suavizada: cresce mais devagar mas com teto um pouco maior.
+  let speed = 80 + Math.min(140, index * 0.7);
 
   // Fase 2: escalada pós-alvo (sutil — sem aviso visual).
   if (distanceToTarget < 0) {

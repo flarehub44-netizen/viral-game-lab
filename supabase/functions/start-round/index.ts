@@ -45,18 +45,21 @@ function cryptoRng(): () => number {
   };
 }
 
+// Escala estendida (200 barreiras). Alvo casa com as âncoras da curva
+// (multiplierCurve.ts) e a duração máxima dá folga real ao jogador chegar lá.
+// max_duration_seconds tem constraint do banco entre 5 e 600 — todos cabem.
 function mapMultiplierToLayout(mult: number): LayoutParams {
-  if (mult <= 0) return { targetBarrier: 4, maxDurationSeconds: 10 };
-  if (mult <= 0.2) return { targetBarrier: 6, maxDurationSeconds: 14 };
-  if (mult <= 0.5) return { targetBarrier: 9, maxDurationSeconds: 18 };
-  if (mult <= 0.8) return { targetBarrier: 12, maxDurationSeconds: 24 };
-  if (mult <= 1) return { targetBarrier: 14, maxDurationSeconds: 28 };
-  if (mult <= 1.5) return { targetBarrier: 18, maxDurationSeconds: 34 };
-  if (mult <= 2) return { targetBarrier: 21, maxDurationSeconds: 40 };
-  if (mult <= 3) return { targetBarrier: 25, maxDurationSeconds: 46 };
-  if (mult <= 5) return { targetBarrier: 30, maxDurationSeconds: 54 };
-  if (mult <= 10) return { targetBarrier: 36, maxDurationSeconds: 62 };
-  return { targetBarrier: 42, maxDurationSeconds: 72 };
+  if (mult <= 0) return { targetBarrier: 12, maxDurationSeconds: 35 };
+  if (mult <= 0.2) return { targetBarrier: 18, maxDurationSeconds: 50 };
+  if (mult <= 0.5) return { targetBarrier: 30, maxDurationSeconds: 65 };
+  if (mult <= 0.8) return { targetBarrier: 40, maxDurationSeconds: 85 };
+  if (mult <= 1) return { targetBarrier: 47, maxDurationSeconds: 105 };
+  if (mult <= 1.5) return { targetBarrier: 60, maxDurationSeconds: 125 };
+  if (mult <= 2) return { targetBarrier: 70, maxDurationSeconds: 150 };
+  if (mult <= 3) return { targetBarrier: 83, maxDurationSeconds: 180 };
+  if (mult <= 5) return { targetBarrier: 100, maxDurationSeconds: 220 };
+  if (mult <= 10) return { targetBarrier: 120, maxDurationSeconds: 280 };
+  return { targetBarrier: 140, maxDurationSeconds: 340 };
 }
 
 function hexFromBytes(buf: ArrayBuffer): string {
