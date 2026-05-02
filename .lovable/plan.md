@@ -1,82 +1,70 @@
-## Objetivo
+## Regra de rollover 2x para saque
 
-Tornar as rodadas mais longas e exigir mais skill para atingir cada multiplicador, multiplicando todas as âncoras de barreira por **1.5×**. As probabilidades dos tiers ficam intactas — como cada tier agora exige mais barreiras (e a dificuldade pós-baseline aumenta), o RTP efetivo cai naturalmente para a faixa **~75–80%**.
+Hoje qualquer usuário com saldo + KYC aprovado pode sacar. Vamos exigir que o **total apostado desde o último saque** (ou desde a criação da conta, se nunca houve saque) seja **≥ 2× o total depositado no mesmo período**, antes de liberar qualquer saque PIX.
 
-## Nova curva (âncoras × 1.5, arredondadas para inteiro)
+### Definição da regra
 
-```text
-barreiras  multiplicador      mudança
-   0        0.0
-   2        0.0          (era 1)
-   5        0.5          (era 3)   → primeira devolução parcial mais tarde
-   8        0.8          (era 5)
-  11        1.0          (era 7)   → empate na barreira 11
-  14        1.2          (era 9)
-  17        1.5          (era 11)
-  20        2.0          (era 13)
-  23        3.0          (era 15)
-  26        5.0          (era 17)
-  29        10.0         (era 19)
-  30        20.0         (era 20)  → tier máximo agora na 30 (antes 20)
-  33        26.0         (cauda fase 2)
-  38        32.0
-  45        40.0
-  60        50.0         (cap absoluto)
-```
-
-## Novos `target_barrier` e `max_duration_seconds` da tabela de tiers
-
-Cada tier tem seu `barriers_crossed` (alvo de morte) e `duration_seconds` escalados em 1.5×, mantendo `probability`, `multiplier`, `balls_count` e `score_target` inalterados:
+Para cada usuário, em todo momento:
 
 ```text
-mult  prob   barriers (era→novo)   duration (era→novo)
-0.0   0.30        1 →  2                  6 →  9
-0.5   0.22        3 →  5                 12 → 18
-0.8   0.16        5 →  8                 16 → 24
-1.0   0.11        7 → 11                 20 → 30
-1.2   0.07        9 → 14                 24 → 36
-1.5   0.05       11 → 17                 28 → 42
-2.0   0.04       13 → 20                 32 → 48
-3.0   0.025      15 → 23                 38 → 57
-5.0   0.015      17 → 26                 45 → 68
-10.0  0.008      19 → 29                 52 → 78
-20.0  0.002      20 → 30                 58 → 87
+rollover_required = 2 × Σ depósitos confirmados após o último saque
+rollover_progress = Σ stakes (apostas) após o último saque
+liberado_para_sacar = rollover_progress ≥ rollover_required
 ```
 
-## Arquivos a alterar
+- Se nunca depositou, `rollover_required = 0` → liberado (mas só vai conseguir sacar saldo de bônus/inicial, que é 0 em conta real).
+- Depósitos contam quando viram `kind='deposit'` no `ledger_entries` (já é o que o webhook PIX faz).
+- Apostas contam quando viram `kind='stake'` no `ledger_entries` (já registrado em `start_round_atomic`).
+- Após um saque ser **solicitado** com sucesso, o contador zera (próximo ciclo começa do zero, exigindo novo rollover sobre depósitos futuros).
 
-A curva e a tabela aparecem em **5 lugares** que precisam ficar sincronizados (já existe um script de sync — `scripts/check-multiplier-sync.js`):
+### Mudanças
 
-1. **`src/game/economy/multiplierCurve.ts`** — `MULTIPLIER_CURVE_ANCHORS` com novos valores
-2. **`supabase/functions/_shared/multiplierCurve.ts`** — espelho idêntico
-3. **`src/game/economy/multiplierTable.ts`** — `MULTIPLIER_TIERS` com novos `barriers_crossed` e `duration_seconds`
-4. **`supabase/functions/_shared/multiplierTable.ts`** — espelho idêntico
-5. **Migration nova** — `CREATE OR REPLACE FUNCTION public.compute_multiplier_for_barrier(integer)` reescrita com as novas âncoras (a função SQL é usada pelo `end-round` para validar/calcular payout no servidor)
+**1. Banco — nova função SQL `get_withdrawal_rollover(p_user_id)`**
 
-## Atualizações em testes
+Retorna `(deposited numeric, wagered numeric, required numeric, remaining numeric, eligible boolean)`. Lê `ledger_entries` filtrando por `created_at > last_withdrawal_at` (ou desde sempre se não houver). `required = 2 × deposited`. Função `STABLE SECURITY DEFINER`, executável por `authenticated` (cada usuário consulta o próprio) e por `service_role`.
 
-- `src/game/economy/multiplierCurve.test.ts` — atualizar assertions de interpolação (b=4 não dá mais 0.65; agora b=6 ou b=7 corresponde à interpolação entre 5→8)
-- `src/test/rtpSimulation.test.ts` — bandas continuam válidas (não dependem das âncoras de barreira, só da tabela de tiers e do RNG)
-- `src/test/skilledRtpSimulation.test.ts` — **vai detectar a queda de RTP**. Atualizar bandas esperadas para casual ~75–82%, skilled ~80–86%, expert ~84–90%
-- `src/game/economy/phase2Layout.test.ts` — verificar se há assertions sobre barreiras específicas
+**2. Banco — `request_pix_withdrawal` passa a validar**
 
-## Comportamento esperado pós-mudança
+Antes de debitar saldo, calcula rollover dentro da transação (com `FOR UPDATE` no wallet já em uso) e, se `wagered < 2 × deposited`, lança `RAISE EXCEPTION 'rollover_not_met'`. Garantia server-side: mesmo que o front seja burlado, o saque é rejeitado.
 
-- **Rodada média** dura ~50% mais tempo (mais engajamento por aposta).
-- **Empate** (1.0×) move da barreira 7 para a 11 — jogador casual sente mais "perda controlada" no início.
-- **RTP empírico** cai dos atuais ~85,7% (casual) para ~75–80% — a casa ganha mais por rodada.
-- **Tier máximo (20×)** vira evento muito mais raro de fato concretizar (precisa chegar na barreira 30 em vez de 20), mesmo a probabilidade de sorteio permanecendo 0.2%.
-- **Cauda Fase 2 (26×, 32×, 40×, 50×)** fica praticamente inalcançável na prática — vira "lendário".
+**3. Edge function `request-pix-withdrawal`**
 
-## Validação pós-mudança
+Tradução do erro `rollover_not_met` em resposta `403 { error: "rollover_not_met", deposited, wagered, required, remaining }` para a UI exibir o quanto falta.
 
-1. Rodar `npm run test` — checar que os testes de RTP refletem a nova realidade (e ajustar bandas).
-2. Rodar `node scripts/check-multiplier-sync.js` — garantir que os 4 arquivos TS estão sincronizados.
-3. Jogar 10–20 rodadas em modo demo para sentir o ritmo.
-4. Após algumas rodadas reais, conferir RTP empírico no banco: `SELECT SUM(payout)/SUM(stake) FROM game_rounds WHERE round_status='settled' AND created_at > now() - interval '1 day'`.
+**4. Erro mapeado em `src/lib/pixEdgeErrors.ts`**
 
-## Observações importantes
+Nova chave `rollover_not_met` com mensagem em PT-BR: "Você precisa apostar pelo menos R$ X,XX para liberar saques (regra de rollover 2x sobre depósitos)."
 
-- **Sem migration de dados** — só schema (substituição da função SQL). Rodadas em aberto continuam válidas pois usam o `target_barrier` armazenado no `game_rounds`.
-- **Sem mudança no engine, UI ou wallet** — toda a lógica de payout já lê da curva/tabela; basta atualizar as fontes.
-- **O texto da `RulesScreen`** que menciona "RTP 85.7%" precisa ser revisado — proponho trocar para "RTP teórico ~78%" ou remover o número exato (posso confirmar o valor exato com simulação após implementar).
+**5. UI — `WithdrawScreen.tsx`**
+
+- Ao montar, chama RPC `get_withdrawal_rollover` e exibe um card no topo:
+  - Barra de progresso `wagered / required`.
+  - Texto: "Apostado: R$ X / R$ Y necessários • Faltam R$ Z".
+  - Quando `eligible=false`, desabilita o botão "Solicitar saque" (igual ao bloqueio de KYC), com aviso amber.
+- Mantém o aviso server-side como rede de segurança caso o estado mude entre carregar a tela e clicar.
+
+**6. UI — `WalletScreen.tsx`** (pequeno indicador opcional)
+
+Mostrar uma linha discreta "Rollover: R$ X / R$ Y" perto do botão de saque, para o jogador entender por que o saque está travado antes mesmo de abrir a tela.
+
+### Detalhes técnicos
+
+- **Fonte de verdade do "último saque"**: `MAX(created_at) FROM pix_withdrawals WHERE user_id=$1 AND status IN ('requested','processing','approved','completed')`. Saques `failed`/`reversed` não zeram o contador.
+- **Por que não usar `ledger_entries kind='withdraw'`**: o registro do ledger só é criado quando o saque é debitado; queremos usar a mesma tabela para detectar tentativas em curso e evitar double-spend de rollover.
+- **Stakes contam, payouts não**: o objetivo do rollover é volume de jogo, não resultado. `Σ amount WHERE kind='stake'`.
+- **Reembolsos** (`kind='refund'` se existir) e ajustes admin (`adjustment`) **não** contam como aposta; e ajustes positivos não contam como depósito.
+- **Migração**: nova migration cria `get_withdrawal_rollover` e substitui `request_pix_withdrawal` (mantém assinatura, adiciona o check). Sem mudança de schema/tabelas.
+
+### Arquivos afetados
+
+- `supabase/migrations/<novo>.sql` — função `get_withdrawal_rollover` + `CREATE OR REPLACE FUNCTION request_pix_withdrawal` com check de rollover.
+- `supabase/functions/request-pix-withdrawal/index.ts` — tratar erro `rollover_not_met`.
+- `src/lib/pixEdgeErrors.ts` — nova mensagem.
+- `src/components/economy/WithdrawScreen.tsx` — chamar RPC, exibir progresso, desabilitar botão.
+- `src/components/economy/WalletScreen.tsx` — linha de status do rollover (opcional, leve).
+
+### Fora de escopo (perguntar depois se quiser)
+
+- Aplicar rollover também a saldos de bônus separados (não há tabela de bônus hoje).
+- Resetar rollover ao final de cada mês (atualmente reseta só após saque bem-sucedido).
+- Mostrar histórico de ciclos de rollover.

@@ -31,6 +31,8 @@ const MESSAGES: Record<string, string> = {
     "A chave PIX (CPF) precisa ser do titular desta conta. Saques para terceiros não são permitidos.",
   account_deleted: "Conta encerrada.",
   age_required: "Confirme que você tem 18 anos ou mais antes de depositar.",
+  rollover_not_met:
+    "Você precisa apostar pelo menos 2× o valor depositado para liberar saques. Continue jogando e tente de novo.",
 };
 
 export function pixEdgeErrorMessage(code: string | undefined): string {

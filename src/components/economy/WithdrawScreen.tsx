@@ -1,9 +1,17 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { parsePixInvokeError, toastPixEdgeError } from "@/lib/pixEdgeErrors";
 import { supabase } from "@/lib/supabaseExternal";
+
+interface RolloverInfo {
+  deposited: number;
+  wagered: number;
+  required: number;
+  remaining: number;
+  eligible: boolean;
+}
 
 type PixKeyTypeUi = "cpf" | "email" | "phone" | "evp";
 
@@ -39,8 +47,40 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
   const [pixKey, setPixKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [doneRef, setDoneRef] = useState<string | null>(null);
+  const [rollover, setRollover] = useState<RolloverInfo | null>(null);
+  const [rolloverLoading, setRolloverLoading] = useState(true);
 
   const amountNum = Math.round(Number(amountStr.replace(",", ".")) * 100) / 100;
+
+  const loadRollover = async () => {
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes.user?.id;
+      if (!uid) return;
+      const { data, error } = await supabase.rpc("get_withdrawal_rollover", { p_user_id: uid });
+      if (error || !data || !Array.isArray(data) || data.length === 0) return;
+      const row = data[0] as {
+        deposited: number | string;
+        wagered: number | string;
+        required: number | string;
+        remaining: number | string;
+        eligible: boolean;
+      };
+      setRollover({
+        deposited: Number(row.deposited),
+        wagered: Number(row.wagered),
+        required: Number(row.required),
+        remaining: Number(row.remaining),
+        eligible: Boolean(row.eligible),
+      });
+    } finally {
+      setRolloverLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRollover();
+  }, []);
 
   const submit = async () => {
     if (!over18) {
@@ -49,6 +89,10 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
     }
     if (!kycApproved) {
       toast.error("Saque disponível após aprovação do KYC na plataforma.");
+      return;
+    }
+    if (rollover && !rollover.eligible) {
+      toastPixEdgeError("rollover_not_met");
       return;
     }
     if (!Number.isFinite(amountNum) || amountNum < 5 || amountNum > 5000) {
@@ -79,6 +123,9 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
       const errCode = await parsePixInvokeError(data, error);
       if (errCode) {
         toastPixEdgeError(errCode);
+        if (errCode === "rollover_not_met") {
+          await loadRollover();
+        }
         return;
       }
       const d = data as { ok?: boolean; provider_ref?: string };
@@ -154,6 +201,41 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
           </div>
         )}
 
+        {!rolloverLoading && rollover && rollover.required > 0 && (
+          <div
+            className={`rounded-lg border px-3 py-2.5 text-[11px] ${
+              rollover.eligible
+                ? "border-[hsl(140_70%_40%)]/40 bg-[hsl(140_70%_30%)]/10 text-[hsl(140_90%_75%)]"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-200/90"
+            }`}
+          >
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="font-bold uppercase tracking-wide text-[10px]">
+                Rollover 2× {rollover.eligible ? "concluído" : "obrigatório"}
+              </span>
+              <span className="tabular-nums">
+                R$ {rollover.wagered.toFixed(2)} / R$ {rollover.required.toFixed(2)}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-background/60 overflow-hidden">
+              <div
+                className={`h-full ${
+                  rollover.eligible ? "bg-[hsl(140_70%_50%)]" : "bg-amber-400"
+                }`}
+                style={{
+                  width: `${Math.min(100, Math.max(0, (rollover.wagered / rollover.required) * 100))}%`,
+                }}
+              />
+            </div>
+            {!rollover.eligible && (
+              <p className="mt-1.5 leading-snug">
+                Aposte mais <strong className="tabular-nums">R$ {rollover.remaining.toFixed(2)}</strong> em
+                rodadas para liberar o saque (regra: apostar 2× o total depositado desde o último saque).
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="text-[10px] text-muted-foreground">
           Saldo disponível:{" "}
           <span className="text-foreground font-black tabular-nums">
@@ -215,7 +297,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
 
         <button
           type="button"
-          disabled={busy || !over18 || !kycApproved}
+          disabled={busy || !over18 || !kycApproved || (rollover ? !rollover.eligible : false)}
           onClick={() => void submit()}
           className="w-full py-3.5 rounded-2xl bg-[hsl(195_80%_42%)] hover:bg-[hsl(195_80%_36%)] text-background font-black uppercase tracking-widest text-sm disabled:opacity-40"
         >

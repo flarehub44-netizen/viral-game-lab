@@ -721,6 +721,17 @@ export type Database = {
           phone: string
         }[]
       }
+      get_withdrawal_rollover: {
+        Args: { p_user_id: string }
+        Returns: {
+          cycle_started_at: string
+          deposited: number
+          eligible: boolean
+          remaining: number
+          required: number
+          wagered: number
+        }[]
+      }
       guard_request_rate: {
         Args: {
           p_action: string
