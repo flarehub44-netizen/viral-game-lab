@@ -91,17 +91,13 @@ export const GameCanvas = ({
 
   const isDemoMode = mode === "demo";
 
-  // ---- LIVE: meta de barreiras ----
-  const goalBarriers = targetBarrier ?? 0;
-  const reachedGoal = !isDemoMode && goalBarriers > 0 && passedNow >= goalBarriers;
-  const remainingBarriers = Math.max(0, goalBarriers - passedNow);
-
-  // Multiplicador-alvo da rodada (LIVE: já sorteado pelo servidor)
-  const liveRoundMultiplier = resultMultiplier ?? targetMultiplier ?? 0;
-
-  // Pagamento garantido SE atingir meta (LIVE).
-  const livePotentialPayout = Math.min(stake * liveRoundMultiplier, MAX_ROUND_PAYOUT);
-  const liveIsCapped = stake * liveRoundMultiplier >= MAX_ROUND_PAYOUT && stake > 0;
+  // ---- LIVE: ganho proporcional em tempo real (curva contínua) ----
+  const liveCurrentMultiplier = !isDemoMode ? multiplierForBarriers(passedNow) : 0;
+  const liveCurrentWin = !isDemoMode
+    ? Math.min(stake * liveCurrentMultiplier, MAX_ROUND_PAYOUT)
+    : 0;
+  const liveAtPayoutCap =
+    !isDemoMode && stake > 0 && stake * liveCurrentMultiplier >= MAX_ROUND_PAYOUT;
 
   // ---- DEMO: ganho proporcional em tempo real ----
   // Multiplicador atual = 0.05 × base × barreiras (sem teto próprio; só MAX_ROUND_PAYOUT)
