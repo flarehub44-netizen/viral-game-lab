@@ -199,6 +199,8 @@ export const LobbyScreen = ({
           </div>
         </section>
 
+        {extraSlot}
+
         <section className="text-center space-y-3 pt-2">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
             PASSE BARREIRAS
