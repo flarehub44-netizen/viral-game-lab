@@ -27,6 +27,12 @@ export type DemoBase = (typeof DEMO_BASE_OPTIONS)[number];
 export const DEMO_DEFAULT_BASE: DemoBase = 5;
 /** DEMO: número de barreiras necessárias para atingir a meta da base escolhida. */
 export const DEMO_GOAL_BARRIERS = 20;
+/**
+ * DEMO/SANDBOX: barreiras de "aquecimento" que NÃO contam para pagamento.
+ * Espelha o offset da curva real (`MULTIPLIER_CURVE_ANCHORS[1] = [7, 0]`).
+ * O ganho só começa a partir da 8ª barreira passada.
+ */
+export const DEMO_FREE_BARRIERS = 7;
 /** DEMO: duração máxima da rodada (sem limite real, mas o engine precisa de algo). */
 const DEMO_MAX_DURATION_SECONDS = 180;
 
