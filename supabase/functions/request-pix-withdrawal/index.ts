@@ -172,6 +172,24 @@ Deno.serve(async (req) => {
   if (wdErr) {
     const msg = wdErr.message ?? "";
     if (msg.includes("insufficient_balance")) return json(400, { error: "insufficient_balance" });
+    if (msg.includes("rollover_not_met")) {
+      // Formato: "rollover_not_met:<deposited>:<wagered>:<required>"
+      const m = msg.match(/rollover_not_met:([\d.]+):([\d.]+):([\d.]+)/);
+      const deposited = m ? Number(m[1]) : undefined;
+      const wagered = m ? Number(m[2]) : undefined;
+      const required = m ? Number(m[3]) : undefined;
+      const remaining =
+        required !== undefined && wagered !== undefined
+          ? Math.max(0, Math.round((required - wagered) * 100) / 100)
+          : undefined;
+      return json(403, {
+        error: "rollover_not_met",
+        deposited,
+        wagered,
+        required,
+        remaining,
+      });
+    }
     return json(500, { error: "withdraw_request_failed" });
   }
 
