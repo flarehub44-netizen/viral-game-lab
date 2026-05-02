@@ -3,7 +3,13 @@ import type { RoundScript } from "./economy/multiplierTable";
 import { getDifficultySnapshot } from "./difficulty";
 import { multiplierForBarriers } from "./economy/multiplierCurve";
 import { calculateZones } from "./economy/zoneCalculator";
-import type { LayoutBarrier } from "./economy/liveDeterministicLayout";
+import {
+  buildLayoutRow,
+  hashSeed,
+  mulberry32,
+  PHASE2_SPEED_CEIL,
+  type LayoutBarrier,
+} from "./economy/liveDeterministicLayout";
 
 // Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
