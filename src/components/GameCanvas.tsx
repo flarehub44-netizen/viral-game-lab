@@ -330,9 +330,6 @@ export const GameCanvas = ({
               </div>
               <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
                 ×{demoCurrentMultiplier.toFixed(2)} · {passedNow} barreiras
-                {demoReachedGoal && !demoAtPayoutCap && (
-                  <span className="ml-1 text-[hsl(140_90%_62%)] font-bold">META ✓</span>
-                )}
                 {demoAtPayoutCap && <span className="ml-1 text-[hsl(30_100%_60%)]">(máx)</span>}
               </div>
               {/* Barra de progresso até a meta da base (20 barreiras) */}
