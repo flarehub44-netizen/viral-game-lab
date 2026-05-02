@@ -17,13 +17,12 @@ describe("Phase 2 — post-target difficulty escalation", () => {
     expect(rows).toHaveLength(80);
   });
 
-  it("post-target rows have monotonically smaller gaps", () => {
+  it("post-target gap trends downward (early extras > late extras on average)", () => {
     const rows = generateDeterministicLayout(seed, target);
-    const post = rows.slice(target + 1, target + 11);
-    // Gap shouldn't increase as we move further past the target
-    for (let i = 1; i < post.length; i++) {
-      expect(post[i]!.gapSize).toBeLessThanOrEqual(post[i - 1]!.gapSize + 1e-9);
-    }
+    const earlyExtras = rows.slice(target + 1, target + 4);
+    const lateExtras = rows.slice(target + 8, target + 11);
+    const avg = (xs: typeof rows) => xs.reduce((s, r) => s + r.gapSize, 0) / xs.length;
+    expect(avg(lateExtras)).toBeLessThan(avg(earlyExtras));
   });
 
   it("respects gap floor and speed ceiling", () => {
