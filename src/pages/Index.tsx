@@ -85,6 +85,23 @@ type Screen =
 
 const PLAY_MODE_KEY = "ns_play_mode";
 const DEMO_NICK_KEY = "ns_demo_nickname";
+const DEMO_PLAYED_KEY = "ns_demo_played_v1";
+
+function hasPlayedDemo(): boolean {
+  try {
+    return localStorage.getItem(DEMO_PLAYED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markDemoPlayed() {
+  try {
+    localStorage.setItem(DEMO_PLAYED_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 function readGuestDemoFlag(): boolean {
   // Demo é a experiência padrão para visitantes não autenticados.
