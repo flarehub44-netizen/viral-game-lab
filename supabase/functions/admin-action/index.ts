@@ -113,13 +113,12 @@ Deno.serve(async (req) => {
   } = await userClient.auth.getUser();
   if (authErr || !user) return json(401, { error: "invalid_session" });
 
-  const { data: prof, error: profErr } = await admin
-    .from("profiles")
-    .select("is_admin")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: isAdmin, error: roleErr } = await admin.rpc("has_role", {
+    _user_id: user.id,
+    _role: "admin",
+  });
 
-  if (profErr || !prof?.is_admin) {
+  if (roleErr || !isAdmin) {
     return json(403, { error: "forbidden" });
   }
 
