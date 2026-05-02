@@ -31,27 +31,25 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect(isValidDemoBase(0)).toBe(false);
   });
 
-  it("demoMultiplierFor: 0 barreiras = ×0 (qualquer base)", () => {
-    expect(demoMultiplierFor(0, 2)).toBe(0);
-    expect(demoMultiplierFor(0, 20)).toBe(0);
+  it("demoMultiplierFor: fórmula linear 0,05 × base × barreiras", () => {
+    // 20 barreiras × base 5 → 0.05 × 5 × 20 = 5 (atinge a meta da base)
+    expect(demoMultiplierFor(20, 5)).toBe(5);
+    // 20 barreiras × base 10 → atinge meta ×10
+    expect(demoMultiplierFor(20, 10)).toBe(10);
+    // 20 barreiras × base 20 → atinge meta ×20
+    expect(demoMultiplierFor(20, 20)).toBe(20);
+    // 10 barreiras × base 5 → metade da meta
+    expect(demoMultiplierFor(10, 5)).toBe(2.5);
   });
 
-  // Curva pública m(b) — independente da base. Pontos âncora: (5,0.5), (11,1.0), (20,2.0), (30,20).
-  it("demoMultiplierFor: âncoras da curva pública (base ignorada)", () => {
-    expect(demoMultiplierFor(17, 2)).toBe(0.5);
-    expect(demoMultiplierFor(37, 2)).toBe(1);
-    expect(demoMultiplierFor(67, 2)).toBe(2);
-    expect(demoMultiplierFor(100, 2)).toBe(20);
+  it("demoMultiplierFor: base afeta o multiplicador (não é ignorada)", () => {
+    expect(demoMultiplierFor(10, 10)).toBeGreaterThan(demoMultiplierFor(10, 5));
+    expect(demoMultiplierFor(10, 20)).toBe(demoMultiplierFor(10, 5) * 4);
   });
 
-  it("demoMultiplierFor: base é ignorada — mesmo valor para qualquer base", () => {
-    expect(demoMultiplierFor(37, 10)).toBe(demoMultiplierFor(37, 2));
-    expect(demoMultiplierFor(67, 20)).toBe(demoMultiplierFor(67, 5));
-  });
-
-  it("demoMultiplierFor: cap em 50 acima da última âncora (200)", () => {
-    expect(demoMultiplierFor(200, 10)).toBe(50);
-    expect(demoMultiplierFor(300, 10)).toBe(50);
+  it("demoMultiplierFor: continua crescendo após a meta (sem cap próprio)", () => {
+    expect(demoMultiplierFor(40, 5)).toBe(10);
+    expect(demoMultiplierFor(100, 10)).toBe(50);
   });
 
   it("startDemoRound debita a entrada e guarda a base escolhida", () => {
