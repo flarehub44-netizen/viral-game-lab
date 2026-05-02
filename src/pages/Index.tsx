@@ -831,13 +831,13 @@ const Index = () => {
           />
         )}
 
-        {goalPopup && (
+        {prePlayPopup && (
           <GoalReachedPopup
-            multiplier={goalPopup.multiplier}
-            barriers={goalPopup.barriers}
+            multiplier={prePlayPopup.multiplier}
+            barriers={prePlayPopup.barriers}
             onContinue={() => {
-              setGoalPopup(null);
-              if (screen !== "over") setScreen("over");
+              setPrePlayPopup(null);
+              setScreen("playing");
             }}
           />
         )}
