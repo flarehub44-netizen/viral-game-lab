@@ -51,13 +51,16 @@ export function isValidDemoBase(base: number): base is DemoBase {
 }
 
 /**
- * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreiras`.
+ * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreirasContáveis`,
+ * onde `barreirasContáveis = max(0, barreirasPassadas − DEMO_FREE_BARRIERS)`.
+ * As primeiras 7 barreiras são "aquecimento" (×0), igual ao jogo real.
  * Idêntico ao que o HUD do `GameCanvas` mostra durante a partida.
  */
 export function demoMultiplierFor(barriersPassed: number, base: number = DEMO_DEFAULT_BASE): number {
   const safeBase = isValidDemoBase(base) ? base : DEMO_DEFAULT_BASE;
   const safeBarriers = Math.max(0, Math.floor(barriersPassed));
-  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * safeBarriers;
+  const effective = Math.max(0, safeBarriers - DEMO_FREE_BARRIERS);
+  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * effective;
 }
 
 /**
