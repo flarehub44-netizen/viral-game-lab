@@ -16,33 +16,33 @@ describe("multiplierForBarriers", () => {
   });
 
   it("interpolates linearly between anchors", () => {
-    // Between (3, 0.5) and (5, 0.8): at b=4 => 0.65
-    expect(multiplierForBarriers(4)).toBeCloseTo(0.65, 2);
-    // Between (11, 1.5) and (13, 2.0): at b=12 => 1.75
-    expect(multiplierForBarriers(12)).toBeCloseTo(1.75, 2);
+    // Between (5, 0.5) and (8, 0.8): at b=6.5 => 0.65
+    expect(multiplierForBarriers(6.5)).toBeCloseTo(0.65, 2);
+    // Between (17, 1.5) and (20, 2.0): at b=18.5 => 1.75
+    expect(multiplierForBarriers(18.5)).toBeCloseTo(1.75, 2);
   });
 
   it("saturates at the hard cap above the last anchor", () => {
-    expect(multiplierForBarriers(40)).toBe(50);
+    expect(multiplierForBarriers(60)).toBe(50);
     expect(multiplierForBarriers(80)).toBe(50);
     expect(multiplierForBarriers(1_000)).toBe(50);
   });
 
   it("phase-2 tail anchors hit exactly", () => {
-    expect(multiplierForBarriers(20)).toBeCloseTo(20, 2);
-    expect(multiplierForBarriers(22)).toBeCloseTo(26, 2);
-    expect(multiplierForBarriers(25)).toBeCloseTo(32, 2);
-    expect(multiplierForBarriers(30)).toBeCloseTo(40, 2);
+    expect(multiplierForBarriers(30)).toBeCloseTo(20, 2);
+    expect(multiplierForBarriers(33)).toBeCloseTo(26, 2);
+    expect(multiplierForBarriers(38)).toBeCloseTo(32, 2);
+    expect(multiplierForBarriers(45)).toBeCloseTo(40, 2);
   });
 
   it("phase-2 tail interpolates monotonically", () => {
-    const m20 = multiplierForBarriers(20);
-    const m21 = multiplierForBarriers(21);
-    const m23 = multiplierForBarriers(23);
-    const m27 = multiplierForBarriers(27);
-    expect(m21).toBeGreaterThan(m20);
-    expect(m23).toBeGreaterThan(m21);
-    expect(m27).toBeGreaterThan(m23);
+    const m30 = multiplierForBarriers(30);
+    const m32 = multiplierForBarriers(32);
+    const m35 = multiplierForBarriers(35);
+    const m40 = multiplierForBarriers(40);
+    expect(m32).toBeGreaterThan(m30);
+    expect(m35).toBeGreaterThan(m32);
+    expect(m40).toBeGreaterThan(m35);
   });
 
   it("anchors cover all multiplier tiers (preserves theoretical RTP)", () => {
