@@ -200,6 +200,8 @@ export class GameEngine {
   private layoutCursor = 0;
   private layoutSeed: string | null = null;
   private proceduralRng: (() => number) | null = null;
+  private stakeCredits = 0;
+  private demoBaseMultiplier = 0;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
@@ -242,6 +244,8 @@ export class GameEngine {
     finalMultiplier?: number;
     layoutPlan?: LayoutBarrier[] | null;
     layoutSeed?: string | null;
+    stakeCredits?: number;
+    demoBaseMultiplier?: number;
   }) {
     this.script = opts?.script ?? null;
     this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
@@ -252,6 +256,8 @@ export class GameEngine {
     this.layoutPlan = opts?.layoutPlan ?? null;
     this.layoutCursor = 0;
     this.layoutSeed = opts?.layoutSeed ?? null;
+    this.stakeCredits = Math.max(0, opts?.stakeCredits ?? 0);
+    this.demoBaseMultiplier = Math.max(0, opts?.demoBaseMultiplier ?? 0);
     // RNG procedural para a Fase 2 (quando o jogador excede o `layoutPlan`).
     this.proceduralRng = this.layoutSeed
       ? mulberry32(hashSeed(`${this.layoutSeed}::phase2`))
