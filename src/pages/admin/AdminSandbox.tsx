@@ -152,35 +152,13 @@ export const AdminSandbox = () => {
 
   // ============== Setup pré-jogo ==============
   return (
-    <div className="relative flex flex-col min-h-[calc(100vh-44px)] bg-background">
-      {/* Header sandbox */}
-      <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-border bg-[hsl(280_45%_8%)]">
-        <button
-          type="button"
-          onClick={() => window.history.back()}
-          className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:text-foreground"
-          aria-label="Voltar"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[hsl(280_50%_15%/0.9)] border border-[hsl(280_70%_50%)]">
-          <FlaskConical size={11} className="text-[hsl(280_90%_75%)]" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-[hsl(280_90%_75%)]">
-            Sandbox
-          </span>
-        </div>
-        <div className="w-9" />
-      </div>
-
-      {/* Setup idêntico ao demo */}
-      <div className="relative flex-1">
-        <RoundSetupScreen
-          balance={fakeBalance}
-          onBack={() => window.history.back()}
-          onConfirm={(stake, _meta) => startPlay(stake, DEMO_DEFAULT_BASE)}
-          economySource="demo"
-        />
-      </div>
+    <div className="relative min-h-[calc(100vh-44px)] bg-background">
+      <RoundSetupScreen
+        balance={fakeBalance}
+        onBack={() => window.history.back()}
+        onConfirm={(stake, _meta) => startPlay(stake, DEMO_DEFAULT_BASE)}
+        economySource="demo"
+      />
     </div>
   );
 };
