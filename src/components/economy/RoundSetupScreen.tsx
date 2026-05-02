@@ -2,7 +2,7 @@ import { ArrowLeft, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
-import { DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
+import { DEMO_DEFAULT_BASE } from "@/game/economy/demoRound";
 
 interface Props {
   balance: number;
@@ -29,26 +29,9 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
   const online = pseudoOnlinePlayers();
 
   const stats = useMemo(() => {
-    if (bet <= 0) {
-      return {
-        metaGain: 0,
-        perBarrier: 0,
-        platForMeta: 0,
-        maxPayout: 0,
-      };
-    }
-    if (isDemo) {
-      // Demo: ganho = entrada × 0,05 × base × barreiras
-      // Atinge a meta (×base) em DEMO_GOAL_BARRIERS barreiras.
-      const perBarrier = bet * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta;
-      const metaGain = bet * meta;
-      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS, maxPayout: 0 };
-    }
-    // Live: potencial bruto (entrada × multiplicador máximo da curva), sem aplicar o teto aqui.
-    // O teto R$ MAX_ROUND_PAYOUT é exibido como referência separada no card.
-    const maxPayout = bet * MULTIPLIER_CURVE_HARD_CAP;
-    return { metaGain: 0, perBarrier: 0, platForMeta: 0, maxPayout };
-  }, [bet, meta, isDemo]);
+    if (bet <= 0) return { maxPayout: 0 };
+    return { maxPayout: bet * MULTIPLIER_CURVE_HARD_CAP };
+  }, [bet]);
 
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -134,45 +117,26 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="text-4xl font-black tabular-nums text-white">R$ {fmt(bet)}</div>
         </div>
 
-        {economySource === "server" ? (
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Multiplicador máximo
-              </div>
-              <div className="text-sm font-black tabular-nums text-secondary flex items-center justify-center gap-1">
-                <TrendingUp size={12} />
-                {MULTIPLIER_CURVE_HARD_CAP}×
-              </div>
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+              Multiplicador máximo
             </div>
-            <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
-              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Pagamento máximo
-              </div>
-              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.maxPayout)}</div>
-              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">{"\n"}</div>
+            <div className="text-sm font-black tabular-nums text-secondary flex items-center justify-center gap-1">
+              <TrendingUp size={12} />
+              {MULTIPLIER_CURVE_HARD_CAP}×
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Por barreira
-              </div>
-              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perBarrier)}</div>
-              <div className="text-[9px] text-muted-foreground tabular-nums mt-0.5">
-                ×{(DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta).toFixed(2)}
-              </div>
+          <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
+            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+              Pagamento máximo
             </div>
-            <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
-              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                META
-              </div>
-              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
-              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">base ×{meta},00</div>
+            <div className="text-sm font-black tabular-nums text-secondary">
+              R$ {fmt(stats.maxPayout)}
             </div>
+            <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">{"\n"}</div>
           </div>
-        )}
+        </div>
 
         <p className="text-[11px] text-center text-muted-foreground bg-muted/40 rounded-xl px-3 py-2 border border-border">
           Saldo atual:{" "}
