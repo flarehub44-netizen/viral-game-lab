@@ -1,9 +1,17 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { parsePixInvokeError, toastPixEdgeError } from "@/lib/pixEdgeErrors";
 import { supabase } from "@/lib/supabaseExternal";
+
+interface RolloverInfo {
+  deposited: number;
+  wagered: number;
+  required: number;
+  remaining: number;
+  eligible: boolean;
+}
 
 type PixKeyTypeUi = "cpf" | "email" | "phone" | "evp";
 
