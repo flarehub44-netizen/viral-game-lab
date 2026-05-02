@@ -403,7 +403,12 @@ const Index = () => {
         activeRoundRef.current = res.round;
         setActiveRound(res.round);
         refreshDemoEconomy();
-        setScreen("playing");
+        const mult = res.round.result_multiplier ?? 0;
+        if (mult > 0) {
+          setPrePlayPopup({ multiplier: mult, barriers: res.round.target_barrier ?? 0 });
+        } else {
+          setScreen("playing");
+        }
       } finally {
         setStartingRound(false);
       }
