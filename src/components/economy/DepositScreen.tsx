@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { usePixDepositPolling } from "@/hooks/usePixDepositPolling";
 import { parsePixInvokeError, toastPixEdgeError } from "@/lib/pixEdgeErrors";
 import { supabase } from "@/lib/supabaseExternal";
+import { trackMeta } from "@/lib/metaPixel";
 
 interface Props {
   onBack: () => void;
-  onConfirmed: () => void | Promise<void>;
+  onConfirmed: (amount?: number) => void | Promise<void>;
 }
 
 const PRESETS = [10, 25, 50, 100];
@@ -45,7 +46,7 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
     }
     if (pollStatus === "confirmed") {
       toast.success("Depósito confirmado! Seu saldo foi atualizado.");
-      void onConfirmed();
+      void onConfirmed(amountNum);
       setDepositId(null);
       setQrCode("");
       setExpiresAt(null);
@@ -91,6 +92,12 @@ export const DepositScreen = ({ onBack, onConfirmed }: Props) => {
       setQrCode(d.qr_code);
       setExpiresAt(d.expires_at ?? null);
       toast.message("PIX gerado. Pague no app do seu banco.");
+      void trackMeta("AddPaymentInfo", {
+        value: amountNum,
+        currency: "BRL",
+        content_name: "pix_qr_generated",
+        content_category: "deposit",
+      });
     } finally {
       setBusy(false);
     }

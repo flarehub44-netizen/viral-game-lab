@@ -4,6 +4,7 @@ import { loadProgression, getRunGoals, type ProgressionProfile } from "@/game/pr
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { trackMetaCustom } from "@/lib/metaPixel";
 
 interface Props {
   onBack: () => void;
@@ -64,6 +65,11 @@ export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props)
       setClaimed((p) => ({ ...p, [key]: true }));
       const amount = Number(result?.bonus_amount ?? 0);
       toast.success(`+R$ ${amount.toFixed(2)} de bônus creditado!`);
+      trackMetaCustom("MissionClaimed", {
+        value: amount,
+        currency: "BRL",
+        mission_id: missionId,
+      });
     } catch (err: any) {
       const msg = String(err?.message || err?.context?.error || "");
       if (msg.includes("already_claimed")) {

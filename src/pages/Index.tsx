@@ -38,6 +38,7 @@ import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLay
 import { applyRound, type ProgressionProfile, type RoundResult } from "@/game/progression";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseExternal";
+import { trackMeta, trackMetaCustom } from "@/lib/metaPixel";
 import { toast } from "sonner";
 
 type ProfileRow = {
@@ -175,6 +176,28 @@ const Index = () => {
   const kycReturnRef = useRef<"deposit" | "withdraw" | null>(null);
 
   const [screen, setScreen] = useState<Screen>("lobby");
+
+  // Meta Pixel: dispara ViewContent quando muda de tela.
+  useEffect(() => {
+    const map: Record<Screen, { name: string; category: string }> = {
+      lobby: { name: "Lobby", category: "navigation" },
+      wallet: { name: "Wallet", category: "wallet" },
+      deposit: { name: "Deposit", category: "wallet" },
+      withdraw: { name: "Withdraw", category: "wallet" },
+      kycIdentity: { name: "KYC Identity", category: "compliance" },
+      roundSetup: { name: "Round Setup", category: "game" },
+      playing: { name: "Playing", category: "game" },
+      over: { name: "Game Over", category: "game" },
+      leaderboard: { name: "Leaderboard", category: "navigation" },
+      rules: { name: "Rules", category: "navigation" },
+      missions: { name: "Missions", category: "engagement" },
+      achievements: { name: "Achievements", category: "engagement" },
+    };
+    const m = map[screen];
+    if (m) {
+      void trackMeta("ViewContent", { content_name: m.name, content_category: m.category });
+    }
+  }, [screen]);
   const [nickname, setNickname] = useState("");
   const [demoNickname, setDemoNickname] = useState(() => {
     try {
@@ -322,6 +345,7 @@ const Index = () => {
 
   const handleKycIdentitySaved = useCallback(async () => {
     await reloadProfile();
+    void trackMeta("Lead", { content_name: "kyc_identity_saved", content_category: "compliance" });
     const next = kycReturnRef.current;
     kycReturnRef.current = null;
     if (next === "deposit") setScreen("deposit");
@@ -329,12 +353,23 @@ const Index = () => {
     else setScreen("wallet");
   }, [reloadProfile]);
 
-  const handlePixDepositConfirmed = useCallback(async () => {
+  const handlePixDepositConfirmed = useCallback(async (amount?: number) => {
     await refreshEconomy();
+    void trackMeta("Purchase", {
+      value: typeof amount === "number" ? amount : 0,
+      currency: "BRL",
+      content_name: "pix_deposit_confirmed",
+      content_category: "deposit",
+      content_type: "deposit",
+    });
   }, [refreshEconomy]);
 
-  const handlePixWithdrawRequested = useCallback(async () => {
+  const handlePixWithdrawRequested = useCallback(async (amount?: number) => {
     await refreshEconomy();
+    trackMetaCustom("WithdrawRequested", {
+      value: typeof amount === "number" ? amount : 0,
+      currency: "BRL",
+    });
   }, [refreshEconomy]);
 
   useEffect(() => {
@@ -383,6 +418,11 @@ const Index = () => {
     setIsNewBest(false);
     setPrePlayPopup(null);
     setScreen("roundSetup");
+    void trackMeta("InitiateCheckout", {
+      content_name: "round_setup_open",
+      content_category: "game",
+      currency: "BRL",
+    });
   };
 
   const exitPlaying = () => {
@@ -415,6 +455,13 @@ const Index = () => {
   };
 
   const confirmStakeAndPlay = async (stake: number, targetMultiplier: number) => {
+    void trackMeta("AddToCart", {
+      value: stake,
+      currency: "BRL",
+      content_name: `stake_${stake}_target_${targetMultiplier}x`,
+      content_category: "game",
+      content_type: "round_stake",
+    });
     if (isDemo) {
       setStartingRound(true);
       try {
@@ -544,6 +591,19 @@ const Index = () => {
       }
     }
     setServerEconomy(finalEconomy);
+
+    if (finalEconomy && !isDemo) {
+      const won = finalEconomy.payout > 0;
+      trackMetaCustom(won ? "RoundWin" : "RoundLoss", {
+        value: won ? finalEconomy.payout : finalEconomy.stake,
+        currency: "BRL",
+        stake: finalEconomy.stake,
+        payout: finalEconomy.payout,
+        net_result: finalEconomy.netResult,
+        result_multiplier: finalEconomy.resultMultiplier,
+        reached_target: finalEconomy.reachedTarget,
+      });
+    }
 
     const result = applyRound(
       {
@@ -703,7 +763,10 @@ const Index = () => {
     return (
       <main className="fixed inset-0 w-full h-full overflow-hidden neon-app-backdrop">
         <div className="relative w-full h-full neon-app-column neon-app-frame md:my-4 md:h-[calc(100%-2rem)] md:overflow-y-auto">
-          <AgeGateScreen onConfirmed={() => void reloadProfile()} />
+          <AgeGateScreen onConfirmed={() => {
+            void trackMeta("Lead", { content_name: "age_gate_confirmed", content_category: "compliance" });
+            void reloadProfile();
+          }} />
         </div>
       </main>
     );

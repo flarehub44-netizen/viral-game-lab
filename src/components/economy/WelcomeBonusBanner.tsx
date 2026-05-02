@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Gift, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { trackMetaCustom } from "@/lib/metaPixel";
 
 interface Props {
   onClaimed: () => void;
@@ -40,6 +41,11 @@ export function WelcomeBonusBanner({ onClaimed }: Props) {
       toast({
         title: "🎉 Bônus liberado!",
         description: `R$ ${data.bonus_amount.toFixed(2)} de bônus + ${data.free_spins} rodadas grátis. Aposte R$ ${(data.bonus_amount * data.rollover_multiplier).toFixed(2)} para sacar.`,
+      });
+      trackMetaCustom("WelcomeBonusClaimed", {
+        value: Number(data.bonus_amount),
+        currency: "BRL",
+        free_spins: data.free_spins,
       });
       onClaimed();
     } catch (e) {

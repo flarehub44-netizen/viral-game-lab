@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Flame, X, Loader2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { trackMetaCustom } from "@/lib/metaPixel";
 
 const REWARDS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5];
 
@@ -39,6 +40,11 @@ export function DailyLoginPopup({ currentStreak, onClaimed, onClose }: Props) {
       toast({
         title: `🔥 Dia ${data.streak_day}!`,
         description: `+R$ ${Number(data.bonus_amount).toFixed(2)} em saldo bônus.`,
+      });
+      trackMetaCustom("DailyLoginClaimed", {
+        value: Number(data.bonus_amount),
+        currency: "BRL",
+        streak_day: data.streak_day,
       });
       onClaimed(data.streak_day, Number(data.bonus_amount));
     } catch (e) {

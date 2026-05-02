@@ -20,7 +20,7 @@ interface Props {
   kycApproved: boolean;
   over18: boolean;
   onBack: () => void;
-  onRequested: () => void | Promise<void>;
+  onRequested: (amount?: number) => void | Promise<void>;
 }
 
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -135,7 +135,7 @@ export const WithdrawScreen = ({ walletBalance, kycApproved, over18, onBack, onR
       }
       setDoneRef(d.provider_ref ?? "ok");
       toast.success("Saque solicitado. Acompanhe o status na carteira.");
-      await onRequested();
+      await onRequested(amountNum);
     } finally {
       setBusy(false);
     }
