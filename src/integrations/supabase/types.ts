@@ -415,6 +415,8 @@ export type Database = {
       pix_withdrawals: {
         Row: {
           amount: number
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           id: string
           idempotency_key: string | null
@@ -422,12 +424,17 @@ export type Database = {
           pix_key_type: string
           processed_at: string | null
           provider_ref: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           status: string
           user_id: string
           webhook_payload: Json
         }
         Insert: {
           amount: number
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
           idempotency_key?: string | null
@@ -435,12 +442,17 @@ export type Database = {
           pix_key_type: string
           processed_at?: string | null
           provider_ref?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           user_id: string
           webhook_payload?: Json
         }
         Update: {
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           id?: string
           idempotency_key?: string | null
@@ -448,6 +460,9 @@ export type Database = {
           pix_key_type?: string
           processed_at?: string | null
           provider_ref?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           status?: string
           user_id?: string
           webhook_payload?: Json
@@ -706,6 +721,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_approve_withdrawal: {
+        Args: { p_actor: string; p_withdrawal_id: string }
+        Returns: string
+      }
       admin_ban_user: {
         Args: { p_actor: string; p_target: string }
         Returns: undefined
@@ -740,6 +759,10 @@ export type Database = {
           p_target: string
         }
         Returns: undefined
+      }
+      admin_reject_withdrawal: {
+        Args: { p_actor: string; p_reason: string; p_withdrawal_id: string }
+        Returns: string
       }
       admin_sandbox_round: {
         Args: {
