@@ -19,7 +19,7 @@ import { MULTIPLIER_TIERS, sampleMultiplier, theoreticalRtp } from "@/game/econo
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
 import type { ActiveServerRound } from "@/game/economy/serverRound";
 import { invokeAdminAction } from "@/lib/adminAction";
-import { BET_AMOUNTS, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { BET_AMOUNTS } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
 
 const MULTS = MULTIPLIER_TIERS.map((t) => t.multiplier);
@@ -66,7 +66,8 @@ export const AdminSandbox = () => {
     return generateDeterministicLayout(activeRound.layout_seed, activeRound.target_barrier);
   }, [activeRound]);
 
-  const maxPayout = bet > 0 ? Math.min(bet * MULTIPLIER_CURVE_HARD_CAP, MAX_ROUND_PAYOUT) : 0;
+  // Sandbox: visual sem teto de R$ 400 — mostra entrada × multiplicador máximo da curva.
+  const maxPayout = bet > 0 ? bet * MULTIPLIER_CURVE_HARD_CAP : 0;
   const canPlay = bet > 0 && !busy;
 
   const startPlay = async (overrideMult?: number, overrideBarrier?: number) => {
@@ -289,8 +290,12 @@ export const AdminSandbox = () => {
         {/* Saldo fake */}
         <p className="text-[11px] text-center text-muted-foreground bg-muted/40 rounded-xl px-3 py-2 border border-border">
           Saldo (simulado):{" "}
-          <span className="text-foreground font-bold tabular-nums">R$ {fmt(FAKE_BALANCE)}</span> ·
-          carteira real não é tocada.
+          <span className="text-foreground font-bold tabular-nums">R$ {fmt(FAKE_BALANCE)}</span>.{" "}
+          Pagamento: entrada × multiplicador da curva. Carteira real não é tocada.
+        </p>
+
+        <p className="text-[10px] text-center text-muted-foreground px-1 leading-relaxed">
+          Jogue com responsabilidade. Proibido para menores de 18 anos.
         </p>
 
         {/* Resultado da última rodada sandbox */}
