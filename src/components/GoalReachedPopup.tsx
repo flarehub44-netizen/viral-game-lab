@@ -15,7 +15,7 @@ export function GoalReachedPopup({ multiplier, barriers, onContinue }: GoalReach
   // Multiplicador como porcentagem (×1.50 → 150%).
   const percent = Math.round(multiplier * 100);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
       role="dialog"
@@ -38,6 +38,7 @@ export function GoalReachedPopup({ multiplier, barriers, onContinue }: GoalReach
           Fechar
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
