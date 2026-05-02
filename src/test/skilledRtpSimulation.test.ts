@@ -138,10 +138,13 @@ interface Profile {
  * Bandas com folga de ±2pp para variância amostral entre seeds.
  * Se mudarmos a curva ou o layout, recalibrar.
  */
+// Calibração pós-alongamento da curva (1.5x): RTP cai naturalmente porque cada
+// tier exige mais barreiras. Valores empíricos observados (100k rodadas, 10 seeds):
+//   casual  ~78,9% | skilled ~82,5% | expert  ~84,9%
 const PROFILES: Profile[] = [
-  { name: "casual",  skillFactor: 1.92, rtpMin: 0.83, rtpMax: 0.89 },
-  { name: "skilled", skillFactor: 2.00, rtpMin: 0.88, rtpMax: 0.94 },
-  { name: "expert",  skillFactor: 2.05, rtpMin: 0.92, rtpMax: 0.98 },
+  { name: "casual",  skillFactor: 1.92, rtpMin: 0.76, rtpMax: 0.82 },
+  { name: "skilled", skillFactor: 2.00, rtpMin: 0.79, rtpMax: 0.86 },
+  { name: "expert",  skillFactor: 2.05, rtpMin: 0.81, rtpMax: 0.88 },
 ];
 
 describe("Monte Carlo — Phase 2 tail RTP", () => {
