@@ -809,6 +809,7 @@ const Index = () => {
             onBack={() => setScreen("lobby")}
             onConfirm={confirmStakeAndPlay}
             economySource={economySourceUi}
+            freeSpinsRemaining={bonusInfo?.free_spins_remaining ?? 0}
           />
         )}
 

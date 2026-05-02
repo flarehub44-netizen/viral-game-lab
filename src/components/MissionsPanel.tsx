@@ -1,14 +1,86 @@
-import { ArrowLeft, Target, Check, Flag } from "lucide-react";
+import { ArrowLeft, Target, Check, Flag, Gift, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { loadProgression, getRunGoals, type ProgressionProfile } from "@/game/progression";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface Props {
   onBack: () => void;
   progressionProfile?: ProgressionProfile;
 }
 
+const CLAIMED_KEY = "ns_mission_claims_v1";
+
+function loadLocalClaims(): Record<string, true> {
+  try {
+    const raw = localStorage.getItem(CLAIMED_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalClaim(key: string) {
+  const all = loadLocalClaims();
+  all[key] = true;
+  try {
+    localStorage.setItem(CLAIMED_KEY, JSON.stringify(all));
+  } catch {
+    void 0;
+  }
+}
+
+function todayKey(missionId: string): string {
+  const d = new Date();
+  const seed = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return `${seed}:${missionId}`;
+}
+
 export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props) => {
+  const { session } = useAuth();
   const data = loadProgression(progressionProfile);
   const runGoals = getRunGoals();
+  const isReal = progressionProfile === "default" && !!session;
+
+  const [claimed, setClaimed] = useState<Record<string, true>>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setClaimed(loadLocalClaims());
+  }, []);
+
+  async function claim(missionId: string) {
+    if (!isReal) return;
+    setLoadingId(missionId);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("claim-mission", {
+        body: { mission_id: missionId },
+      });
+      if (error) throw error;
+      const key = todayKey(missionId);
+      saveLocalClaim(key);
+      setClaimed((p) => ({ ...p, [key]: true }));
+      const amount = Number(result?.bonus_amount ?? 0);
+      toast.success(`+R$ ${amount.toFixed(2)} de bônus creditado!`);
+    } catch (err: any) {
+      const msg = String(err?.message || err?.context?.error || "");
+      if (msg.includes("already_claimed")) {
+        const key = todayKey(missionId);
+        saveLocalClaim(key);
+        setClaimed((p) => ({ ...p, [key]: true }));
+        toast.info("Você já reclamou essa missão hoje");
+      } else if (msg.includes("no_qualifying_rounds_today")) {
+        toast.error("Jogue ao menos 1 rodada real hoje para reclamar");
+      } else {
+        toast.error("Falha ao reclamar bônus");
+      }
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   return (
     <div className="absolute inset-0 flex flex-col p-6 bg-gradient-to-b from-background via-background to-card overflow-y-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -24,7 +96,7 @@ export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props)
             <Target size={22} /> Missões
           </h2>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            Reseta à meia-noite
+            Reseta à meia-noite{isReal ? " — completas pagam R$ 0,10 de bônus" : ""}
           </p>
         </div>
       </div>
@@ -32,6 +104,9 @@ export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props)
       <div className="flex flex-col gap-3">
         {data.missions.list.map((m) => {
           const pct = Math.min(100, (m.progress / m.goal) * 100);
+          const claimKey = todayKey(m.id);
+          const wasClaimed = claimed[claimKey] === true;
+          const canClaim = isReal && m.done && !wasClaimed;
           return (
             <div
               key={m.id}
@@ -57,6 +132,28 @@ export const MissionsPanel = ({ onBack, progressionProfile = "default" }: Props)
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 tabular-nums">
                 {Math.min(m.progress, m.goal)} / {m.goal}
               </div>
+              {isReal && m.done && (
+                <div className="mt-3">
+                  {wasClaimed ? (
+                    <div className="text-[11px] uppercase tracking-widest text-primary font-bold flex items-center gap-1">
+                      <Check size={12} /> Bônus reclamado
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => claim(m.id)}
+                      disabled={!canClaim || loadingId === m.id}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-secondary text-primary-foreground text-xs font-bold py-2 hover:opacity-90 disabled:opacity-50"
+                    >
+                      {loadingId === m.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Gift size={14} />
+                      )}
+                      Reclamar R$ 0,10 de bônus
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

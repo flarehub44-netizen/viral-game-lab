@@ -1,4 +1,4 @@
-import { ArrowLeft, Target, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Users, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
 import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
@@ -11,6 +11,7 @@ interface Props {
   /** Valor da entrada (R$ / saldo servidor). */
   onConfirm: (stake: number, targetMultiplier: number) => void;
   economySource: "demo" | "server";
+  freeSpinsRemaining?: number;
 }
 
 function pseudoOnlinePlayers(): number {
@@ -20,7 +21,7 @@ function pseudoOnlinePlayers(): number {
   return 300 + (daySeed % 120);
 }
 
-export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource }: Props) => {
+export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0 }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
   // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
@@ -54,8 +55,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const canPlay = bet > 0 && balance >= bet && !busy;
-  const insufficient = bet > 0 && balance < bet;
+  const hasFreeSpin = economySource === "server" && freeSpinsRemaining > 0;
+  const usingFreeSpin = hasFreeSpin && bet === 1;
+  // Free spin não exige saldo
+  const canPlay = bet > 0 && (usingFreeSpin || balance >= bet) && !busy;
+  const insufficient = bet > 0 && !usingFreeSpin && balance < bet;
 
   return (
     <div className="absolute inset-0 flex flex-col bg-gradient-to-b from-[hsl(270_45%_10%)] via-background to-background overflow-y-auto">
@@ -128,21 +132,37 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
             Valor de entrada (R$)
           </div>
+          {hasFreeSpin && (
+            <div className="mb-3 mx-auto max-w-md rounded-xl border border-[hsl(45_95%_55%/0.5)] bg-[hsl(45_60%_15%/0.3)] px-3 py-2 text-[11px] text-[hsl(45_90%_75%)] text-center leading-snug flex items-center justify-center gap-1.5">
+              <Sparkles size={12} />
+              Você tem <strong>{freeSpinsRemaining} giro{freeSpinsRemaining > 1 ? "s" : ""} grátis</strong> — escolha R$ 1 para usar
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 justify-center">
-            {BET_AMOUNTS.map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                onClick={() => setBet(amount)}
-                className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
-                  bet === amount
-                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)]"
-                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {amount}
-              </button>
-            ))}
+            {BET_AMOUNTS.map((amount) => {
+              const isFreeOption = hasFreeSpin && amount === 1;
+              return (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => setBet(amount)}
+                  className={`relative min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
+                    bet === amount
+                      ? "border-primary bg-primary/20 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)]"
+                      : isFreeOption
+                        ? "border-[hsl(45_95%_55%)] bg-[hsl(45_60%_15%/0.4)] text-[hsl(45_95%_70%)]"
+                        : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {amount}
+                  {isFreeOption && (
+                    <span className="absolute -top-1.5 -right-1.5 text-[8px] bg-[hsl(45_95%_55%)] text-background rounded-full px-1 font-black">
+                      FREE
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -223,7 +243,9 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               ? "Selecione um valor"
               : insufficient
                 ? "Saldo insuficiente"
-                : "JOGAR"}
+                : usingFreeSpin
+                  ? "JOGAR (GIRO GRÁTIS)"
+                  : "JOGAR"}
         </button>
       </div>
     </div>
