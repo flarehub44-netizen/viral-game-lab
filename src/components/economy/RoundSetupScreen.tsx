@@ -211,7 +211,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           Saldo atual:{" "}
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
-            ? "Pagamento: entrada × multiplicador sorteado, somente se atingir a meta."
+            ? "Pagamento: entrada × multiplicador."
             : `Pagamento: entrada × 0,05 × base × barreiras.`}
         </p>
 
