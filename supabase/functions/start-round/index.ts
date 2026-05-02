@@ -133,9 +133,11 @@ Deno.serve(async (req) => {
         ? headerIdem
         : crypto.randomUUID();
 
-  if (mode !== "target_20x") {
+  const ALLOWED_MODES = ["target_5x", "target_10x", "target_15x", "target_20x"] as const;
+  if (!ALLOWED_MODES.includes(mode as typeof ALLOWED_MODES[number])) {
     return json(400, { error: "invalid_mode" });
   }
+  const targetMultiplier = Number(mode.replace(/^target_/, "").replace(/x$/, "")) || 20;
 
   if (!Number.isFinite(stake) || stake < MIN_STAKE || stake > MAX_STAKE) {
     return json(400, { error: "invalid_stake" });
@@ -241,7 +243,7 @@ Deno.serve(async (req) => {
     ok: true,
     round_id: row.id,
     stake_amount: Number(row.stake),
-    target_multiplier: TARGET_MULT,
+    target_multiplier: targetMultiplier,
     result_multiplier: Number(row.result_multiplier),
     payout_amount: Number(row.payout),
     net_result: Number(row.net_result),
