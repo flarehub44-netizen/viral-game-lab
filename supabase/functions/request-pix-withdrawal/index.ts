@@ -159,21 +159,20 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Passo 1: reserva saldo e cria registro no banco ANTES de chamar SyncPay.
-  // Evita double-spend se o banco falhar após o SyncPay ter executado.
+  // Cria o pedido em status 'pending_approval'. O saldo já é debitado
+  // (reservado) aqui. O envio ao SyncPay só acontece depois que um admin
+  // aprovar via admin-action (type=approve_withdrawal).
   const { data: withdrawalId, error: wdErr } = await admin.rpc("request_pix_withdrawal", {
     p_user_id: user.id,
     p_amount: amount,
     p_pix_key: pixKey,
     p_pix_key_type: pixKeyType,
-    // provider_ref omitido: será definido em finalize_pix_withdrawal após SyncPay
     p_idempotency_key: idempotencyKey,
   });
   if (wdErr) {
     const msg = wdErr.message ?? "";
     if (msg.includes("insufficient_balance")) return json(400, { error: "insufficient_balance" });
     if (msg.includes("rollover_not_met")) {
-      // Formato: "rollover_not_met:<deposited>:<wagered>:<required>"
       const m = msg.match(/rollover_not_met:([\d.]+):([\d.]+):([\d.]+)/);
       const deposited = m ? Number(m[1]) : undefined;
       const wagered = m ? Number(m[2]) : undefined;
@@ -193,49 +192,9 @@ Deno.serve(async (req) => {
     return json(500, { error: "withdraw_request_failed" });
   }
 
-  // Passo 2: chama SyncPay. Em caso de falha, reverte o saldo.
-  let syncPayResp: { reference_id: string; message: string };
-  try {
-    syncPayResp = await syncPayCreateCashOut({
-      amount,
-      description: `Neon withdrawal user=${user.id}`,
-      pix_key_type: toSyncPayPixType(pixKeyType),
-      pix_key: pixKey,
-      document: {
-        type: "cpf",
-        number: pixKeyType === "cpf" ? normalizeDigits(pixKey) : ownerCpfDigits,
-      },
-    });
-  } catch (e) {
-    console.error("syncPayCreateCashOut:", e);
-    // Reverte: restaura saldo e marca withdrawal como failed
-    const { error: revErr } = await admin.rpc("reverse_pix_withdrawal", {
-      p_withdrawal_id: withdrawalId,
-    });
-    if (revErr) {
-      console.error("reverse_pix_withdrawal failed — manual intervention required:", revErr, { withdrawalId });
-    }
-    return json(502, { error: "syncpay_cashout_failed" });
-  }
-
-  // Passo 3: vincula provider_ref ao registro criado no banco
-  const { error: finalErr } = await admin.rpc("finalize_pix_withdrawal", {
-    p_withdrawal_id: withdrawalId,
-    p_provider_ref: syncPayResp.reference_id,
-  });
-  if (finalErr) {
-    // SyncPay já enviou — logar para intervenção manual mas não reverter
-    console.error("finalize_pix_withdrawal failed:", finalErr, {
-      withdrawalId,
-      syncpay_ref: syncPayResp.reference_id,
-    });
-  }
-
   return json(200, {
     ok: true,
     withdrawal_id: withdrawalId,
-    status: "requested",
-    provider_ref: syncPayResp.reference_id,
-    provider_message: syncPayResp.message,
+    status: "pending_approval",
   });
 });
