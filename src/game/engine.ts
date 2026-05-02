@@ -690,7 +690,16 @@ export class GameEngine {
         }
       }
 
-      if (bar.y + bar.height < this.height * 0.25 - 20 && !bar.passed) {
+      // Limite a partir do qual a barreira é considerada "passada":
+      // - live: linha fixa no topo da área de jogo (comportamento original).
+      // - demo/sandbox: contabiliza assim que a barreira cruza a faixa onde
+      //   as bolinhas efetivamente jogam (centro da play zone), para que o
+      //   HUD avance no mesmo instante em que a bolinha passa visualmente.
+      const passLineY =
+        this.mode === "demo"
+          ? this.height * 0.40 // ~centro entre playZoneTop (0.25) e playZoneBottom (0.55)
+          : this.height * 0.25 - 20;
+      if (bar.y + bar.height < passLineY && !bar.passed) {
         bar.passed = true;
         bar.passedAt = ts;
         this.barriersPassedCount += 1;
