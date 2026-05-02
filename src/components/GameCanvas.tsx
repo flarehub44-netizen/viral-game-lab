@@ -35,6 +35,7 @@ interface Props {
   targetBarrier?: number;
   mode?: "demo" | "live";
   layoutPlan?: LayoutBarrier[] | null;
+  layoutSeed?: string | null;
   stakeCredits?: number;
   /** Meta de payout (ex.: 20). */
   targetMultiplier?: number;
@@ -66,6 +67,7 @@ export const GameCanvas = ({
   targetBarrier,
   mode = "demo",
   layoutPlan,
+  layoutSeed,
   stakeCredits,
   targetMultiplier,
   resultMultiplier,
@@ -182,6 +184,7 @@ export const GameCanvas = ({
       targetBarrier,
       finalMultiplier: resultMultiplier,
       layoutPlan: layoutPlan ?? null,
+      layoutSeed: layoutSeed ?? null,
     });
 
     return () => {
@@ -192,7 +195,7 @@ export const GameCanvas = ({
       engine.stop();
       engineRef.current = null;
     };
-  }, [roundId, visualScript, allowScriptTerminate, mode, targetBarrier, resultMultiplier, layoutPlan]);
+  }, [roundId, visualScript, allowScriptTerminate, mode, targetBarrier, resultMultiplier, layoutPlan, layoutSeed]);
 
   const handleTap = useCallback(
     (e: React.PointerEvent) => {

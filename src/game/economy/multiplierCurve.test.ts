@@ -23,13 +23,29 @@ describe("multiplierForBarriers", () => {
   });
 
   it("saturates at the hard cap above the last anchor", () => {
-    expect(multiplierForBarriers(20)).toBe(20);
-    expect(multiplierForBarriers(50)).toBe(20);
-    expect(multiplierForBarriers(1_000)).toBe(20);
+    expect(multiplierForBarriers(40)).toBe(50);
+    expect(multiplierForBarriers(80)).toBe(50);
+    expect(multiplierForBarriers(1_000)).toBe(50);
+  });
+
+  it("phase-2 tail anchors hit exactly", () => {
+    expect(multiplierForBarriers(20)).toBeCloseTo(20, 2);
+    expect(multiplierForBarriers(22)).toBeCloseTo(26, 2);
+    expect(multiplierForBarriers(25)).toBeCloseTo(32, 2);
+    expect(multiplierForBarriers(30)).toBeCloseTo(40, 2);
+  });
+
+  it("phase-2 tail interpolates monotonically", () => {
+    const m20 = multiplierForBarriers(20);
+    const m21 = multiplierForBarriers(21);
+    const m23 = multiplierForBarriers(23);
+    const m27 = multiplierForBarriers(27);
+    expect(m21).toBeGreaterThan(m20);
+    expect(m23).toBeGreaterThan(m21);
+    expect(m27).toBeGreaterThan(m23);
   });
 
   it("anchors cover all multiplier tiers (preserves theoretical RTP)", () => {
-    // Cada tier da MULTIPLIER_TIERS deve ter uma âncora correspondente, exceto extras.
     const anchorMults = new Set(MULTIPLIER_CURVE_ANCHORS.map(([, m]) => m));
     for (const tier of MULTIPLIER_TIERS) {
       expect(anchorMults.has(tier.multiplier)).toBe(true);

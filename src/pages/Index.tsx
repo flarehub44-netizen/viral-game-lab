@@ -782,6 +782,7 @@ const Index = () => {
             mode={isDemo ? "demo" : "live"}
             targetBarrier={activeRound.target_barrier}
             layoutPlan={isDemo ? null : activeLayout}
+            layoutSeed={isDemo ? null : activeRound.layout_seed}
             onGameOver={handleGameOver}
             onExit={exitPlaying}
             stakeCredits={activeRound.stake_amount}

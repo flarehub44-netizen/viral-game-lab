@@ -3,7 +3,13 @@ import type { RoundScript } from "./economy/multiplierTable";
 import { getDifficultySnapshot } from "./difficulty";
 import { multiplierForBarriers } from "./economy/multiplierCurve";
 import { calculateZones } from "./economy/zoneCalculator";
-import type { LayoutBarrier } from "./economy/liveDeterministicLayout";
+import {
+  buildLayoutRow,
+  hashSeed,
+  mulberry32,
+  PHASE2_SPEED_CEIL,
+  type LayoutBarrier,
+} from "./economy/liveDeterministicLayout";
 
 // Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
@@ -186,6 +192,8 @@ export class GameEngine {
   private currentClimbMultiplier = 0;
   private layoutPlan: LayoutBarrier[] | null = null;
   private layoutCursor = 0;
+  private layoutSeed: string | null = null;
+  private proceduralRng: (() => number) | null = null;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
@@ -227,6 +235,7 @@ export class GameEngine {
     targetBarrier?: number;
     finalMultiplier?: number;
     layoutPlan?: LayoutBarrier[] | null;
+    layoutSeed?: string | null;
   }) {
     this.script = opts?.script ?? null;
     this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
@@ -236,6 +245,11 @@ export class GameEngine {
     this.currentClimbMultiplier = 0;
     this.layoutPlan = opts?.layoutPlan ?? null;
     this.layoutCursor = 0;
+    this.layoutSeed = opts?.layoutSeed ?? null;
+    // RNG procedural para a Fase 2 (quando o jogador excede o `layoutPlan`).
+    this.proceduralRng = this.layoutSeed
+      ? mulberry32(hashSeed(`${this.layoutSeed}::phase2`))
+      : null;
     this.reset();
     this.spawnInitialBall();
     this.nextSpawnIn = 1.2;
@@ -381,8 +395,16 @@ export class GameEngine {
     // Cor única (verde neon) para todas as barreiras — nada de cor por zona.
     const NEON_HUE = 140;
 
-    if (this.mode === "live" && this.layoutPlan && this.layoutCursor < this.layoutPlan.length) {
-      const row = this.layoutPlan[this.layoutCursor++];
+    if (this.mode === "live" && this.layoutPlan) {
+      // Pega a próxima linha do plano OU gera proceduralmente para suportar
+      // jogadores que excederem o tamanho do `layoutPlan` (Fase 2 — continuidade infinita).
+      let row: LayoutBarrier;
+      if (this.layoutCursor < this.layoutPlan.length) {
+        row = this.layoutPlan[this.layoutCursor++]!;
+      } else {
+        const rng = this.proceduralRng ?? Math.random;
+        row = buildLayoutRow(this.layoutCursor++, this.targetBarrier, rng);
+      }
       const start = Math.max(0.01, Math.min(0.95, row.gapPosition));
       const end = Math.min(0.99, start + row.gapSize);
       this.barriers.push({
@@ -391,7 +413,7 @@ export class GameEngine {
         gaps: [{ start, end }],
         hue: NEON_HUE,
         passed: false,
-        speed: row.speed,
+        speed: Math.min(PHASE2_SPEED_CEIL, row.speed),
       });
       return;
     }
@@ -506,7 +528,13 @@ export class GameEngine {
     if (this.spawnTimer >= this.nextSpawnIn) {
       this.spawnTimer -= this.nextSpawnIn;
       const difficulty = getDifficultySnapshot(this.elapsedMs);
-      this.nextSpawnIn = difficulty.barrierSpawnEverySec;
+      let nextSpawn = difficulty.barrierSpawnEverySec;
+      // Fase 2: acelera o spawn em modo live conforme o jogador passa do alvo.
+      if (this.mode === "live" && this.targetBarrier > 0 && this.barriersPassedCount > this.targetBarrier) {
+        const extra = this.barriersPassedCount - this.targetBarrier;
+        nextSpawn = Math.max(0.45, nextSpawn * Math.pow(0.95, extra));
+      }
+      this.nextSpawnIn = nextSpawn;
       this.spawnBarrier();
     }
 
