@@ -4,6 +4,7 @@ import { loadProgression, getRunGoals, type ProgressionProfile } from "@/game/pr
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { trackMetaCustom } from "@/lib/metaPixel";
 
 interface Props {
   onBack: () => void;
