@@ -45,8 +45,9 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
       const metaGain = bet * meta;
       return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS, maxPayout: 0 };
     }
-    // Live: pagamento depende da curva. Mostramos o teto possível (cap × stake, limitado por MAX_ROUND_PAYOUT).
-    const maxPayout = Math.min(MAX_ROUND_PAYOUT, bet * MULTIPLIER_CURVE_HARD_CAP);
+    // Live: potencial bruto (entrada × multiplicador máximo da curva), sem aplicar o teto aqui.
+    // O teto R$ MAX_ROUND_PAYOUT é exibido como referência separada no card.
+    const maxPayout = bet * MULTIPLIER_CURVE_HARD_CAP;
     return { metaGain: 0, perBarrier: 0, platForMeta: 0, maxPayout };
   }, [bet, meta, isDemo]);
 
