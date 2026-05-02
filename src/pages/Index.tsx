@@ -507,9 +507,13 @@ const Index = () => {
           mode: "live",
         };
         const targetBarrier = settled.target_barrier ?? 0;
-        if (targetBarrier > 0 && barriersPassed >= targetBarrier) {
+        const liveMult = settled.result_multiplier ?? 0;
+        if (
+          (targetBarrier > 0 && barriersPassed >= targetBarrier) ||
+          liveMult > 0
+        ) {
           goalHit = {
-            multiplier: settled.target_multiplier ?? settled.result_multiplier ?? 0,
+            multiplier: liveMult || settled.target_multiplier || 0,
             barriers: barriersPassed,
           };
         }
