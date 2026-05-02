@@ -455,6 +455,13 @@ const Index = () => {
   };
 
   const confirmStakeAndPlay = async (stake: number, targetMultiplier: number) => {
+    void trackMeta("AddToCart", {
+      value: stake,
+      currency: "BRL",
+      content_name: `stake_${stake}_target_${targetMultiplier}x`,
+      content_category: "game",
+      content_type: "round_stake",
+    });
     if (isDemo) {
       setStartingRound(true);
       try {
