@@ -491,7 +491,7 @@ const Index = () => {
           targetBarrier: 0,
           mode: "demo",
         };
-        if (barriersPassed >= 20) {
+        if (settledDemo.payout > 0 && settledDemo.multiplier > 0) {
           goalHit = { multiplier: settledDemo.multiplier, barriers: barriersPassed };
         }
       } else {
