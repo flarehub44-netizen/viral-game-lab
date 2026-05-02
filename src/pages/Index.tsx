@@ -143,12 +143,17 @@ const Index = () => {
     setGuestDemoActive(true);
   }, []);
 
-  const leaveDemoToAuth = useCallback(() => {
+  const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("login");
+  const [showDemoLimit, setShowDemoLimit] = useState(false);
+
+  const leaveDemoToAuth = useCallback((mode: "login" | "register" = "login") => {
     try {
       sessionStorage.setItem(PLAY_MODE_KEY, "auth");
     } catch {
       /* ignore */
     }
+    setAuthInitialMode(mode);
+    setShowDemoLimit(false);
     setGuestDemoActive(false);
   }, []);
 
