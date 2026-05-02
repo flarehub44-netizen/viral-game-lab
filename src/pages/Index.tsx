@@ -491,7 +491,7 @@ const Index = () => {
           targetBarrier: 0,
           mode: "demo",
         };
-        if (barriersPassed >= 20) {
+        if (settledDemo.payout > 0 && settledDemo.multiplier > 0) {
           goalHit = { multiplier: settledDemo.multiplier, barriers: barriersPassed };
         }
       } else {
@@ -507,9 +507,13 @@ const Index = () => {
           mode: "live",
         };
         const targetBarrier = settled.target_barrier ?? 0;
-        if (targetBarrier > 0 && barriersPassed >= targetBarrier) {
+        const liveMult = settled.result_multiplier ?? 0;
+        if (
+          (targetBarrier > 0 && barriersPassed >= targetBarrier) ||
+          liveMult > 0
+        ) {
           goalHit = {
-            multiplier: settled.target_multiplier ?? settled.result_multiplier ?? 0,
+            multiplier: liveMult || settled.target_multiplier || 0,
             barriers: barriersPassed,
           };
         }
@@ -533,8 +537,13 @@ const Index = () => {
     );
     setLastProgression(result);
 
-    setScreen("over");
-    if (goalHit) setGoalPopup(goalHit);
+    if (goalHit) {
+      // Mostra popup obrigatório ANTES de ir para a tela de fim de jogo.
+      // A transição para "over" só acontece quando o jogador clica em "Fechar".
+      setGoalPopup(goalHit);
+    } else {
+      setScreen("over");
+    }
 
     if (isDemo) {
       refreshDemoEconomy();
@@ -833,7 +842,10 @@ const Index = () => {
           <GoalReachedPopup
             multiplier={goalPopup.multiplier}
             barriers={goalPopup.barriers}
-            onContinue={() => setGoalPopup(null)}
+            onContinue={() => {
+              setGoalPopup(null);
+              if (screen !== "over") setScreen("over");
+            }}
           />
         )}
       </div>
