@@ -56,12 +56,7 @@ function validatePixKey(pixKey: string, pixKeyType: string): string | null {
   return null;
 }
 
-function toSyncPayPixType(pixKeyType: string): "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP" {
-  if (pixKeyType === "cpf") return "CPF";
-  if (pixKeyType === "email") return "EMAIL";
-  if (pixKeyType === "phone") return "PHONE";
-  return "EVP";
-}
+// (envio ao SyncPay agora é feito pela edge function admin-action ao aprovar)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
