@@ -757,6 +757,10 @@ const Index = () => {
   };
 
   const handleRetry = () => {
+    if (isDemo && hasPlayedDemo()) {
+      setShowDemoLimit(true);
+      return;
+    }
     setServerEconomy(null);
     openRoundSetup();
   };
