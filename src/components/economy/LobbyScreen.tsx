@@ -107,8 +107,7 @@ export const LobbyScreen = ({
             </>
           ) : (
             <>
-              <span className="font-black uppercase tracking-wide text-[hsl(140_90%_58%)]">Conta</span> — saldo
-              no servidor. Rodadas oficiais e ranking após login.
+              <span className="font-black uppercase tracking-wide text-[hsl(140_90%_58%)]">CONTA REAL</span> — Rodadas e ranking oficiais.
             </>
           )}
         </div>
