@@ -162,7 +162,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         </div>
 
         {economySource === "server" ? (
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 gap-2 text-center">
             <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
                 Meta máxima
@@ -174,12 +174,6 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
                 / barreira (aprox.)
               </div>
               <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perBarrier)}</div>
-            </div>
-            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
-              <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Barreiras aprox.
-              </div>
-              <div className="text-lg font-black tabular-nums text-foreground">~{stats.platForMeta}</div>
             </div>
           </div>
         ) : (
