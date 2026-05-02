@@ -434,6 +434,10 @@ const Index = () => {
     : nickname.trim() || profile?.display_name?.trim() || "Player";
 
   const openRoundSetup = () => {
+    if (isDemo && hasPlayedDemo()) {
+      setShowDemoLimit(true);
+      return;
+    }
     setLastStats(null);
     setLastSummary(null);
     setLastProgression(null);
