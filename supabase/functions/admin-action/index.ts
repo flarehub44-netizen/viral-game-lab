@@ -315,6 +315,145 @@ Deno.serve(async (req) => {
         };
         return json(200, { ok: true, round });
       }
+      case "list_pending_withdrawals": {
+        const limit = Math.min(100, Math.max(1, body.limit ?? 50));
+        const { data, error } = await admin
+          .from("pix_withdrawals")
+          .select(
+            "id, user_id, amount, pix_key, pix_key_type, created_at, status",
+          )
+          .eq("status", "pending_approval")
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (error) throw error;
+
+        // Anexa display_name para facilitar identificação no admin
+        const rows = data ?? [];
+        const userIds = Array.from(new Set(rows.map((r) => r.user_id)));
+        let nameMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+          const { data: profs } = await admin
+            .from("profiles")
+            .select("user_id, display_name")
+            .in("user_id", userIds);
+          nameMap = Object.fromEntries((profs ?? []).map((p) => [p.user_id, p.display_name]));
+        }
+
+        return json(200, {
+          ok: true,
+          rows: rows.map((r) => ({ ...r, display_name: nameMap[r.user_id] ?? null })),
+        });
+      }
+      case "approve_withdrawal": {
+        if (!body.withdrawal_id) return json(400, { error: "missing_withdrawal_id" });
+
+        // 1. Marca como aprovado e libera para o gateway
+        const { error: approveErr } = await admin.rpc("admin_approve_withdrawal", {
+          p_actor: user.id,
+          p_withdrawal_id: body.withdrawal_id,
+        });
+        if (approveErr) {
+          const msg = approveErr.message ?? "";
+          if (msg.includes("invalid_state_for_approval")) {
+            return json(409, { error: "invalid_state" });
+          }
+          if (msg.includes("withdrawal_not_found")) {
+            return json(404, { error: "withdrawal_not_found" });
+          }
+          throw approveErr;
+        }
+
+        // 2. Carrega o registro para chamar o SyncPay
+        const { data: wRow, error: wErr } = await admin
+          .from("pix_withdrawals")
+          .select("id, user_id, amount, pix_key, pix_key_type")
+          .eq("id", body.withdrawal_id)
+          .maybeSingle();
+        if (wErr || !wRow) {
+          return json(500, { error: "withdrawal_load_failed" });
+        }
+
+        // 3. Carrega CPF do titular
+        const { data: identRows } = await admin.rpc("get_user_pix_identity", {
+          p_user_id: wRow.user_id,
+        });
+        const ident = Array.isArray(identRows) ? identRows[0] : null;
+        const ownerCpf = normalizeDigits(typeof ident?.cpf === "string" ? ident.cpf : "");
+        if (ownerCpf.length !== 11) {
+          // Reverte (admin já aprovou; estorna saldo via reverse)
+          await admin.rpc("reverse_pix_withdrawal", { p_withdrawal_id: wRow.id });
+          return json(400, { error: "invalid_cpf_in_profile" });
+        }
+
+        // 4. Chama SyncPay
+        let syncPayResp: { reference_id: string; message: string };
+        try {
+          syncPayResp = await syncPayCreateCashOut({
+            amount: wRow.amount,
+            description: `Neon withdrawal user=${wRow.user_id}`,
+            pix_key_type: toSyncPayPixType(wRow.pix_key_type),
+            pix_key: wRow.pix_key,
+            document: {
+              type: "cpf",
+              number: wRow.pix_key_type === "cpf" ? normalizeDigits(wRow.pix_key) : ownerCpf,
+            },
+          });
+        } catch (e) {
+          console.error("syncPayCreateCashOut on approve:", e);
+          // Reverte: estorna saldo e marca failed
+          const { error: revErr } = await admin.rpc("reverse_pix_withdrawal", {
+            p_withdrawal_id: wRow.id,
+          });
+          if (revErr) {
+            console.error("reverse_pix_withdrawal failed:", revErr, { withdrawalId: wRow.id });
+          }
+          return json(502, { error: "syncpay_cashout_failed" });
+        }
+
+        // 5. Vincula provider_ref
+        const { error: finErr } = await admin.rpc("finalize_pix_withdrawal", {
+          p_withdrawal_id: wRow.id,
+          p_provider_ref: syncPayResp.reference_id,
+        });
+        if (finErr) {
+          console.error("finalize_pix_withdrawal failed:", finErr, {
+            withdrawalId: wRow.id,
+            syncpay_ref: syncPayResp.reference_id,
+          });
+        }
+
+        await log("approve_withdrawal", wRow.user_id, {
+          withdrawal_id: wRow.id,
+          amount: wRow.amount,
+          provider_ref: syncPayResp.reference_id,
+        });
+        return json(200, {
+          ok: true,
+          withdrawal_id: wRow.id,
+          provider_ref: syncPayResp.reference_id,
+        });
+      }
+      case "reject_withdrawal": {
+        if (!body.withdrawal_id) return json(400, { error: "missing_withdrawal_id" });
+        const reason = (body.reason ?? "").trim();
+        if (reason.length < 3 || reason.length > 500) {
+          return json(400, { error: "invalid_rejection_reason" });
+        }
+        const { error } = await admin.rpc("admin_reject_withdrawal", {
+          p_actor: user.id,
+          p_withdrawal_id: body.withdrawal_id,
+          p_reason: reason,
+        });
+        if (error) {
+          const msg = error.message ?? "";
+          if (msg.includes("invalid_state_for_rejection")) return json(409, { error: "invalid_state" });
+          if (msg.includes("withdrawal_not_found")) return json(404, { error: "withdrawal_not_found" });
+          if (msg.includes("invalid_rejection_reason")) return json(400, { error: "invalid_rejection_reason" });
+          throw error;
+        }
+        await log("reject_withdrawal", null, { withdrawal_id: body.withdrawal_id, reason });
+        return json(200, { ok: true });
+      }
       default:
         return json(400, { error: "unknown_action" });
     }
