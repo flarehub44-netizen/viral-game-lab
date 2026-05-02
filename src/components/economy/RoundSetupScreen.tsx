@@ -197,7 +197,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           Saldo atual:{" "}
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
-            ? `Pagamento: entrada × multiplicador da curva (até ${MULTIPLIER_CURVE_HARD_CAP}×, máx R$ ${MAX_ROUND_PAYOUT}).`
+            ? `Pagamento: entrada × multiplicador da curva.`
             : `Pagamento: entrada × 0,05 × base × barreiras.`}
         </p>
 
