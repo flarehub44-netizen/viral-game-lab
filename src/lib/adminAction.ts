@@ -10,7 +10,10 @@ export type AdminRequestBody =
   | { type: "unban_user"; user_id: string }
   | { type: "set_feature_flag"; key: string; enabled: boolean; rollout_percent?: number | null }
   | { type: "sandbox_round"; stake: number; force_multiplier?: number; force_target_barrier?: number }
-  | { type: "reset_sandbox" };
+  | { type: "reset_sandbox" }
+  | { type: "list_pending_withdrawals"; limit?: number }
+  | { type: "approve_withdrawal"; withdrawal_id: string }
+  | { type: "reject_withdrawal"; withdrawal_id: string; reason: string };
 
 export type AdminSearchRow = {
   user_id: string;
