@@ -1,6 +1,7 @@
-import { ArrowLeft, Infinity as InfinityIcon, Target, Users } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
+import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
 import { DEMO_BASE_OPTIONS, DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
 
 interface Props {
@@ -22,13 +23,11 @@ function pseudoOnlinePlayers(): number {
 export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
+  // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
+  // multiplicador é resultado da curva e depende de quantas barreiras o jogador passa.
   const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
   const online = pseudoOnlinePlayers();
-  // Demo: jogador escolhe a base (2/5/10/20). Live: jogador escolhe a meta (5/10/15/20).
-  const canEditMeta = true;
-  const liveMetaOptions = [5, 10, 15, 20];
   const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
-  const metaOptions = isDemo ? demoMetaOptions : liveMetaOptions;
 
   const stats = useMemo(() => {
     if (bet <= 0) {
@@ -36,6 +35,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         metaGain: 0,
         perBarrier: 0,
         platForMeta: 0,
+        maxPayout: 0,
       };
     }
     if (isDemo) {
@@ -43,12 +43,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
       // Atinge a meta (×base) em DEMO_GOAL_BARRIERS barreiras.
       const perBarrier = bet * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta;
       const metaGain = bet * meta;
-      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS };
+      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS, maxPayout: 0 };
     }
-    const metaGain = bet * meta;
-    const perBarrier = Math.max(1, Math.round(bet * 0.5));
-    const platForMeta = Math.ceil(metaGain / perBarrier);
-    return { metaGain, perBarrier, platForMeta };
+    // Live: pagamento depende da curva. Mostramos o teto possível (cap × stake, limitado por MAX_ROUND_PAYOUT).
+    const maxPayout = Math.min(MAX_ROUND_PAYOUT, bet * MULTIPLIER_CURVE_HARD_CAP);
+    return { metaGain: 0, perBarrier: 0, platForMeta: 0, maxPayout };
   }, [bet, meta, isDemo]);
 
   const fmt = (n: number) =>
@@ -82,55 +81,47 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           </h2>
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
             {economySource === "server"
-              ? "Escolha sua entrada e inicie a rodada. Você precisa atingir a meta de barreiras para ganhar - caso contrário, perde a entrada."
+              ? "Aposte e jogue até perder todas as bolas. Quanto mais barreiras passar, maior o pagamento."
               : "Modo Demo: escolha sua entrada e a base do multiplicador. Cada barreira vale entrada × 0,05 × base."}
           </p>
-          {economySource === "server" ? (
-            "\n"
-          ) : (
+          {isDemo ? (
             <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
               🎯 Escolha sua <strong>base ×{meta},00</strong>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Seletor de base/meta — habilitado no Demo, somente leitura no Live */}
-        <div key={isDemo ? "meta-demo" : "meta-live"}>
-          <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
-              <Target size={12} />
-              {isDemo ? `Base ×${meta}` : `Meta ${meta}x`}
-            </span>
-            {!isDemo ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/15 border border-primary/40 text-[11px] font-bold">
-                <InfinityIcon size={12} />
-                Sem cashout na rodada
+        {/* Seletor de base — apenas no Demo. No Live, o multiplicador é resultado da curva. */}
+        {isDemo ? (
+          <div>
+            <div className="flex flex-wrap justify-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary/25 border border-secondary/50 text-[11px] font-bold">
+                <Target size={12} />
+                Base ×{meta}
               </span>
-            ) : null}
-          </div>
+            </div>
 
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
-            {isDemo ? "Base do multiplicador" : "Meta da rodada"}
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3 text-center">
+              Base do multiplicador
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {demoMetaOptions.map((amount) => (
+                <button
+                  key={`meta-${amount}`}
+                  type="button"
+                  onClick={() => setMeta(amount)}
+                  className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
+                    meta === amount
+                      ? "border-secondary bg-secondary/20 text-secondary"
+                      : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {amount}x
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {metaOptions.map((amount) => (
-              <button
-                key={`meta-${amount}`}
-                type="button"
-                disabled={!canEditMeta}
-                onClick={() => setMeta(amount)}
-                className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
-                  meta === amount
-                    ? "border-secondary bg-secondary/20 text-secondary"
-                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
-                } ${!canEditMeta ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {amount}x
-              </button>
-            ))}
-          </div>
-          {null}
-        </div>
+        ) : null}
 
         <div>
           <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
@@ -165,15 +156,19 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           <div className="grid grid-cols-2 gap-2 text-center">
             <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                Meta máxima
+                Multiplicador máximo
               </div>
-              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.metaGain)}</div>
+              <div className="text-sm font-black tabular-nums text-secondary flex items-center justify-center gap-1">
+                <TrendingUp size={12} />
+                {MULTIPLIER_CURVE_HARD_CAP}×
+              </div>
             </div>
-            <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+            <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
               <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
-                / barreira (aprox.)
+                Pagamento máximo
               </div>
-              <div className="text-sm font-black tabular-nums text-primary">R$ {fmt(stats.perBarrier)}</div>
+              <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(stats.maxPayout)}</div>
+              <div className="text-[9px] text-secondary/80 font-bold tabular-nums mt-0.5">teto R$ {MAX_ROUND_PAYOUT}</div>
             </div>
           </div>
         ) : (
@@ -201,7 +196,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
           Saldo atual:{" "}
           <span className="text-foreground font-bold tabular-nums">R$ {fmt(balance)}</span>.{" "}
           {economySource === "server"
-            ? "Pagamento: entrada × multiplicador."
+            ? `Pagamento: entrada × multiplicador da curva (até ${MULTIPLIER_CURVE_HARD_CAP}×, máx R$ ${MAX_ROUND_PAYOUT}).`
             : `Pagamento: entrada × 0,05 × base × barreiras.`}
         </p>
 
