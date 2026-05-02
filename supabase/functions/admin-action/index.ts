@@ -87,7 +87,7 @@ type AdminBody =
   | { type: "ban_user"; user_id: string }
   | { type: "unban_user"; user_id: string }
   | { type: "set_feature_flag"; key: string; enabled: boolean; rollout_percent?: number | null }
-  | { type: "sandbox_round"; stake: number }
+  | { type: "sandbox_round"; stake: number; force_multiplier?: number; force_target_barrier?: number }
   | { type: "reset_sandbox" };
 
 Deno.serve(async (req) => {
@@ -233,16 +233,34 @@ Deno.serve(async (req) => {
       }
       case "sandbox_round": {
         const stake = Math.round(Number(body.stake) * 100) / 100;
-        const rng = cryptoRng();
-        const mult = pickSandboxMultiplier(rng);
         if (!Number.isFinite(stake) || stake < MIN_STAKE || stake > MAX_STAKE) {
           return json(400, { error: "invalid_stake" });
+        }
+        const rng = cryptoRng();
+        const allowedMults = MULTIPLIER_TIERS.map((t) => t.multiplier);
+        let mult: number;
+        if (typeof body.force_multiplier === "number" && Number.isFinite(body.force_multiplier)) {
+          if (!allowedMults.includes(body.force_multiplier)) {
+            return json(400, { error: "invalid_force_multiplier" });
+          }
+          mult = body.force_multiplier;
+        } else {
+          mult = pickSandboxMultiplier(rng);
         }
         let payout = Math.round(stake * mult * 100) / 100;
         if (payout > MAX_PAYOUT) payout = MAX_PAYOUT;
         const netResult = Math.round((payout - stake) * 100) / 100;
         const visual = buildVisualResult(mult);
-        const layout = mapMultiplierToLayout(mult);
+        const baseLayout = mapMultiplierToLayout(mult);
+        const layout = {
+          targetBarrier:
+            typeof body.force_target_barrier === "number" &&
+            body.force_target_barrier >= 1 &&
+            body.force_target_barrier <= 200
+              ? Math.floor(body.force_target_barrier)
+              : baseLayout.targetBarrier,
+          maxDurationSeconds: baseLayout.maxDurationSeconds,
+        };
         const idem = `sandbox:${user.id}:${crypto.randomUUID()}`;
         const layoutSeed = `${user.id}:${idem}:${mult.toFixed(4)}`;
         const signatureInput = `${layoutSeed}|${layout.targetBarrier}|${layout.maxDurationSeconds}|${stake}`;

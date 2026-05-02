@@ -1,38 +1,92 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  FlaskConical,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Trophy,
+  TriangleAlert,
+  Users,
+  Zap,
+} from "lucide-react";
 import { GameCanvas } from "@/components/GameCanvas";
 import type { PublicGameStats, RoundSummaryOut } from "@/game/engine";
 import { MULTIPLIER_TIERS, sampleMultiplier, theoreticalRtp } from "@/game/economy/multiplierTable";
 import { generateDeterministicLayout } from "@/game/economy/liveDeterministicLayout";
 import type { ActiveServerRound } from "@/game/economy/serverRound";
 import { invokeAdminAction } from "@/lib/adminAction";
+import { BET_AMOUNTS, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
 
 const MULTS = MULTIPLIER_TIERS.map((t) => t.multiplier);
 
+// Saldo "fake" só para a UI ficar idêntica ao real — nunca toca a wallet.
+const FAKE_BALANCE = 1000;
+
+function pseudoOnlinePlayers(): number {
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return 300 + (seed % 120);
+}
+
+const fmt = (n: number) =>
+  n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+interface SandboxResult {
+  stake: number;
+  payout: number;
+  net: number;
+  multiplier: number;
+  barriers: number;
+  score: number;
+  durationSeconds: number;
+}
+
 export const AdminSandbox = () => {
-  const [stake, setStake] = useState("5");
+  const [bet, setBet] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [activeRound, setActiveRound] = useState<ActiveServerRound | null>(null);
+  const [result, setResult] = useState<SandboxResult | null>(null);
+
+  // Admin tools
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [forceMult, setForceMult] = useState<string>(""); // "" = aleatório
+  const [forceBarrier, setForceBarrier] = useState<string>("");
   const [simN, setSimN] = useState("5000");
   const [simResult, setSimResult] = useState<string | null>(null);
+
+  const online = useMemo(() => pseudoOnlinePlayers(), []);
 
   const layoutPlan = useMemo(() => {
     if (!activeRound?.layout_seed || activeRound.target_barrier == null) return null;
     return generateDeterministicLayout(activeRound.layout_seed, activeRound.target_barrier);
   }, [activeRound]);
 
-  const startPlay = async () => {
-    const s = Math.round(Number(stake.replace(",", ".")) * 100) / 100;
-    if (!Number.isFinite(s) || s < 1 || s > 50) {
-      toast.error("Stake entre 1 e 50");
+  const maxPayout = bet > 0 ? Math.min(bet * MULTIPLIER_CURVE_HARD_CAP, MAX_ROUND_PAYOUT) : 0;
+  const canPlay = bet > 0 && !busy;
+
+  const startPlay = async (overrideMult?: number, overrideBarrier?: number) => {
+    if (!bet || bet < 1 || bet > 50) {
+      toast.error("Selecione um valor de entrada");
       return;
     }
     setBusy(true);
+    setResult(null);
     try {
-      const res = await invokeAdminAction<{ ok: boolean; round: ActiveServerRound }>({
+      const payload: Parameters<typeof invokeAdminAction>[0] = {
         type: "sandbox_round",
-        stake: s,
-      });
+        stake: bet,
+      };
+      const fm = overrideMult ?? (forceMult ? Number(forceMult) : undefined);
+      const fb = overrideBarrier ?? (forceBarrier ? Number(forceBarrier) : undefined);
+      if (typeof fm === "number" && Number.isFinite(fm)) payload.force_multiplier = fm;
+      if (typeof fb === "number" && Number.isFinite(fb) && fb > 0) payload.force_target_barrier = fb;
+
+      const res = await invokeAdminAction<{ ok: boolean; round: ActiveServerRound }>(payload);
       const r = res.round;
       setActiveRound({
         ...r,
@@ -58,16 +112,14 @@ export const AdminSandbox = () => {
       counts.set(m, (counts.get(m) ?? 0) + 1);
     }
     let rtpSim = 0;
-    for (const [m, c] of counts) {
-      rtpSim += m * (c / n);
-    }
+    for (const [m, c] of counts) rtpSim += m * (c / n);
     const lines = MULTS.map((m) => {
       const c = counts.get(m) ?? 0;
       const pct = ((c / n) * 100).toFixed(2);
       return `×${m}: ${pct}% (${c})`;
     });
     setSimResult(
-      `N=${n}\nRTP simulado: ${(rtpSim * 100).toFixed(2)}% (teórico tabela: ${(theoreticalRtp() * 100).toFixed(2)}%)\n${lines.join("\n")}`,
+      `N=${n}\nRTP simulado: ${(rtpSim * 100).toFixed(2)}% (teórico: ${(theoreticalRtp() * 100).toFixed(2)}%)\n${lines.join("\n")}`,
     );
   };
 
@@ -81,9 +133,39 @@ export const AdminSandbox = () => {
     }
   };
 
+  // ============== Tela de jogo ativo ==============
   if (activeRound) {
     return (
       <div className="absolute inset-0 z-50 bg-background">
+        {/* HUD overlay sandbox */}
+        <div className="pointer-events-none absolute top-2 left-2 z-[60] flex flex-col gap-1.5 max-w-[60%]">
+          <div className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[hsl(280_50%_15%/0.9)] border border-[hsl(280_70%_50%)] backdrop-blur-sm">
+            <FlaskConical size={11} className="text-[hsl(280_90%_75%)]" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-[hsl(280_90%_75%)]">
+              Sandbox
+            </span>
+          </div>
+          <div className="pointer-events-auto rounded-lg bg-background/85 border border-border backdrop-blur-sm px-2 py-1.5 text-[10px] font-mono leading-tight space-y-0.5">
+            <div>
+              <span className="text-muted-foreground">mult: </span>
+              <span className="font-black text-[hsl(140_90%_60%)]">
+                ×{activeRound.result_multiplier}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">target: </span>
+              <span className="text-foreground">{activeRound.target_barrier}b</span>
+              <span className="text-muted-foreground"> · {activeRound.max_duration_seconds}s</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">payout: </span>
+              <span className="text-foreground tabular-nums">
+                R$ {fmt(activeRound.payout_amount)}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <GameCanvas
           roundId={activeRound.round_id}
           visualScript={activeRound.visual_result}
@@ -93,9 +175,15 @@ export const AdminSandbox = () => {
           targetBarrier={activeRound.target_barrier}
           layoutPlan={layoutPlan}
           onGameOver={(stats: PublicGameStats, summary: RoundSummaryOut) => {
-            toast.message(
-              `Fim · score ${stats.score} · mult HUD ${stats.currentMultiplier.toFixed(2)} · barreiras ${summary.barriersPassed ?? 0}`,
-            );
+            setResult({
+              stake: activeRound.stake_amount,
+              payout: activeRound.payout_amount,
+              net: activeRound.net_result,
+              multiplier: activeRound.result_multiplier,
+              barriers: summary.barriersPassed ?? 0,
+              score: stats.score,
+              durationSeconds: stats.durationSeconds,
+            });
           }}
           onExit={exitPlay}
           stakeCredits={activeRound.stake_amount}
@@ -106,62 +194,306 @@ export const AdminSandbox = () => {
     );
   }
 
+  // ============== Setup pré-jogo ==============
   return (
-    <div className="space-y-6 px-4 py-6 max-w-4xl xl:max-w-6xl mx-auto pb-24">
-      <h1 className="text-xl font-black uppercase tracking-wide">Sandbox</h1>
-      <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Gera uma rodada <strong>mode=sandbox</strong> já fechada no banco (sem movimentar carteira). Use para validar
-        animação e payout por multiplicador.
-      </p>
-      <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Sorteio automático do sandbox: <strong>80% vitória</strong> (multiplicador {">"} 1.0) e{" "}
-        <strong>20% derrota</strong> (multiplicador {"<="} 1.0).
-      </p>
-
-      <label className="block space-y-1">
-        <span className="text-[10px] uppercase text-muted-foreground">Stake visual (1–50)</span>
-        <input
-          value={stake}
-          onChange={(e) => setStake(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums"
-        />
-      </label>
-
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void startPlay()}
-        className="w-full py-3 rounded-xl bg-[hsl(140_85%_45%)] text-background font-black uppercase text-sm disabled:opacity-50"
-      >
-        {busy ? "…" : "Jogar preview"}
-      </button>
-
-      <div className="border-t border-border pt-4 space-y-2">
-        <h2 className="text-sm font-bold uppercase text-muted-foreground">Simulação RTP (cliente)</h2>
-        <div className="flex gap-2">
-          <input
-            value={simN}
-            onChange={(e) => setSimN(e.target.value)}
-            className="w-28 rounded border border-border px-2 py-1 text-xs"
-          />
-          <button type="button" onClick={runSim} className="text-xs font-bold px-3 py-1 rounded border border-border">
-            Rodar
-          </button>
+    <div className="relative flex flex-col min-h-[calc(100vh-44px)] bg-gradient-to-b from-[hsl(280_45%_10%)] via-background to-background">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-border">
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:text-foreground"
+          aria-label="Voltar"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="text-[11px] font-black uppercase tracking-widest text-[hsl(280_90%_75%)] flex items-center gap-1.5">
+          <FlaskConical size={13} />
+          Sandbox · preview
         </div>
-        {simResult && (
-          <pre className="text-[10px] font-mono whitespace-pre-wrap bg-muted/30 rounded p-2 max-h-48 overflow-y-auto">
-            {simResult}
-          </pre>
-        )}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card/50 border border-border text-[10px] text-muted-foreground">
+          <span className="w-1.5 h-1.5 rounded-full bg-[hsl(140_90%_55%)] animate-pulse" />
+          <Users size={11} />
+          {online}
+        </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void resetSandbox()}
-        className="w-full py-2 text-xs font-bold uppercase text-destructive border border-destructive/40 rounded-lg"
-      >
-        Limpar rodadas sandbox (DB)
-      </button>
+      {/* Banner sandbox */}
+      <div className="mx-4 mt-3 rounded-xl border border-[hsl(280_70%_50%/0.5)] bg-[hsl(280_30%_12%/0.6)] px-3 py-2 text-[11px] text-[hsl(280_90%_80%)] flex items-start gap-2 leading-snug">
+        <TriangleAlert size={13} className="mt-0.5 shrink-0" />
+        <div>
+          Modo <strong>Sandbox</strong> — não movimenta carteira. Sorteio padrão é{" "}
+          <strong>80% vitória / 20% derrota</strong>. Use as ferramentas abaixo para forçar resultados.
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      <div className="flex-1 px-5 py-5 space-y-6 pb-36">
+        <div className="text-center">
+          <h2 className="text-xl font-black uppercase tracking-wide mb-1">Iniciar partida</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Aposte e jogue até perder todas as bolas. Quanto mais barreiras passar, maior o pagamento.
+          </p>
+        </div>
+
+        {/* Seletor de stake */}
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            Valor de entrada (R$)
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {BET_AMOUNTS.map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => setBet(amount)}
+                className={`min-w-[52px] px-3 py-2 rounded-full border text-sm font-black tabular-nums transition-colors ${
+                  bet === amount
+                    ? "border-primary bg-primary/20 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)]"
+                    : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {amount}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Card entrada */}
+        <div className="rounded-2xl border border-border bg-card/35 p-6 text-center space-y-1">
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            Entrada selecionada
+          </div>
+          <div className="text-4xl font-black tabular-nums text-white">R$ {fmt(bet)}</div>
+        </div>
+
+        {/* Multiplicador / pagamento */}
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="rounded-xl border border-border bg-card/30 px-2 py-3">
+            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+              Multiplicador máximo
+            </div>
+            <div className="text-sm font-black tabular-nums text-secondary flex items-center justify-center gap-1">
+              <TrendingUp size={12} />
+              {MULTIPLIER_CURVE_HARD_CAP}×
+            </div>
+          </div>
+          <div className="rounded-xl border border-secondary/50 bg-secondary/10 px-2 py-3 shadow-[0_0_18px_hsl(var(--secondary)/0.15)]">
+            <div className="text-[9px] uppercase text-muted-foreground leading-tight mb-1">
+              Pagamento máximo
+            </div>
+            <div className="text-sm font-black tabular-nums text-secondary">R$ {fmt(maxPayout)}</div>
+          </div>
+        </div>
+
+        {/* Saldo fake */}
+        <p className="text-[11px] text-center text-muted-foreground bg-muted/40 rounded-xl px-3 py-2 border border-border">
+          Saldo (simulado):{" "}
+          <span className="text-foreground font-bold tabular-nums">R$ {fmt(FAKE_BALANCE)}</span> ·
+          carteira real não é tocada.
+        </p>
+
+        {/* Resultado da última rodada sandbox */}
+        {result && (
+          <div
+            className={`rounded-2xl border-2 p-4 space-y-3 animate-fade-in ${
+              result.net > 0
+                ? "border-[hsl(140_80%_45%/0.7)] bg-[hsl(140_25%_8%/0.55)] shadow-[0_0_18px_hsl(140_80%_40%/0.25)]"
+                : result.net === 0
+                  ? "border-border bg-card/40"
+                  : "border-destructive/40 bg-card/30"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-1.5">
+                <Trophy size={12} /> Última rodada sandbox
+              </span>
+              <span
+                className={`text-[10px] font-black tabular-nums px-2 py-0.5 rounded-full ${
+                  result.multiplier > 1
+                    ? "bg-[hsl(140_80%_15%)] text-[hsl(140_90%_70%)]"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                ×{result.multiplier}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
+                <div className="text-sm font-bold tabular-nums">R$ {fmt(result.stake)}</div>
+              </div>
+              <div>
+                <div className="text-[9px] uppercase text-muted-foreground">Pagamento</div>
+                <div
+                  className={`text-sm font-black tabular-nums ${
+                    result.payout > 0 ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
+                  }`}
+                >
+                  R$ {fmt(result.payout)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] uppercase text-muted-foreground">Saldo</div>
+                <div
+                  className={`text-sm font-black tabular-nums ${
+                    result.net > 0
+                      ? "text-[hsl(140_90%_62%)]"
+                      : result.net === 0
+                        ? "text-foreground"
+                        : "text-destructive/90"
+                  }`}
+                >
+                  {result.net > 0 ? "+" : ""}R$ {fmt(result.net)}
+                </div>
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground text-center tabular-nums">
+              {result.barriers} barreiras · {result.score} pts · {result.durationSeconds}s
+            </div>
+          </div>
+        )}
+
+        {/* Ferramentas de admin */}
+        <div className="rounded-xl border border-border bg-card/20 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setToolsOpen((o) => !o)}
+            className="w-full px-3 py-2.5 flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-[hsl(280_90%_75%)]"
+          >
+            <span className="flex items-center gap-2">
+              <FlaskConical size={13} />
+              Ferramentas de admin
+            </span>
+            {toolsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {toolsOpen && (
+            <div className="px-3 pb-3 pt-1 space-y-4 border-t border-border">
+              {/* Presets rápidos */}
+              <div>
+                <div className="text-[10px] uppercase text-muted-foreground mb-2 flex items-center gap-1">
+                  <Zap size={11} /> Presets de resultado
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={!canPlay}
+                    onClick={() => void startPlay(20)}
+                    className="px-2 py-2 rounded-lg border border-[hsl(140_70%_45%/0.5)] bg-[hsl(140_30%_10%/0.5)] text-[10px] font-black uppercase text-[hsl(140_90%_70%)] disabled:opacity-40"
+                  >
+                    Win+ ×20
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canPlay}
+                    onClick={() => void startPlay(2)}
+                    className="px-2 py-2 rounded-lg border border-secondary/50 bg-secondary/10 text-[10px] font-black uppercase text-secondary disabled:opacity-40"
+                  >
+                    Win ×2
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canPlay}
+                    onClick={() => void startPlay(0)}
+                    className="px-2 py-2 rounded-lg border border-destructive/40 bg-destructive/10 text-[10px] font-black uppercase text-destructive disabled:opacity-40"
+                  >
+                    Loss ×0
+                  </button>
+                </div>
+              </div>
+
+              {/* Override mult/barrier */}
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block space-y-1">
+                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Target size={10} /> Forçar mult.
+                  </span>
+                  <select
+                    value={forceMult}
+                    onChange={(e) => setForceMult(e.target.value)}
+                    className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs"
+                  >
+                    <option value="">Aleatório (80/20)</option>
+                    {MULTS.map((m) => (
+                      <option key={m} value={m}>
+                        ×{m}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[10px] uppercase text-muted-foreground">
+                    Forçar barreira (1-200)
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={forceBarrier}
+                    onChange={(e) => setForceBarrier(e.target.value)}
+                    placeholder="auto"
+                    className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs tabular-nums"
+                  />
+                </label>
+              </div>
+
+              {/* RTP sim */}
+              <div className="border-t border-border pt-3 space-y-2">
+                <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                  <Sparkles size={11} /> Simulação RTP (cliente)
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={simN}
+                    onChange={(e) => setSimN(e.target.value)}
+                    className="w-24 rounded border border-border bg-background px-2 py-1 text-xs tabular-nums"
+                  />
+                  <button
+                    type="button"
+                    onClick={runSim}
+                    className="text-[10px] font-bold uppercase px-3 py-1 rounded border border-border hover:bg-muted/30"
+                  >
+                    Rodar
+                  </button>
+                </div>
+                {simResult && (
+                  <pre className="text-[10px] font-mono whitespace-pre-wrap bg-muted/30 rounded p-2 max-h-40 overflow-y-auto">
+                    {simResult}
+                  </pre>
+                )}
+              </div>
+
+              {/* Reset DB */}
+              <button
+                type="button"
+                onClick={() => void resetSandbox()}
+                className="w-full py-2 text-[10px] font-bold uppercase text-destructive border border-destructive/40 rounded-lg hover:bg-destructive/10"
+              >
+                Limpar rodadas sandbox (DB)
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CTA fixo */}
+      <div className="sticky bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
+        <div className="max-w-4xl xl:max-w-6xl mx-auto">
+          <button
+            type="button"
+            disabled={!canPlay}
+            onClick={() => void startPlay()}
+            className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 border ${
+              canPlay
+                ? "bg-[hsl(140_85%_48%)] border-[hsl(140_90%_55%)] text-background shadow-[0_0_20px_hsl(140_90%_45%/0.4)]"
+                : "bg-muted border-border text-muted-foreground cursor-not-allowed"
+            }`}
+          >
+            {busy ? "Iniciando..." : !bet ? "Selecione um valor" : "JOGAR (sandbox)"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
