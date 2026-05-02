@@ -153,6 +153,17 @@ const Index = () => {
   const { state: welcomeState, refresh: refreshWelcome } = useWelcomeBonusState(onlineUserId);
   const { status: dailyStatus, refresh: refreshDaily } = useDailyLoginStatus(onlineUserId);
   const [showDailyPopup, setShowDailyPopup] = useState(false);
+  const dailyPromptedRef = useRef(false);
+
+  useEffect(() => {
+    if (dailyPromptedRef.current) return;
+    if (!onlineUserId) return;
+    if (!dailyStatus?.canClaim) return;
+    if (welcomeState !== "claimed") return;
+    dailyPromptedRef.current = true;
+    const t = setTimeout(() => setShowDailyPopup(true), 800);
+    return () => clearTimeout(t);
+  }, [onlineUserId, dailyStatus?.canClaim, welcomeState]);
 
   const [hydrating, setHydrating] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
