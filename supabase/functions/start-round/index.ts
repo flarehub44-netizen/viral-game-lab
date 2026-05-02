@@ -188,7 +188,35 @@ Deno.serve(async (req) => {
   }
 
   const rng = cryptoRng();
-  const resultMultiplier = sampleMultiplier(rng);
+
+  // Fase 3: 1ª rodada real do usuário é enviesada para vitória pequena (1.2x–2.0x).
+  // Conta apenas rodadas reais (mode != 'sandbox') já fechadas. Se for a primeira,
+  // forçamos um multiplicador entre os tiers 1.2 / 1.5 / 2.0 — o RTP global se
+  // mantém porque é uma única rodada por usuário.
+  let firstRoundBiased = false;
+  const { count: priorRoundsCount, error: countErr } = await admin
+    .from("game_rounds")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .neq("mode", "sandbox")
+    .in("round_status", ["closed", "expired"]);
+  if (countErr) {
+    console.warn("first-round-bias count error:", countErr.message);
+  }
+
+  let resultMultiplier: number;
+  if (!countErr && (priorRoundsCount ?? 0) === 0) {
+    const biasedTiers = [1.2, 1.5, 2.0];
+    // Pesos: ~50% / 35% / 15%, sempre vitória pequena/média.
+    const r = rng();
+    resultMultiplier = r < 0.5 ? 1.2 : r < 0.85 ? 1.5 : 2.0;
+    firstRoundBiased = true;
+    console.log(`[first-round-bias] user=${user.id} mult=${resultMultiplier}`);
+    void biasedTiers;
+  } else {
+    resultMultiplier = sampleMultiplier(rng);
+  }
+
   let payout = Math.round(stakeRounded * resultMultiplier * 100) / 100;
   if (payout > MAX_PAYOUT) {
     payout = MAX_PAYOUT;
