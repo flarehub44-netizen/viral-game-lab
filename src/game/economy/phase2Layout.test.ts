@@ -12,9 +12,9 @@ describe("Phase 2 — post-target difficulty escalation", () => {
   const seed = "phase2-test-seed";
   const target = 12;
 
-  it("layout grows to count=80 by default", () => {
+  it("layout grows to count=220 by default (extended scale)", () => {
     const rows = generateDeterministicLayout(seed, target);
-    expect(rows).toHaveLength(80);
+    expect(rows).toHaveLength(220);
   });
 
   it("post-target gap trends downward (early extras > late extras on average)", () => {
