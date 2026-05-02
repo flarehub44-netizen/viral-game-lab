@@ -135,6 +135,31 @@ export const AdminSandbox = () => {
     }
   };
 
+  // ============== Tela de fim de jogo (igual live) ==============
+  if (over && !activeRound) {
+    return (
+      <div className="absolute inset-0 z-50 bg-background overflow-y-auto">
+        <GameOverScreen
+          stats={over.stats}
+          isNewBest={over.isNewBest}
+          bestScore={over.bestScore}
+          onRetry={() => {
+            setOver(null);
+            void startPlay();
+          }}
+          onMenu={() => setOver(null)}
+          onLeaderboard={() => setOver(null)}
+          progression={over.progression}
+          maxCombo={over.summary.maxCombo}
+          serverEconomy={over.economy}
+          economySource="server"
+          onChangeStake={() => setOver(null)}
+          barriersPassed={over.summary.barriersPassed}
+        />
+      </div>
+    );
+  }
+
   // ============== Tela de jogo ativo ==============
   if (activeRound) {
     return (
