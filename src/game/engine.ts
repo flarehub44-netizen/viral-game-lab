@@ -833,12 +833,35 @@ export class GameEngine {
 
     // (removido) tint de zona — sem variação visual de zona.
 
-    // Barriers
+    // Barriers — coloridas e com etiqueta R$ pelo multiplicador previsto
     c.globalCompositeOperation = "source-over";
+    const nowMs = performance.now();
+    const FLASH_MS = 280;
     for (const bar of this.barriers) {
-      c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
-      // Build segments by sorting gaps
+      const style = styleForBarrier(bar.barrierIndex, this.mode, this.demoBaseMultiplier);
+      // Pulse sutil para tiers raros (dourado/magenta)
+      let lightAdj = 0;
+      if (style.pulse) {
+        lightAdj = Math.sin(nowMs * 0.008 + bar.barrierIndex) * 6;
+      }
+      // Flash verde-forte logo após ser ultrapassada
+      const justPassed = bar.passedAt != null && nowMs - bar.passedAt < FLASH_MS;
+      const fillH = justPassed ? 140 : style.hue;
+      const fillS = justPassed ? 100 : style.sat;
+      const fillL = justPassed ? 70 : style.light + lightAdj;
+      const glow = justPassed ? 24 : style.glow;
+
       const sorted = [...bar.gaps].sort((a, b) => a.start - b.start);
+
+      // Glow setup
+      if (glow > 0) {
+        c.shadowColor = `hsl(${fillH}, ${fillS}%, ${Math.min(75, fillL + 10)}%)`;
+        c.shadowBlur = glow;
+      } else {
+        c.shadowBlur = 0;
+      }
+
+      c.fillStyle = `hsl(${fillH}, ${fillS}%, ${fillL}%)`;
       let cursor = 0;
       for (const g of sorted) {
         const gx1 = g.start * this.width;
@@ -847,7 +870,10 @@ export class GameEngine {
         cursor = gx2;
       }
       if (cursor < this.width) c.fillRect(cursor, bar.y, this.width - cursor, bar.height);
-      c.fillStyle = `hsla(${bar.hue}, 100%, 75%, 0.4)`;
+
+      // Reset shadow para o highlight superior (mais leve)
+      c.shadowBlur = 0;
+      c.fillStyle = `hsla(${fillH}, ${fillS}%, ${Math.min(85, fillL + 20)}%, 0.45)`;
       cursor = 0;
       for (const g of sorted) {
         const gx1 = g.start * this.width;
@@ -856,7 +882,42 @@ export class GameEngine {
         cursor = gx2;
       }
       if (cursor < this.width) c.fillRect(cursor, bar.y - 1, this.width - cursor, 2);
+
+      // Etiqueta R$ — somente se houver aposta e valor previsto > 0
+      if (this.stakeCredits > 0 && style.multiplier > 0) {
+        const value = Math.min(this.stakeCredits * style.multiplier, MAX_ROUND_PAYOUT);
+        const label = `R$ ${value.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+        // Centro do maior gap (legibilidade — texto cai sobre o "vão")
+        let bestGap = sorted[0]!;
+        let bestSize = bestGap.end - bestGap.start;
+        for (const g of sorted) {
+          const sz = g.end - g.start;
+          if (sz > bestSize) {
+            bestGap = g;
+            bestSize = sz;
+          }
+        }
+        const cx = ((bestGap.start + bestGap.end) / 2) * this.width;
+        const ty = bar.y - 6;
+        c.save();
+        c.font = "bold 11px Inter, system-ui, sans-serif";
+        c.textAlign = "center";
+        c.textBaseline = "bottom";
+        c.shadowColor = `hsl(${fillH}, ${fillS}%, 50%)`;
+        c.shadowBlur = 8;
+        c.fillStyle = justPassed
+          ? "hsl(140, 100%, 75%)"
+          : style.multiplier > 5
+          ? `hsl(${fillH}, 100%, 80%)`
+          : "hsl(0, 0%, 100%)";
+        c.fillText(label, cx, ty);
+        c.restore();
+      }
     }
+    c.shadowBlur = 0;
 
     // Power-ups
     c.globalCompositeOperation = "lighter";
