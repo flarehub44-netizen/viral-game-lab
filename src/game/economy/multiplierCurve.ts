@@ -8,42 +8,32 @@
  *     em torno desse alvo.
  *   - O payout é SEMPRE `stake × m(barriers_passed)`, onde `m` é a curva abaixo.
  *
- * IMPORTANTE: a curva é interpolação linear entre as âncoras (target_barrier, tier_mult)
- * extraídas da MULTIPLIER_TIERS. Isso garante que `m(target_do_tier_X) === tier_X.multiplier`,
- * o que mantém o RTP teórico exato quando o jogador morre exatamente no alvo do tier sorteado.
+ * ESCALA ESTENDIDA (200 barreiras):
+ *   A curva foi esticada ~3,3× no eixo X — agora vai de 0 a 200 barreiras
+ *   (antes 0 a 60). Mesma forma e mesmo teto ×50.
  *
- * Espelhado em supabase/functions/_shared/multiplierCurve.ts — qualquer mudança deve ser
- * aplicada nos DOIS arquivos (e na função SQL `compute_multiplier_for_barrier`).
+ * Espelhado em supabase/functions/_shared/multiplierCurve.ts e na função SQL
+ * `compute_multiplier_for_barrier`. Qualquer mudança deve ser aplicada nos três.
  */
 
-/**
- * Âncoras (barreira, multiplicador). Devem casar com MULTIPLIER_TIERS até [20, 20].
- *
- * FASE 2 — Cauda pós-tier-máximo (b > 20):
- *   Crescimento côncavo (sub-linear) que recompensa skill sem explodir o RTP.
- *   Cada barreira extra acima do alvo do tier também enfrenta um layout mais
- *   difícil (ver `liveDeterministicLayout`), então a probabilidade de chegar
- *   nessas âncoras cai rápido — a cauda contribui ~6–8% do RTP no perfil "skilled".
- *   `MAX_PAYOUT` continua sendo o teto absoluto por rodada no settle.
- */
 export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
-  [2, 0],
-  [5, 0.5],
-  [8, 0.8],
-  [11, 1.0],
-  [14, 1.2],
-  [17, 1.5],
-  [20, 2.0],
-  [23, 3.0],
-  [26, 5.0],
-  [29, 10.0],
-  [30, 20.0],
-  // ↓ Cauda pós-alvo (Fase 2)
-  [33, 26.0],
-  [38, 32.0],
-  [45, 40.0],
-  [60, 50.0],
+  [7, 0],
+  [17, 0.5],
+  [27, 0.8],
+  [37, 1.0],
+  [47, 1.2],
+  [57, 1.5],
+  [67, 2.0],
+  [77, 3.0],
+  [87, 5.0],
+  [97, 10.0],
+  [100, 20.0],
+  // ↓ Cauda pós-alvo (Fase 2) — escala estendida
+  [110, 26.0],
+  [127, 32.0],
+  [150, 40.0],
+  [200, 50.0],
 ] as const;
 
 /** Cap absoluto da curva — `MAX_PAYOUT` continua limitando o payout final por stake. */
