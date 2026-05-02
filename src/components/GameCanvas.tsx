@@ -124,7 +124,7 @@ export const GameCanvas = ({
       lastWinningsRef.current = passed;
       winIdRef.current += 1;
       const total = isDemoMode
-        ? Math.min(stake * DEMO_PER_BARRIER_FACTOR * demoBase * passed, MAX_ROUND_PAYOUT)
+        ? Math.min(stake * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * Math.max(0, passed - DEMO_FREE_BARRIERS), MAX_ROUND_PAYOUT)
         : Math.min(stake * multiplierForBarriers(passed), MAX_ROUND_PAYOUT);
       const item: FloatingWin = {
         id: winIdRef.current,
