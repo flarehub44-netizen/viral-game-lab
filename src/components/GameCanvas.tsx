@@ -181,6 +181,8 @@ export const GameCanvas = ({
       finalMultiplier: resultMultiplier,
       layoutPlan: layoutPlan ?? null,
       layoutSeed: layoutSeed ?? null,
+      stakeCredits: stake,
+      demoBaseMultiplier: isDemoMode ? demoBase : 0,
     });
 
     return () => {

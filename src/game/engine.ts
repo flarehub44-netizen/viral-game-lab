@@ -10,6 +10,8 @@ import {
   PHASE2_SPEED_CEIL,
   type LayoutBarrier,
 } from "./economy/liveDeterministicLayout";
+import { styleForBarrier } from "./economy/barrierVisual";
+import { MAX_ROUND_PAYOUT } from "./economy/constants";
 
 // Neon Split — engine com combo, power-ups, eventos por onda, score popups, shake e slow-mo.
 
@@ -62,6 +64,10 @@ interface Barrier {
   hue: number;
   passed: boolean;
   speed: number;
+  /** Posição global desta barreira (0-indexed) na sequência da rodada. */
+  barrierIndex: number;
+  /** Timestamp (performance.now) em que foi marcada como passada — usado para o flash. */
+  passedAt?: number;
 }
 
 interface Particle {
@@ -194,6 +200,8 @@ export class GameEngine {
   private layoutCursor = 0;
   private layoutSeed: string | null = null;
   private proceduralRng: (() => number) | null = null;
+  private stakeCredits = 0;
+  private demoBaseMultiplier = 0;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
@@ -236,6 +244,8 @@ export class GameEngine {
     finalMultiplier?: number;
     layoutPlan?: LayoutBarrier[] | null;
     layoutSeed?: string | null;
+    stakeCredits?: number;
+    demoBaseMultiplier?: number;
   }) {
     this.script = opts?.script ?? null;
     this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
@@ -246,6 +256,8 @@ export class GameEngine {
     this.layoutPlan = opts?.layoutPlan ?? null;
     this.layoutCursor = 0;
     this.layoutSeed = opts?.layoutSeed ?? null;
+    this.stakeCredits = Math.max(0, opts?.stakeCredits ?? 0);
+    this.demoBaseMultiplier = Math.max(0, opts?.demoBaseMultiplier ?? 0);
     // RNG procedural para a Fase 2 (quando o jogador excede o `layoutPlan`).
     this.proceduralRng = this.layoutSeed
       ? mulberry32(hashSeed(`${this.layoutSeed}::phase2`))
@@ -395,6 +407,9 @@ export class GameEngine {
     // Cor única (verde neon) para todas as barreiras — nada de cor por zona.
     const NEON_HUE = 140;
 
+    // Índice global desta barreira na rodada (0-based).
+    const globalIdx = this.barriersPassedCount + this.barriers.length;
+
     if (this.mode === "live" && this.layoutPlan) {
       // Pega a próxima linha do plano OU gera proceduralmente para suportar
       // jogadores que excederem o tamanho do `layoutPlan` (Fase 2 — continuidade infinita).
@@ -414,19 +429,19 @@ export class GameEngine {
         hue: NEON_HUE,
         passed: false,
         speed: Math.min(PHASE2_SPEED_CEIL, row.speed),
+        barrierIndex: globalIdx,
       });
       return;
     }
 
     // DEMO skill puro: barreiras fáceis e generosas (gap 30-50%, vel 50-170).
     if (this.mode === "demo") {
-      const idx = this.barriersPassedCount + this.barriers.length;
-      const difficulty = Math.min(0.40, 0.15 + idx * 0.008);
+      const difficulty = Math.min(0.40, 0.15 + globalIdx * 0.008);
       // gap entre 50% (fácil) e 30% (médio)
       const t = difficulty / 0.40;
       const gapSize = 0.50 - (0.50 - 0.30) * t;
       const start = Math.max(0.01, Math.random() * (1 - gapSize));
-      const speed = Math.min(170, 50 + idx * 1.2);
+      const speed = Math.min(170, 50 + globalIdx * 1.2);
       this.barriers.push({
         y: this.height + 20,
         height: 18,
@@ -434,6 +449,7 @@ export class GameEngine {
         hue: NEON_HUE,
         passed: false,
         speed,
+        barrierIndex: globalIdx,
       });
       return;
     }
@@ -450,6 +466,7 @@ export class GameEngine {
       hue: NEON_HUE,
       passed: false,
       speed,
+      barrierIndex: globalIdx,
     });
   }
 
@@ -675,6 +692,7 @@ export class GameEngine {
 
       if (bar.y + bar.height < this.height * 0.25 - 20 && !bar.passed) {
         bar.passed = true;
+        bar.passedAt = ts;
         this.barriersPassedCount += 1;
         const aliveNow = this.balls.reduce((n, b) => n + (b.alive ? 1 : 0), 0);
         if (aliveNow > 0) {
@@ -815,12 +833,35 @@ export class GameEngine {
 
     // (removido) tint de zona — sem variação visual de zona.
 
-    // Barriers
+    // Barriers — coloridas e com etiqueta R$ pelo multiplicador previsto
     c.globalCompositeOperation = "source-over";
+    const nowMs = performance.now();
+    const FLASH_MS = 280;
     for (const bar of this.barriers) {
-      c.fillStyle = `hsl(${bar.hue}, 100%, 55%)`;
-      // Build segments by sorting gaps
+      const style = styleForBarrier(bar.barrierIndex, this.mode, this.demoBaseMultiplier);
+      // Pulse sutil para tiers raros (dourado/magenta)
+      let lightAdj = 0;
+      if (style.pulse) {
+        lightAdj = Math.sin(nowMs * 0.008 + bar.barrierIndex) * 6;
+      }
+      // Flash verde-forte logo após ser ultrapassada
+      const justPassed = bar.passedAt != null && nowMs - bar.passedAt < FLASH_MS;
+      const fillH = justPassed ? 140 : style.hue;
+      const fillS = justPassed ? 100 : style.sat;
+      const fillL = justPassed ? 70 : style.light + lightAdj;
+      const glow = justPassed ? 24 : style.glow;
+
       const sorted = [...bar.gaps].sort((a, b) => a.start - b.start);
+
+      // Glow setup
+      if (glow > 0) {
+        c.shadowColor = `hsl(${fillH}, ${fillS}%, ${Math.min(75, fillL + 10)}%)`;
+        c.shadowBlur = glow;
+      } else {
+        c.shadowBlur = 0;
+      }
+
+      c.fillStyle = `hsl(${fillH}, ${fillS}%, ${fillL}%)`;
       let cursor = 0;
       for (const g of sorted) {
         const gx1 = g.start * this.width;
@@ -829,7 +870,10 @@ export class GameEngine {
         cursor = gx2;
       }
       if (cursor < this.width) c.fillRect(cursor, bar.y, this.width - cursor, bar.height);
-      c.fillStyle = `hsla(${bar.hue}, 100%, 75%, 0.4)`;
+
+      // Reset shadow para o highlight superior (mais leve)
+      c.shadowBlur = 0;
+      c.fillStyle = `hsla(${fillH}, ${fillS}%, ${Math.min(85, fillL + 20)}%, 0.45)`;
       cursor = 0;
       for (const g of sorted) {
         const gx1 = g.start * this.width;
@@ -838,7 +882,42 @@ export class GameEngine {
         cursor = gx2;
       }
       if (cursor < this.width) c.fillRect(cursor, bar.y - 1, this.width - cursor, 2);
+
+      // Etiqueta R$ — somente se houver aposta e valor previsto > 0
+      if (this.stakeCredits > 0 && style.multiplier > 0) {
+        const value = Math.min(this.stakeCredits * style.multiplier, MAX_ROUND_PAYOUT);
+        const label = `R$ ${value.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+        // Centro do maior gap (legibilidade — texto cai sobre o "vão")
+        let bestGap = sorted[0]!;
+        let bestSize = bestGap.end - bestGap.start;
+        for (const g of sorted) {
+          const sz = g.end - g.start;
+          if (sz > bestSize) {
+            bestGap = g;
+            bestSize = sz;
+          }
+        }
+        const cx = ((bestGap.start + bestGap.end) / 2) * this.width;
+        const ty = bar.y - 6;
+        c.save();
+        c.font = "bold 11px Inter, system-ui, sans-serif";
+        c.textAlign = "center";
+        c.textBaseline = "bottom";
+        c.shadowColor = `hsl(${fillH}, ${fillS}%, 50%)`;
+        c.shadowBlur = 8;
+        c.fillStyle = justPassed
+          ? "hsl(140, 100%, 75%)"
+          : style.multiplier > 5
+          ? `hsl(${fillH}, 100%, 80%)`
+          : "hsl(0, 0%, 100%)";
+        c.fillText(label, cx, ty);
+        c.restore();
+      }
     }
+    c.shadowBlur = 0;
 
     // Power-ups
     c.globalCompositeOperation = "lighter";
