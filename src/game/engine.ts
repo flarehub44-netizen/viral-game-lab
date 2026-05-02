@@ -169,7 +169,7 @@ export class GameEngine {
   private slowMoUntil = 0;
   private flashUntil = 0;
 
-  private static readonly MAX_BALLS = 128;
+  private static readonly MAX_BALLS = 64;
   private static readonly TRAIL_LEN = 4;
   private static readonly MAX_PARTICLES = 60;
   private static readonly COUNTDOWN_MS = 3000;
