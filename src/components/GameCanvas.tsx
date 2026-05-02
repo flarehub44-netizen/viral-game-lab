@@ -101,21 +101,20 @@ export const GameCanvas = ({
     !isDemoMode && stake > 0 && stake * liveCurrentMultiplier >= MAX_ROUND_PAYOUT;
 
   // ---- DEMO: ganho proporcional em tempo real ----
-  // Multiplicador atual = 0.05 × base × barreiras (sem teto próprio; só MAX_ROUND_PAYOUT)
-  // A "meta" da base é atingida em 20 barreiras; depois disso continua crescendo.
-  const DEMO_PER_BARRIER_FACTOR = 0.05;
-  const DEMO_GOAL_BARRIERS = 20;
+  // As primeiras DEMO_FREE_BARRIERS (7) barreiras são "aquecimento" e valem ×0,
+  // espelhando o offset da curva real. Depois disso: 0,05 × base × (barreiras - 7).
   const demoBase = isDemoMode ? (targetMultiplier ?? resultMultiplier ?? 5) : 0;
+  const demoEffectiveBarriers = isDemoMode ? Math.max(0, passedNow - DEMO_FREE_BARRIERS) : 0;
   const demoCurrentMultiplier = isDemoMode
-    ? DEMO_PER_BARRIER_FACTOR * demoBase * passedNow
+    ? DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase * demoEffectiveBarriers
     : 0;
   const demoCurrentWin = isDemoMode
     ? Math.min(stake * demoCurrentMultiplier, MAX_ROUND_PAYOUT)
     : 0;
-  const demoReachedGoal = isDemoMode && passedNow >= DEMO_GOAL_BARRIERS;
+  const demoReachedGoal = isDemoMode && demoEffectiveBarriers >= DEMO_GOAL_BARRIERS;
   const demoAtPayoutCap =
     isDemoMode && stake > 0 && stake * demoCurrentMultiplier >= MAX_ROUND_PAYOUT;
-  const demoPerBarrierValue = isDemoMode ? stake * DEMO_PER_BARRIER_FACTOR * demoBase : 0;
+  const demoPerBarrierValue = isDemoMode ? stake * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * demoBase : 0;
 
   // Popup ao passar cada barreira
   useEffect(() => {
