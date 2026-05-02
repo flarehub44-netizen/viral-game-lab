@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 interface GoalReachedPopupProps {
   multiplier: number;
   barriers: number;
