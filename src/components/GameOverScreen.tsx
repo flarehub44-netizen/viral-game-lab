@@ -106,112 +106,128 @@ export const GameOverScreen = ({
         )}
       </div>
 
-      <div className="flex flex-col items-center text-center mt-2">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-          Pontos
-        </div>
-        <div className="text-6xl font-black text-glow-cyan tabular-nums leading-none">
-          {stats.score.toLocaleString()}
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Recorde
-            </div>
-            <div className="text-lg font-bold tabular-nums">
-              {Math.max(bestScore, stats.score).toLocaleString()}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Combo
-            </div>
-            <div className="text-lg font-bold tabular-nums text-glow-magenta">
-              ×{maxCombo}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Tempo
-            </div>
-            <div className="text-lg font-bold tabular-nums">{stats.durationSeconds}s</div>
-          </div>
-        </div>
-        {barriersPassed != null && barriersPassed > 0 && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs tabular-nums">
-            <Flag size={12} className="text-primary" />
-            <span className="font-bold">Barreiras: {barriersPassed}</span>
-          </div>
-        )}
-        {progression && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs">
-            <Coins size={14} className="text-glow-yellow" />
-            <span className="font-bold text-glow-yellow">+{progression.creditsGained} créditos</span>
-          </div>
-        )}
-      </div>
-
+      {/* HERÓI: Resultado da rodada */}
       {serverEconomy && (
         <div
-          className={`mt-5 mx-auto w-full max-w-xs md:max-w-md rounded-xl border p-4 space-y-3 ${
+          className={`mt-4 mx-auto w-full max-w-xs md:max-w-md rounded-2xl border-2 p-5 space-y-4 ${
             serverEconomy.netResult > 0
-              ? "border-[hsl(140_80%_35%/0.55)] bg-[hsl(140_25%_8%/0.45)]"
+              ? "border-[hsl(140_80%_45%/0.7)] bg-[hsl(140_25%_8%/0.55)] shadow-[0_0_24px_hsl(140_80%_40%/0.3)]"
               : serverEconomy.netResult === 0
                 ? "border-border bg-card/40"
-                : "border-border/60 bg-card/30"
+                : "border-destructive/40 bg-card/30 shadow-[0_0_18px_hsl(0_70%_40%/0.2)]"
           }`}
         >
-          <div className="text-center text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">
+          <div className="text-center text-sm font-black uppercase tracking-[0.25em] text-muted-foreground">
             Resultado da rodada
           </div>
-          <div className="grid grid-cols-2 gap-3 text-center pt-1">
+          <div className="grid grid-cols-2 gap-3 text-center">
             <div>
               <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
-              <div className="text-lg font-black tabular-nums text-foreground/80">
+              <div className="text-xl font-bold tabular-nums text-foreground/80 mt-1">
                 R$ {fmt(serverEconomy.stake)}
               </div>
             </div>
             <div>
-              <div className="text-[9px] uppercase text-muted-foreground">Multiplicador</div>
-              <div className="text-lg font-black tabular-nums text-foreground">
-                ×{serverEconomy.resultMultiplier.toFixed(2)}
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div>
               <div className="text-[9px] uppercase text-muted-foreground">Pagamento</div>
               <div
-                className={`text-lg font-black tabular-nums ${
-                  serverEconomy.payout > 0 ? "text-[hsl(140_90%_62%)]" : "text-muted-foreground"
+                className={`text-4xl font-black tabular-nums leading-tight mt-0.5 ${
+                  serverEconomy.payout > 0
+                    ? "text-[hsl(140_90%_62%)]"
+                    : "text-muted-foreground"
                 }`}
+                style={{
+                  textShadow:
+                    serverEconomy.payout > 0
+                      ? "0 0 14px hsl(140 90% 50% / 0.55)"
+                      : undefined,
+                }}
               >
                 R$ {fmt(serverEconomy.payout)}
               </div>
             </div>
-            <div className="flex flex-col justify-center">
-              <div className="text-[9px] uppercase text-muted-foreground">Saldo da rodada</div>
-              <div
-                className={`text-lg font-black tabular-nums ${
+          </div>
+          <div className="text-center pt-2 border-t border-border/40">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Saldo da rodada
+            </div>
+            <div
+              className={`text-3xl font-black tabular-nums leading-tight mt-1 ${
+                serverEconomy.netResult > 0
+                  ? "text-[hsl(140_90%_62%)]"
+                  : serverEconomy.netResult === 0
+                    ? "text-foreground"
+                    : "text-destructive/90"
+              }`}
+              style={{
+                textShadow:
                   serverEconomy.netResult > 0
-                    ? "text-[hsl(140_90%_62%)]"
-                    : serverEconomy.netResult === 0
-                      ? "text-foreground"
-                      : "text-destructive/80"
-                }`}
-              >
-                {serverEconomy.netResult > 0 ? "+" : ""}
-                R$ {fmt(serverEconomy.netResult)}
-              </div>
+                    ? "0 0 12px hsl(140 90% 50% / 0.5)"
+                    : undefined,
+              }}
+            >
+              {serverEconomy.netResult > 0 ? "+" : ""}
+              R$ {fmt(serverEconomy.netResult)}
             </div>
           </div>
-          <p className="text-[9px] text-center text-muted-foreground leading-relaxed px-1">
+          <p className="text-[10px] text-center text-muted-foreground leading-relaxed px-1">
             {serverEconomy.netResult > 0
               ? "Boa rodada! Quanto mais barreiras você passa, maior o multiplicador."
               : "Cada barreira aumenta seu multiplicador. Continue tentando para chegar mais longe!"}
           </p>
         </div>
       )}
+
+      {/* Stats compactos: Pontos · Recorde · Combo · Tempo */}
+      <div className="mt-4 mx-auto w-full max-w-xs md:max-w-md grid grid-cols-4 gap-2 text-center">
+        <div>
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">
+            Pontos
+          </div>
+          <div className="text-base font-bold tabular-nums text-foreground/80 mt-0.5">
+            {stats.score.toLocaleString()}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">
+            Recorde
+          </div>
+          <div className="text-base font-bold tabular-nums text-foreground/80 mt-0.5">
+            {Math.max(bestScore, stats.score).toLocaleString()}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">
+            Combo
+          </div>
+          <div className="text-base font-bold tabular-nums text-foreground/80 mt-0.5">
+            ×{maxCombo}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-widest text-muted-foreground">
+            Tempo
+          </div>
+          <div className="text-base font-bold tabular-nums text-foreground/80 mt-0.5">
+            {stats.durationSeconds}s
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center text-center mt-3">
+        {barriersPassed != null && barriersPassed > 0 && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs tabular-nums">
+            <Flag size={12} className="text-primary" />
+            <span className="font-bold">Barreiras: {barriersPassed}</span>
+          </div>
+        )}
+        {progression && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1 text-xs">
+            <Coins size={14} className="text-glow-yellow" />
+            <span className="font-bold text-glow-yellow">+{progression.creditsGained} créditos</span>
+          </div>
+        )}
+      </div>
+
 
       {/* XP / Level bar */}
       {progression && (
