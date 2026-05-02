@@ -16,14 +16,14 @@ export const MULTIPLIER_CURVE_ANCHORS: ReadonlyArray<readonly [number, number]> 
   [26, 5.0],
   [29, 10.0],
   [30, 20.0],
-  // Cauda pós-alvo (Fase 2)
-  [33, 26.0],
-  [38, 32.0],
-  [45, 40.0],
-  [60, 50.0],
+  // Cauda pós-alvo (Fase 2) — achatada para reduzir RTP empírico (~70%).
+  [33, 22.0],
+  [38, 25.0],
+  [45, 28.0],
+  [60, 30.0],
 ] as const;
 
-export const MULTIPLIER_CURVE_HARD_CAP = 50;
+export const MULTIPLIER_CURVE_HARD_CAP = 30;
 
 export function multiplierForBarriers(barriersPassed: number): number {
   if (!Number.isFinite(barriersPassed) || barriersPassed <= 0) return 0;

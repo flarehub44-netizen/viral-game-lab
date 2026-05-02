@@ -23,16 +23,16 @@ describe("multiplierForBarriers", () => {
   });
 
   it("saturates at the hard cap above the last anchor", () => {
-    expect(multiplierForBarriers(60)).toBe(50);
-    expect(multiplierForBarriers(80)).toBe(50);
-    expect(multiplierForBarriers(1_000)).toBe(50);
+    expect(multiplierForBarriers(60)).toBe(30);
+    expect(multiplierForBarriers(80)).toBe(30);
+    expect(multiplierForBarriers(1_000)).toBe(30);
   });
 
   it("phase-2 tail anchors hit exactly", () => {
     expect(multiplierForBarriers(30)).toBeCloseTo(20, 2);
-    expect(multiplierForBarriers(33)).toBeCloseTo(26, 2);
-    expect(multiplierForBarriers(38)).toBeCloseTo(32, 2);
-    expect(multiplierForBarriers(45)).toBeCloseTo(40, 2);
+    expect(multiplierForBarriers(33)).toBeCloseTo(22, 2);
+    expect(multiplierForBarriers(38)).toBeCloseTo(25, 2);
+    expect(multiplierForBarriers(45)).toBeCloseTo(28, 2);
   });
 
   it("phase-2 tail interpolates monotonically", () => {
