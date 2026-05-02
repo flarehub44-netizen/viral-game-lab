@@ -7,15 +7,17 @@ import {
 import { MAX_ROUND_PAYOUT, MIN_STAKE, MAX_STAKE } from "./constants";
 import { pushDemoHistoryRow } from "./demoHistory";
 import type { ActiveServerRound } from "./serverRound";
-import { multiplierForBarriers } from "./multiplierCurve";
 
 /**
- * DEMO usa a MESMA curva pública `m(b)` do modo online (Fase 1 payout dinâmico).
- * O parâmetro `base` permanece como referência visual ("alvo do jogador") mas não
- * altera mais o ganho — assim a experiência demo prepara o jogador para a real.
+ * DEMO usa fórmula linear baseada na BASE escolhida pelo jogador (×2/×5/×10/×20):
+ *   multiplicador = 0,05 × base × barreiras
+ *   pagamento     = entrada × multiplicador (capado em MAX_ROUND_PAYOUT)
+ *
+ * Isto é INTENCIONALMENTE diferente da curva pública `m(b)` do modo live —
+ * mantém a consistência com o HUD que o jogador vê durante a partida demo.
  */
 
-/** @deprecated Mantido para compatibilidade com a UI; não afeta mais o cálculo de ganho. */
+/** Fator linear por barreira aplicado sobre a base escolhida no demo. */
 export const DEMO_MULTIPLIER_PER_BARRIER_FACTOR = 0.05;
 
 /** DEMO: bases de multiplicador disponíveis ao jogador (referência visual). */
@@ -43,11 +45,13 @@ export function isValidDemoBase(base: number): base is DemoBase {
 }
 
 /**
- * Multiplicador atual do DEMO — agora idêntico ao modo online (curva pública m(b)).
- * O parâmetro `base` é ignorado para cálculo (mantido na assinatura por compatibilidade).
+ * Multiplicador atual do DEMO: fórmula linear `0,05 × base × barreiras`.
+ * Idêntico ao que o HUD do `GameCanvas` mostra durante a partida.
  */
-export function demoMultiplierFor(barriersPassed: number, _base?: number): number {
-  return multiplierForBarriers(barriersPassed);
+export function demoMultiplierFor(barriersPassed: number, base: number = DEMO_DEFAULT_BASE): number {
+  const safeBase = isValidDemoBase(base) ? base : DEMO_DEFAULT_BASE;
+  const safeBarriers = Math.max(0, Math.floor(barriersPassed));
+  return DEMO_MULTIPLIER_PER_BARRIER_FACTOR * safeBase * safeBarriers;
 }
 
 /**

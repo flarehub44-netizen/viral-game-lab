@@ -31,27 +31,25 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect(isValidDemoBase(0)).toBe(false);
   });
 
-  it("demoMultiplierFor: 0 barreiras = ×0 (qualquer base)", () => {
-    expect(demoMultiplierFor(0, 2)).toBe(0);
-    expect(demoMultiplierFor(0, 20)).toBe(0);
+  it("demoMultiplierFor: fórmula linear 0,05 × base × barreiras", () => {
+    // 20 barreiras × base 5 → 0.05 × 5 × 20 = 5 (atinge a meta da base)
+    expect(demoMultiplierFor(20, 5)).toBe(5);
+    // 20 barreiras × base 10 → atinge meta ×10
+    expect(demoMultiplierFor(20, 10)).toBe(10);
+    // 20 barreiras × base 20 → atinge meta ×20
+    expect(demoMultiplierFor(20, 20)).toBe(20);
+    // 10 barreiras × base 5 → metade da meta
+    expect(demoMultiplierFor(10, 5)).toBe(2.5);
   });
 
-  // Curva pública m(b) — independente da base. Pontos âncora: (5,0.5), (11,1.0), (20,2.0), (30,20).
-  it("demoMultiplierFor: âncoras da curva pública (base ignorada)", () => {
-    expect(demoMultiplierFor(17, 2)).toBe(0.5);
-    expect(demoMultiplierFor(37, 2)).toBe(1);
-    expect(demoMultiplierFor(67, 2)).toBe(2);
-    expect(demoMultiplierFor(100, 2)).toBe(20);
+  it("demoMultiplierFor: base afeta o multiplicador (não é ignorada)", () => {
+    expect(demoMultiplierFor(10, 10)).toBeGreaterThan(demoMultiplierFor(10, 5));
+    expect(demoMultiplierFor(10, 20)).toBe(demoMultiplierFor(10, 5) * 4);
   });
 
-  it("demoMultiplierFor: base é ignorada — mesmo valor para qualquer base", () => {
-    expect(demoMultiplierFor(37, 10)).toBe(demoMultiplierFor(37, 2));
-    expect(demoMultiplierFor(67, 20)).toBe(demoMultiplierFor(67, 5));
-  });
-
-  it("demoMultiplierFor: cap em 50 acima da última âncora (200)", () => {
-    expect(demoMultiplierFor(200, 10)).toBe(50);
-    expect(demoMultiplierFor(300, 10)).toBe(50);
+  it("demoMultiplierFor: continua crescendo após a meta (sem cap próprio)", () => {
+    expect(demoMultiplierFor(40, 5)).toBe(10);
+    expect(demoMultiplierFor(100, 10)).toBe(50);
   });
 
   it("startDemoRound debita a entrada e guarda a base escolhida", () => {
@@ -78,23 +76,23 @@ describe("demoRound (skill-puro com base escolhida)", () => {
     expect((res as { ok: false; error: string }).error).toBe("invalid_base");
   });
 
-  it("settleDemoRound credita pagamento da curva — 37 barreiras = ×1.0", () => {
+  it("settleDemoRound credita pagamento linear — 20 barreiras × base 10 = ×10", () => {
     const res = startDemoRound(10, 10);
     if (!res.ok) throw new Error("start failed");
-    // 37 barreiras → ×1.0 → payout 10 → saldo 150 - 10 + 10 = 150
-    const out = settleDemoRound(res.round, 37);
-    expect(out.multiplier).toBe(1);
-    expect(out.payout).toBe(10);
-    expect(out.netResult).toBe(0);
-    expect(loadWallet().balance).toBe(150);
+    // 0.05 × 10 × 20 = 10 → payout = 10 × 10 = 100; saldo: 150 - 10 + 100 = 240
+    const out = settleDemoRound(res.round, 20);
+    expect(out.multiplier).toBe(10);
+    expect(out.payout).toBe(100);
+    expect(out.netResult).toBe(90);
+    expect(loadWallet().balance).toBe(240);
   });
 
-  it("settleDemoRound 67 barreiras paga ×2.0", () => {
-    const res = startDemoRound(10, 2);
+  it("settleDemoRound: base 5 com 10 barreiras = ×2.5", () => {
+    const res = startDemoRound(10, 5);
     if (!res.ok) throw new Error("start failed");
-    const out = settleDemoRound(res.round, 67);
-    expect(out.multiplier).toBe(2);
-    expect(out.payout).toBe(20);
+    const out = settleDemoRound(res.round, 10);
+    expect(out.multiplier).toBe(2.5);
+    expect(out.payout).toBe(25);
   });
 
   it("settleDemoRound com 0 barreiras = perdeu a entrada", () => {
