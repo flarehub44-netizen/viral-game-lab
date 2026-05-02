@@ -537,8 +537,13 @@ const Index = () => {
     );
     setLastProgression(result);
 
-    setScreen("over");
-    if (goalHit) setGoalPopup(goalHit);
+    if (goalHit) {
+      // Mostra popup obrigatório ANTES de ir para a tela de fim de jogo.
+      // A transição para "over" só acontece quando o jogador clica em "Fechar".
+      setGoalPopup(goalHit);
+    } else {
+      setScreen("over");
+    }
 
     if (isDemo) {
       refreshDemoEconomy();
