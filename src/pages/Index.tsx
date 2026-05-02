@@ -345,6 +345,7 @@ const Index = () => {
 
   const handleKycIdentitySaved = useCallback(async () => {
     await reloadProfile();
+    void trackMeta("Lead", { content_name: "kyc_identity_saved", content_category: "compliance" });
     const next = kycReturnRef.current;
     kycReturnRef.current = null;
     if (next === "deposit") setScreen("deposit");
@@ -352,8 +353,15 @@ const Index = () => {
     else setScreen("wallet");
   }, [reloadProfile]);
 
-  const handlePixDepositConfirmed = useCallback(async () => {
+  const handlePixDepositConfirmed = useCallback(async (amount?: number) => {
     await refreshEconomy();
+    void trackMeta("Purchase", {
+      value: typeof amount === "number" ? amount : 0,
+      currency: "BRL",
+      content_name: "pix_deposit_confirmed",
+      content_category: "deposit",
+      content_type: "deposit",
+    });
   }, [refreshEconomy]);
 
   const handlePixWithdrawRequested = useCallback(async () => {
