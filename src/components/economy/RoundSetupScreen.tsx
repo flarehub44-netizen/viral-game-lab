@@ -1,6 +1,7 @@
-import { ArrowLeft, Infinity as InfinityIcon, Target, Users } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER } from "@/game/economy/constants";
+import { BET_AMOUNTS, DEFAULT_META_MULTIPLIER, MAX_ROUND_PAYOUT } from "@/game/economy/constants";
+import { MULTIPLIER_CURVE_HARD_CAP } from "@/game/economy/multiplierCurve";
 import { DEMO_BASE_OPTIONS, DEMO_DEFAULT_BASE, DEMO_GOAL_BARRIERS, DEMO_MULTIPLIER_PER_BARRIER_FACTOR } from "@/game/economy/demoRound";
 
 interface Props {
@@ -22,13 +23,11 @@ function pseudoOnlinePlayers(): number {
 export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource }: Props) => {
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
+  // Demo: jogador escolhe a "base" (2/5/10/20). Live: não há mais escolha — o
+  // multiplicador é resultado da curva e depende de quantas barreiras o jogador passa.
   const [meta, setMeta] = useState<number>(isDemo ? DEMO_DEFAULT_BASE : DEFAULT_META_MULTIPLIER);
   const online = pseudoOnlinePlayers();
-  // Demo: jogador escolhe a base (2/5/10/20). Live: jogador escolhe a meta (5/10/15/20).
-  const canEditMeta = true;
-  const liveMetaOptions = [5, 10, 15, 20];
   const demoMetaOptions = DEMO_BASE_OPTIONS as readonly number[];
-  const metaOptions = isDemo ? demoMetaOptions : liveMetaOptions;
 
   const stats = useMemo(() => {
     if (bet <= 0) {
@@ -36,6 +35,7 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
         metaGain: 0,
         perBarrier: 0,
         platForMeta: 0,
+        maxPayout: 0,
       };
     }
     if (isDemo) {
@@ -43,12 +43,11 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
       // Atinge a meta (×base) em DEMO_GOAL_BARRIERS barreiras.
       const perBarrier = bet * DEMO_MULTIPLIER_PER_BARRIER_FACTOR * meta;
       const metaGain = bet * meta;
-      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS };
+      return { metaGain, perBarrier, platForMeta: DEMO_GOAL_BARRIERS, maxPayout: 0 };
     }
-    const metaGain = bet * meta;
-    const perBarrier = Math.max(1, Math.round(bet * 0.5));
-    const platForMeta = Math.ceil(metaGain / perBarrier);
-    return { metaGain, perBarrier, platForMeta };
+    // Live: pagamento depende da curva. Mostramos o teto possível (cap × stake, limitado por MAX_ROUND_PAYOUT).
+    const maxPayout = Math.min(MAX_ROUND_PAYOUT, bet * MULTIPLIER_CURVE_HARD_CAP);
+    return { metaGain: 0, perBarrier: 0, platForMeta: 0, maxPayout };
   }, [bet, meta, isDemo]);
 
   const fmt = (n: number) =>
