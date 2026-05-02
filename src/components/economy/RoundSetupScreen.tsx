@@ -92,10 +92,6 @@ export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySour
               🎯 Escolha sua <strong>base ×{meta},00</strong>
             </div>
           )}
-            <div className="mt-3 mx-auto max-w-md rounded-xl border border-[hsl(140_60%_40%/0.45)] bg-[hsl(140_30%_8%/0.35)] px-3 py-2 text-[11px] text-[hsl(140_60%_75%)] text-center leading-snug">
-              🎯 Escolha sua <strong>base ×{meta},00</strong>
-            </div>
-          )}
         </div>
 
         {/* Seletor de base/meta — habilitado no Demo, somente leitura no Live */}
