@@ -175,6 +175,8 @@ export function trackMetaCustom(
   } catch (e) {
     console.warn("[meta] trackCustom failed:", e);
   }
+  // TikTok não suporta eventos custom nomeados de forma direta; usa track genérico.
+  ttqTrack(name, data);
 }
 
 /** Atualiza identidade do usuário para CAPI (chame no login). */
