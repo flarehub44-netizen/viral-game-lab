@@ -184,6 +184,7 @@ export const GameCanvas = ({
       layoutSeed: layoutSeed ?? null,
       stakeCredits: stake,
       demoBaseMultiplier: isDemoMode ? demoBase : 0,
+      hideCurrencySymbol,
     });
 
     return () => {
