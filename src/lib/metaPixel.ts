@@ -14,7 +14,37 @@ export const META_PIXEL_ID = "1234167135525222";
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
+    ttq?: {
+      track: (event: string, data?: Record<string, unknown>, opts?: { event_id?: string }) => void;
+      page?: () => void;
+      identify?: (data: Record<string, unknown>) => void;
+    };
     _ns_meta_user?: { email?: string | null; phone?: string | null };
+  }
+}
+
+/** Mapeia eventos padrão Meta -> TikTok. */
+const META_TO_TIKTOK: Record<string, string> = {
+  PageView: "Pageview",
+  ViewContent: "ViewContent",
+  Lead: "Lead",
+  CompleteRegistration: "CompleteRegistration",
+  AddPaymentInfo: "AddPaymentInfo",
+  InitiateCheckout: "InitiateCheckout",
+  AddToCart: "AddToCart",
+  Purchase: "CompletePayment",
+  Subscribe: "Subscribe",
+  StartTrial: "StartTrial",
+  Search: "Search",
+};
+
+function ttqTrack(event: string, data: Record<string, unknown> = {}, event_id?: string): void {
+  try {
+    if (typeof window !== "undefined" && window.ttq && typeof window.ttq.track === "function") {
+      window.ttq.track(event, data, event_id ? { event_id } : undefined);
+    }
+  } catch (e) {
+    console.warn("[tiktok] track failed:", e);
   }
 }
 
@@ -97,6 +127,10 @@ export async function trackMeta(
     console.warn("[meta] fbq track failed:", e);
   }
 
+  // TikTok pixel — espelha eventos padrão
+  const ttkEvent = META_TO_TIKTOK[event];
+  if (ttkEvent) ttqTrack(ttkEvent, data, event_id);
+
   if (!sendCapi) return;
 
   // Servidor (Conversions API) — não bloqueia UX
@@ -141,10 +175,19 @@ export function trackMetaCustom(
   } catch (e) {
     console.warn("[meta] trackCustom failed:", e);
   }
+  // TikTok não suporta eventos custom nomeados de forma direta; usa track genérico.
+  ttqTrack(name, data);
 }
 
 /** Atualiza identidade do usuário para CAPI (chame no login). */
 export function setMetaUserIdentity(email: string | null, phone?: string | null): void {
   if (typeof window === "undefined") return;
   window._ns_meta_user = { email, phone: phone ?? null };
+  try {
+    if (window.ttq && typeof window.ttq.identify === "function" && email) {
+      window.ttq.identify({ email, phone_number: phone ?? undefined });
+    }
+  } catch (e) {
+    console.warn("[tiktok] identify failed:", e);
+  }
 }
