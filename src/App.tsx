@@ -27,6 +27,7 @@ const AdminFraud = lazy(() =>
 const AdminWithdrawals = lazy(() =>
   import("./pages/admin/AdminWithdrawals.tsx").then((m) => ({ default: m.AdminWithdrawals })),
 );
+const AdminArcade = lazy(() => import("./pages/admin/AdminArcade.tsx"));
 
 const queryClient = new QueryClient();
 
