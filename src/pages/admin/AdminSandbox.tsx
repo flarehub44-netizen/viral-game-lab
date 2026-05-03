@@ -128,7 +128,6 @@ export const AdminSandbox = () => {
           roundId={activeRound.roundId}
           visualScript={null}
           allowScriptTerminate={false}
-          qaMode="demo"
           mode="demo"
           onGameOver={(stats, summary) => handleGameOver(activeRound, stats, summary)}
           onExit={() => {
