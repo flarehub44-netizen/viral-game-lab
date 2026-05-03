@@ -43,6 +43,8 @@ interface Props {
   targetMultiplier?: number;
   /** Multiplicador já sorteado ao iniciar (HUD). */
   resultMultiplier?: number;
+  /** Oculta o prefixo "R$" nos valores monetários do HUD (modo sandbox/admin). */
+  hideCurrencySymbol?: boolean;
 }
 
 const MENU_HOLD_MS = 600;
@@ -73,6 +75,7 @@ export const GameCanvas = ({
   stakeCredits,
   targetMultiplier,
   resultMultiplier,
+  hideCurrencySymbol = false,
 }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -330,7 +333,7 @@ export const GameCanvas = ({
                   }`}
                   style={{ textShadow: currentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
                 >
-                  R$ {formatBRL(currentWin)}
+                  {hideCurrencySymbol ? "" : "R$ "}{formatBRL(currentWin)}
                 </div>
                 <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
                   ×{currentMult.toFixed(2)} · {passedNow} barreiras
@@ -402,7 +405,7 @@ export const GameCanvas = ({
               className="float-up rounded-lg border px-3 py-1 text-center border-border bg-card/85"
             >
               <div className="text-base font-black tabular-nums leading-none text-foreground">
-                +R$ {formatBRL(w.total)}
+                +{hideCurrencySymbol ? "" : "R$ "}{formatBRL(w.total)}
               </div>
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
                 Barreira {w.barrier} · ×{popupMult.toFixed(2)}
