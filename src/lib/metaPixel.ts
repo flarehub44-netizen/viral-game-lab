@@ -14,7 +14,37 @@ export const META_PIXEL_ID = "1234167135525222";
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
+    ttq?: {
+      track: (event: string, data?: Record<string, unknown>, opts?: { event_id?: string }) => void;
+      page?: () => void;
+      identify?: (data: Record<string, unknown>) => void;
+    };
     _ns_meta_user?: { email?: string | null; phone?: string | null };
+  }
+}
+
+/** Mapeia eventos padrão Meta -> TikTok. */
+const META_TO_TIKTOK: Record<string, string> = {
+  PageView: "Pageview",
+  ViewContent: "ViewContent",
+  Lead: "Lead",
+  CompleteRegistration: "CompleteRegistration",
+  AddPaymentInfo: "AddPaymentInfo",
+  InitiateCheckout: "InitiateCheckout",
+  AddToCart: "AddToCart",
+  Purchase: "CompletePayment",
+  Subscribe: "Subscribe",
+  StartTrial: "StartTrial",
+  Search: "Search",
+};
+
+function ttqTrack(event: string, data: Record<string, unknown> = {}, event_id?: string): void {
+  try {
+    if (typeof window !== "undefined" && window.ttq && typeof window.ttq.track === "function") {
+      window.ttq.track(event, data, event_id ? { event_id } : undefined);
+    }
+  } catch (e) {
+    console.warn("[tiktok] track failed:", e);
   }
 }
 
