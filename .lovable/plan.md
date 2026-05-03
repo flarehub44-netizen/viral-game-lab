@@ -1,39 +1,41 @@
-# Corrigir página /admin não aparecendo na Vercel
+## Objetivo
 
-## Causa
+Criar uma nova página de jogo acessível pelo painel admin, **sem economia/dinheiro**: o jogador joga livremente e acumula apenas **pontos** (score) e barreiras passadas. Nada de aposta, payout, multiplicador em R$, carteira ou rodada do servidor.
 
-O projeto é uma SPA (React Router com `BrowserRouter`). Quando você acessa diretamente `https://seu-dominio.vercel.app/admin` (ou recarrega a página estando nela), a Vercel procura um arquivo físico em `/admin` no build. Como esse arquivo não existe — a rota `/admin` só existe dentro do JavaScript do React Router — a Vercel devolve **404**.
+## Rota e navegação
 
-No Lovable isso funciona porque a infraestrutura tem fallback SPA automático. A Vercel **não** tem esse fallback por padrão; precisa de um arquivo de configuração.
+- Nova rota: `/admin/arcade` (protegida pelo mesmo guard de admin já existente em `AdminPage.tsx`).
+- Adicionar aba **"Arcade"** no header de `src/pages/admin/AdminPage.tsx`, ao lado de Sandbox.
+- Registrar a rota em `src/App.tsx` como filha de `/admin`, lazy-loaded.
+- Igual ao Sandbox, esconder o header quando estiver em `/admin/arcade` para experiência fullscreen (ajustar `hideHeader` em `AdminPage.tsx`).
 
-> Observação: hoje o projeto não tem `vercel.json` na raiz (acabei de verificar), por isso o sintoma.
+## Página `AdminArcade.tsx`
 
-## O que fazer
+Arquivo novo: `src/pages/admin/AdminArcade.tsx`.
 
-Criar um arquivo `vercel.json` na raiz do projeto com uma regra de rewrite que faz qualquer rota servir o `index.html`. O React Router então assume e renderiza a página correta (incluindo `/admin`, `/admin/overview`, `/admin/users`, etc.).
+Comportamento:
+- Tela inicial minimalista com título "Arcade — Modo Pontos", botão **Jogar** e exibição do **melhor score** salvo localmente em `localStorage` (`ns_best_arcade`).
+- Ao clicar Jogar, monta `<GameCanvas>` em modo `demo`, mas com `stakeCredits={0}` e **sem** `visualScript`, `targetBarrier`, `targetMultiplier`, `resultMultiplier`, `layoutPlan`. Isso já desativa o HUD central de "Ganho atual" (renderiza somente quando `stake > 0`) e os popups de R$ por barreira.
+- `onGameOver(stats, summary)`: atualizar best score local, mostrar tela simples de Game Over com Score, Barreiras, Combo máx., Duração, e botões **Jogar de novo** / **Sair**. Não chama nenhuma Edge Function, não toca em wallet/ledger/round.
+- `onExit`: volta para a tela inicial do Arcade (não sai de `/admin/arcade`).
+- Botão "Voltar ao Admin" (link para `/admin/overview`) visível apenas na tela inicial e na tela de Game Over (já que o header está oculto).
 
-### Conteúdo do arquivo `vercel.json`
+## Garantias de "sem ganhos"
 
-```json
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-```
+- Não importar `walletStore`, `serverRound`, `start-round`, `end-round`, `submit-score`.
+- `stakeCredits = 0` → `GameCanvas` não renderiza o card de "Ganho atual" nem os popups verdes de R$.
+- Nenhuma persistência além de `ns_best_arcade` (number) em localStorage.
 
-Isso resolve **todas** as rotas profundas no deploy da Vercel, não só `/admin`.
+## Detalhes técnicos
 
-## Depois de aplicar
+- Reusar `GameEngine` via `GameCanvas` sem tocar em `engine.ts`.
+- Tipos de stats já expostos: `PublicGameStats` (score, barriersPassed, combo, durationSeconds) — suficientes para o resumo.
+- Lazy import na `App.tsx` no mesmo padrão dos outros `Admin*`.
 
-1. Faça um novo deploy na Vercel (basta um novo commit ou clicar em "Redeploy").
-2. Acesse `https://seu-dominio.vercel.app/admin` — agora carregará o app.
-3. Faça login com a conta admin: o redirecionamento automático para `/admin` (que já implementamos) também passará a funcionar no domínio Vercel.
+## Arquivos
 
-## Lembrete importante sobre a conta admin
+- Novo: `src/pages/admin/AdminArcade.tsx`
+- Editado: `src/App.tsx` (rota lazy)
+- Editado: `src/pages/admin/AdminPage.tsx` (aba "Arcade" + `hideHeader` inclui `/admin/arcade`)
 
-A página `/admin` só renderiza se o usuário tiver a role `admin` na tabela `user_roles` do backend. Se após o fix de roteamento a página ainda mostrar "Não encontrado", é porque o usuário logado não tem a role atribuída — isso é independente do problema da Vercel.
-
-## Arquivo a ser criado
-
-- `vercel.json` (raiz do projeto)
+Sem migrações de banco, sem Edge Functions, sem mudanças no engine.
