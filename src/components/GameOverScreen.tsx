@@ -20,6 +20,8 @@ interface Props {
   onChangeStake?: () => void;
   onOpenHistory?: () => void;
   barriersPassed?: number;
+  /** Oculta o prefixo "R$" nos valores monetários (modo sandbox/admin). */
+  hideCurrencySymbol?: boolean;
 }
 
 export const GameOverScreen = ({
@@ -37,7 +39,9 @@ export const GameOverScreen = ({
   onChangeStake,
   onOpenHistory,
   barriersPassed,
+  hideCurrencySymbol = false,
 }: Props) => {
+  const cur = hideCurrencySymbol ? "" : "R$ ";
   // Animate XP bar from before -> after
   const [animXp, setAnimXp] = useState(progression?.xpBefore ?? 0);
   // Trava: ignora cliques nos botões por 700ms para evitar tap residual
@@ -124,7 +128,7 @@ export const GameOverScreen = ({
             <div>
               <div className="text-[9px] uppercase text-muted-foreground">Entrada</div>
               <div className="text-xl font-bold tabular-nums text-foreground/80 mt-1">
-                R$ {fmt(serverEconomy.stake)}
+                {cur}{fmt(serverEconomy.stake)}
               </div>
             </div>
             <div>
@@ -142,7 +146,7 @@ export const GameOverScreen = ({
                       : undefined,
                 }}
               >
-                R$ {fmt(serverEconomy.payout)}
+                {cur}{fmt(serverEconomy.payout)}
               </div>
             </div>
           </div>
@@ -166,7 +170,7 @@ export const GameOverScreen = ({
               }}
             >
               {serverEconomy.netResult > 0 ? "+" : ""}
-              R$ {fmt(serverEconomy.netResult)}
+              {cur}{fmt(serverEconomy.netResult)}
             </div>
           </div>
           <p className="text-[10px] text-center text-muted-foreground leading-relaxed px-1">

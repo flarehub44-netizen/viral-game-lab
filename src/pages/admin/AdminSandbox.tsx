@@ -114,6 +114,7 @@ export const AdminSandbox = () => {
           economySource="demo"
           onChangeStake={() => setOver(null)}
           barriersPassed={over.summary.barriersPassed}
+          hideCurrencySymbol
         />
       </div>
     );
@@ -149,6 +150,7 @@ export const AdminSandbox = () => {
         onBack={() => window.history.back()}
         onConfirm={(stake, _meta) => startPlay(stake, DEMO_DEFAULT_BASE)}
         economySource="demo"
+        hideCurrencySymbol
       />
     </div>
   );
