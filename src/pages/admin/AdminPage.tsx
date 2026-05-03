@@ -82,6 +82,9 @@ const AdminPage = () => {
             <NavLink to="/admin/sandbox" className={tabClass}>
               Sandbox
             </NavLink>
+            <NavLink to="/admin/arcade" className={tabClass}>
+              Arcade
+            </NavLink>
             <NavLink to="/admin/users" className={tabClass}>
               Usuários
             </NavLink>
