@@ -333,7 +333,7 @@ export const GameCanvas = ({
                   }`}
                   style={{ textShadow: currentWin > 0 ? "0 0 10px hsl(140 90% 50% / 0.5)" : undefined }}
                 >
-                  R$ {formatBRL(currentWin)}
+                  {hideCurrencySymbol ? "" : "R$ "}{formatBRL(currentWin)}
                 </div>
                 <div className="text-[9px] font-semibold tracking-wide text-muted-foreground tabular-nums">
                   ×{currentMult.toFixed(2)} · {passedNow} barreiras
