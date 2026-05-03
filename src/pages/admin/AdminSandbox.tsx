@@ -135,6 +135,7 @@ export const AdminSandbox = () => {
           }}
           stakeCredits={activeRound.stake}
           targetMultiplier={activeRound.base}
+          hideCurrencySymbol
         />
       </div>
     );
