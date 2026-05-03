@@ -127,6 +127,10 @@ export async function trackMeta(
     console.warn("[meta] fbq track failed:", e);
   }
 
+  // TikTok pixel — espelha eventos padrão
+  const ttkEvent = META_TO_TIKTOK[event];
+  if (ttkEvent) ttqTrack(ttkEvent, data, event_id);
+
   if (!sendCapi) return;
 
   // Servidor (Conversions API) — não bloqueia UX
