@@ -55,6 +55,7 @@ const App = () => (
                 <Route path="flags" element={<AdminFlags />} />
                 <Route path="fraud" element={<AdminFraud />} />
                 <Route path="withdrawals" element={<AdminWithdrawals />} />
+                <Route path="arcade" element={<AdminArcade />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
