@@ -59,7 +59,9 @@ const AdminPage = () => {
 
   // Ocultar o header/menu admin na página /admin/sandbox para deixar a
   // experiência de jogo igual ao demo (sem barra de navegação no topo).
-  const hideHeader = location.pathname.startsWith("/admin/sandbox");
+  const hideHeader =
+    location.pathname.startsWith("/admin/sandbox") ||
+    location.pathname.startsWith("/admin/arcade");
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-8">
@@ -79,6 +81,9 @@ const AdminPage = () => {
             </NavLink>
             <NavLink to="/admin/sandbox" className={tabClass}>
               Sandbox
+            </NavLink>
+            <NavLink to="/admin/arcade" className={tabClass}>
+              Arcade
             </NavLink>
             <NavLink to="/admin/users" className={tabClass}>
               Usuários
