@@ -183,4 +183,11 @@ export function trackMetaCustom(
 export function setMetaUserIdentity(email: string | null, phone?: string | null): void {
   if (typeof window === "undefined") return;
   window._ns_meta_user = { email, phone: phone ?? null };
+  try {
+    if (window.ttq && typeof window.ttq.identify === "function" && email) {
+      window.ttq.identify({ email, phone_number: phone ?? undefined });
+    }
+  } catch (e) {
+    console.warn("[tiktok] identify failed:", e);
+  }
 }
