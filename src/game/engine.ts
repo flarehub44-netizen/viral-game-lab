@@ -202,6 +202,7 @@ export class GameEngine {
   private proceduralRng: (() => number) | null = null;
   private stakeCredits = 0;
   private demoBaseMultiplier = 0;
+  private hideCurrencySymbol = false;
 
   constructor(canvas: HTMLCanvasElement, cb: EngineCallbacks) {
     this.canvas = canvas;
@@ -246,6 +247,7 @@ export class GameEngine {
     layoutSeed?: string | null;
     stakeCredits?: number;
     demoBaseMultiplier?: number;
+    hideCurrencySymbol?: boolean;
   }) {
     this.script = opts?.script ?? null;
     this.allowScriptTerminate = opts?.allowScriptTerminate ?? true;
@@ -258,6 +260,7 @@ export class GameEngine {
     this.layoutSeed = opts?.layoutSeed ?? null;
     this.stakeCredits = Math.max(0, opts?.stakeCredits ?? 0);
     this.demoBaseMultiplier = Math.max(0, opts?.demoBaseMultiplier ?? 0);
+    this.hideCurrencySymbol = opts?.hideCurrencySymbol ?? false;
     // RNG procedural para a Fase 2 (quando o jogador excede o `layoutPlan`).
     this.proceduralRng = this.layoutSeed
       ? mulberry32(hashSeed(`${this.layoutSeed}::phase2`))
@@ -897,7 +900,7 @@ export class GameEngine {
         // Demo/sandbox não aplicam o teto de MAX_ROUND_PAYOUT — só o live tem teto.
         const rawValue = this.stakeCredits * style.multiplier;
         const value = this.mode === "live" ? Math.min(rawValue, MAX_ROUND_PAYOUT) : rawValue;
-        const label = `R$ ${value.toLocaleString("pt-BR", {
+        const label = `${this.hideCurrencySymbol ? "" : "R$ "}${value.toLocaleString("pt-BR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}`;
