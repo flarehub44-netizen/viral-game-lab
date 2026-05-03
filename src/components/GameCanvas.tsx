@@ -75,6 +75,7 @@ export const GameCanvas = ({
   stakeCredits,
   targetMultiplier,
   resultMultiplier,
+  hideCurrencySymbol = false,
 }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
