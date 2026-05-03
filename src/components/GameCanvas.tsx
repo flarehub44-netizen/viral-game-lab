@@ -43,6 +43,8 @@ interface Props {
   targetMultiplier?: number;
   /** Multiplicador já sorteado ao iniciar (HUD). */
   resultMultiplier?: number;
+  /** Oculta o prefixo "R$" nos valores monetários do HUD (modo sandbox/admin). */
+  hideCurrencySymbol?: boolean;
 }
 
 const MENU_HOLD_MS = 600;
