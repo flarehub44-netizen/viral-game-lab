@@ -405,7 +405,7 @@ export const GameCanvas = ({
               className="float-up rounded-lg border px-3 py-1 text-center border-border bg-card/85"
             >
               <div className="text-base font-black tabular-nums leading-none text-foreground">
-                +R$ {formatBRL(w.total)}
+                +{hideCurrencySymbol ? "" : "R$ "}{formatBRL(w.total)}
               </div>
               <div className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5 tabular-nums">
                 Barreira {w.barrier} · ×{popupMult.toFixed(2)}
