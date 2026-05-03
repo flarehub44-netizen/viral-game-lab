@@ -146,7 +146,7 @@ export const GameOverScreen = ({
                       : undefined,
                 }}
               >
-                R$ {fmt(serverEconomy.payout)}
+                {cur}{fmt(serverEconomy.payout)}
               </div>
             </div>
           </div>
@@ -170,7 +170,7 @@ export const GameOverScreen = ({
               }}
             >
               {serverEconomy.netResult > 0 ? "+" : ""}
-              R$ {fmt(serverEconomy.netResult)}
+              {cur}{fmt(serverEconomy.netResult)}
             </div>
           </div>
           <p className="text-[10px] text-center text-muted-foreground leading-relaxed px-1">
