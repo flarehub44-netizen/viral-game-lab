@@ -12,6 +12,8 @@ interface Props {
   onConfirm: (stake: number, targetMultiplier: number) => void;
   economySource: "demo" | "server";
   freeSpinsRemaining?: number;
+  /** Oculta o prefixo "R$" nos valores monetários (modo sandbox/admin). */
+  hideCurrencySymbol?: boolean;
 }
 
 function pseudoOnlinePlayers(): number {
@@ -21,7 +23,8 @@ function pseudoOnlinePlayers(): number {
   return 300 + (daySeed % 120);
 }
 
-export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0 }: Props) => {
+export const RoundSetupScreen = ({ balance, busy, onBack, onConfirm, economySource, freeSpinsRemaining = 0, hideCurrencySymbol = false }: Props) => {
+  const cur = hideCurrencySymbol ? "" : "R$ ";
   const [bet, setBet] = useState<number>(0);
   const isDemo = economySource === "demo";
   // Demo: base do multiplicador agora é fixa (sem seletor). Live: usa default.
